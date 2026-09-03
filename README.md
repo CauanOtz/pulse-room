@@ -2,7 +2,7 @@
 
 Pulse Room is a Windows desktop voice room built for small groups that want to share an entire monitor with stereo system audio. Voice and screen audio use separate WebRTC tracks so microphone processing never damages game, film, or music audio.
 
-## What works in version 0.1.0
+## What works today
 
 - Electron desktop shell with an isolated preload bridge and restricted permissions.
 - Full-monitor selection using Electron `desktopCapturer`.
@@ -70,4 +70,4 @@ Releases use semantic versioning:
 - Minor: backward-compatible features, such as `0.2.0`.
 - Major: incompatible changes, such as `1.0.0`.
 
-The tag must exactly match the version in `package.json`. Pushing `v0.1.0` starts the Windows release workflow. It tests the application, builds the installer, publishes `latest.yml`, and creates a GitHub Release. Installed clients then discover the release automatically.
+The tag must exactly match the version in `package.json`. Pushing a tag such as `v0.1.1` starts the Windows release workflow. It tests the application, builds the installer, publishes `latest.yml`, and creates a GitHub Release. Installed clients then discover the release automatically.

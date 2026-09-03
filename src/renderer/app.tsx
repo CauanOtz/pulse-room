@@ -26,7 +26,7 @@ export function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sourcePickerOpen, setSourcePickerOpen] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [version, setVersion] = useState('0.1.0');
+  const [version, setVersion] = useState(__APP_VERSION__);
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus>({ state: 'idle' });
   const [devices, setDevices] = useState<AvailableMediaDevices>({ microphones: [], speakers: [] });
 

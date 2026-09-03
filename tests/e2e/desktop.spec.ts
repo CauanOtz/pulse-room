@@ -1,5 +1,8 @@
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { _electron as electron, expect, test } from '@playwright/test';
+
+const { version } = JSON.parse(readFileSync(path.resolve('package.json'), 'utf8')) as { version: string };
 
 test('launches the secured desktop shell and completes the join flow', async () => {
   const application = await electron.launch({
@@ -19,7 +22,7 @@ test('launches the secured desktop shell and completes the join flow', async () 
     await expect(window.getByRole('heading', { name: 'Voice and video' })).toBeVisible();
     await window.getByLabel('Microphone gain').fill('120');
     await window.getByRole('button', { name: 'Check now' }).click();
-    await expect(window.getByText('Pulse Room 0.1.0 is current.')).toBeVisible();
+    await expect(window.getByText(`Pulse Room ${version} is current.`)).toBeVisible();
     await window.getByRole('button', { name: 'Save changes' }).click();
 
     await window.getByRole('button', { name: 'Share full screen' }).click();
@@ -34,7 +37,7 @@ test('launches the secured desktop shell and completes the join flow', async () 
     await expect(window.getByRole('heading', { name: 'The room is yours' })).toBeVisible();
 
     const bridgeVersion = await window.evaluate(() => window.desktop?.app.getVersion());
-    expect(bridgeVersion).toBe('0.1.0');
+    expect(bridgeVersion).toBe(version);
   } finally {
     await application.close();
   }

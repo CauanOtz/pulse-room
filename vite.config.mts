@@ -1,9 +1,15 @@
+import { createRequire } from 'node:module';
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
+
+const { version } = createRequire(import.meta.url)('./package.json') as { version: string };
 
 export default defineConfig({
   plugins: [react()],
   base: './',
+  define: {
+    __APP_VERSION__: JSON.stringify(version),
+  },
   build: {
     outDir: 'dist',
     emptyOutDir: true,
