@@ -5,6 +5,7 @@ import { _electron as electron, expect, test } from '@playwright/test';
 const { version } = JSON.parse(readFileSync(path.resolve('package.json'), 'utf8')) as { version: string };
 
 test('launches the secured desktop shell and completes the join flow', async () => {
+  test.setTimeout(60_000);
   // No fake devices here: this test has to capture the real monitor.
   const application = await electron.launch({
     args: [path.resolve('.')],
@@ -45,14 +46,28 @@ test('launches the secured desktop shell and completes the join flow', async () 
     await window.keyboard.press('Escape');
     await expect(popover).toBeHidden();
 
+    await application.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows()[0].setContentSize(1080, 680),
+    );
     await window.locator('.profile-strip').getByRole('button', { name: 'Open audio settings' }).click();
     await expect(window.getByRole('heading', { name: 'Voice and video' })).toBeVisible();
+    await window.screenshot({ path: 'test-results/pulse-room-settings.png' });
+    expect(
+      await window.locator('.settings-dialog').evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        return rect.top >= 0 && rect.bottom <= innerHeight && element.scrollWidth <= element.clientWidth;
+      }),
+    ).toBe(true);
     await window.getByLabel('Microphone gain').fill('120');
     await window.getByRole('slider', { name: 'Noise gate' }).fill('70');
     await window.getByRole('checkbox', { name: /Expand screen levels/ }).check();
     await window.getByRole('button', { name: 'Check now' }).click();
     await expect(window.getByText(`Pulse Room ${version} is current.`)).toBeVisible();
+    await window.screenshot({ path: 'test-results/pulse-room-settings-quality.png' });
     await window.getByRole('button', { name: 'Save changes' }).click();
+    await application.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows()[0].setContentSize(1440, 900),
+    );
 
     await window.locator('.voice-panel').getByRole('button', { name: 'Share full screen' }).click();
     const shareDialog = window.getByRole('dialog', { name: 'Share your full screen' });

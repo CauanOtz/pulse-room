@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { LockKeyhole, LogOut } from 'lucide-react';
 import {
   canManage,
   type Account,
@@ -544,63 +545,94 @@ export function AccountDialog({
   const [busy, setBusy] = useState(false);
   return (
     <Modal title="Your account" onClose={onClose}>
-      <p>
-        Signed in as <strong>{user.displayName}</strong> (@{user.username}).
-      </p>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          setBusy(true);
-          void api
-            .request('/api/auth/password', 'POST', { currentPassword, password })
-            .then(() => {
-              setCurrent('');
-              setPassword('');
-              setMessage('Password changed. Other sessions were signed out.');
-            })
-            .catch((e) => setMessage(errorMessage(e)))
-            .finally(() => setBusy(false));
-        }}
-      >
-        <label>
-          Current password
-          <input
-            type="password"
-            autoComplete="current-password"
-            required
-            maxLength={128}
-            value={currentPassword}
-            onChange={(e) => setCurrent(e.target.value)}
-          />
-        </label>
-        <label>
-          New password
-          <input
-            type="password"
-            autoComplete="new-password"
-            required
-            minLength={12}
-            maxLength={128}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </label>
-        <button disabled={busy}>Change password</button>
-      </form>
-      {message && <p role="status">{message}</p>}
-      <button
-        disabled={busy}
-        className="danger-action"
-        onClick={() => {
-          setBusy(true);
-          void onLogout().catch((e) => {
-            setMessage(errorMessage(e));
-            setBusy(false);
-          });
-        }}
-      >
-        Sign out
-      </button>
+      <div className="account-identity">
+        <span className="account-avatar" aria-hidden="true">
+          {user.displayName.slice(0, 2).toUpperCase()}
+        </span>
+        <div>
+          <strong>{user.displayName}</strong>
+          <span>@{user.username}</span>
+        </div>
+        <span className="account-badge">Signed in</span>
+      </div>
+      <section className="account-security">
+        <div className="section-heading">
+          <LockKeyhole size={18} aria-hidden="true" />
+          <div>
+            <h3>Password & security</h3>
+            <p>Use a unique password to keep your rooms private.</p>
+          </div>
+        </div>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            setBusy(true);
+            setMessage('');
+            void api
+              .request('/api/auth/password', 'POST', { currentPassword, password })
+              .then(() => {
+                setCurrent('');
+                setPassword('');
+                setMessage('Password changed. Other sessions were signed out.');
+              })
+              .catch((e) => setMessage(errorMessage(e)))
+              .finally(() => setBusy(false));
+          }}
+        >
+          <label>
+            Current password
+            <input
+              type="password"
+              autoComplete="current-password"
+              required
+              maxLength={128}
+              value={currentPassword}
+              onChange={(e) => setCurrent(e.target.value)}
+            />
+          </label>
+          <div className="form-field">
+            <label>
+              New password
+              <input
+                type="password"
+                autoComplete="new-password"
+                required
+                minLength={12}
+                maxLength={128}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                aria-describedby="password-hint"
+              />
+            </label>
+            <small id="password-hint">At least 12 characters. Other devices will be signed out.</small>
+          </div>
+          <div className="form-actions">
+            <button className="primary-action" disabled={busy}>
+              {busy ? 'Please wait…' : 'Change password'}
+            </button>
+          </div>
+        </form>
+        {message && <p role="status">{message}</p>}
+      </section>
+      <footer className="account-session">
+        <div>
+          <strong>This device</strong>
+          <small>Sign out of Pulse Room on this computer.</small>
+        </div>
+        <button
+          disabled={busy}
+          className="danger-action"
+          onClick={() => {
+            setBusy(true);
+            void onLogout().catch((e) => {
+              setMessage(errorMessage(e));
+              setBusy(false);
+            });
+          }}
+        >
+          <LogOut size={15} aria-hidden="true" /> Sign out
+        </button>
+      </footer>
     </Modal>
   );
 }

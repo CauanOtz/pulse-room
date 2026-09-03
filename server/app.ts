@@ -64,7 +64,10 @@ export async function createServer(
   const actor = (request: FastifyRequest) => authenticated.get(request)!;
   const id = (request: FastifyRequest, key: string) =>
     z.uuid().parse((request.params as Record<string, string>)[key]);
-  await server.register(cors, { origin: true });
+  await server.register(cors, {
+    origin: true,
+    methods: ['GET', 'HEAD', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+  });
   await server.register(rateLimit, { max: 300, timeWindow: '1 minute' });
   server.addHook('onRequest', async (request, reply) => {
     reply.header('Cache-Control', 'no-store');

@@ -254,7 +254,9 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
             <span>#</span>
             <strong>{textChannel?.name ?? activeChannel?.name ?? 'Choose a channel'}</strong>
             <i />
-            {workspace ? workspace.detail.server.name : 'A room for games, films, and unfinished stories.'}
+            <span className="room-description">
+              {workspace ? workspace.detail.server.name : 'A room for games, films, and unfinished stories.'}
+            </span>
             {joined && textChannel && (
               <button onClick={() => setViewId(settings.roomId)}>Return to call</button>
             )}

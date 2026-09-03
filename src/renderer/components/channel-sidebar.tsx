@@ -80,7 +80,7 @@ export function ChannelSidebar(props: ChannelSidebarProps) {
                 onClick={() => props.onSelectText?.(channel.id)}
               >
                 <Hash size={17} />
-                {channel.name}
+                <span className="channel-name">{channel.name}</span>
                 {channel.private && <small>Private</small>}
               </button>
             ))
@@ -108,7 +108,8 @@ export function ChannelSidebar(props: ChannelSidebarProps) {
                 disabled={props.busy}
                 onClick={() => props.onSelectChannel(channel.id)}
               >
-                {index === 0 ? <Volume2 size={17} /> : <Radio size={17} />} {channel.name}
+                {index === 0 ? <Volume2 size={17} /> : <Radio size={17} />}{' '}
+                <span className="channel-name">{channel.name}</span>
               </button>
 
               <ChannelRoster entries={rosterOf(channel.id)} onOpenParticipant={props.onOpenParticipant} />

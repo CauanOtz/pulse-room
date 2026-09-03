@@ -87,6 +87,28 @@ afterAll(async () => {
   await app?.close();
 });
 
+describe('browser transport', () => {
+  it.each(['PATCH', 'DELETE'])(
+    'permits authenticated %s preflights from the desktop renderer',
+    async (method) => {
+      const response = await app.inject({
+        method: 'OPTIONS',
+        url: `/api/servers/${couple.id}`,
+        headers: {
+          origin: 'null',
+          'access-control-request-method': method,
+          'access-control-request-headers': 'authorization,content-type',
+        },
+      });
+      expect(response.statusCode).toBe(204);
+      expect(response.headers['access-control-allow-origin']).toBe('null');
+      expect(String(response.headers['access-control-allow-methods']).split(/,\s*/)).toContain(method);
+      expect(response.headers['access-control-allow-headers']).toContain('authorization');
+      expect((await request(method as 'PATCH' | 'DELETE', `/api/servers/${couple.id}`)).statusCode).toBe(401);
+    },
+  );
+});
+
 describe('authentication', () => {
   it('checks database health and fails closed without persistence', async () => {
     expect((await request('GET', '/health')).statusCode).toBe(200);

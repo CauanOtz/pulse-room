@@ -1,4 +1,4 @@
-import { _electron as electron, expect, test } from '@playwright/test';
+import { _electron as electron, expect, test, type Page } from '@playwright/test';
 import path from 'node:path';
 import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
@@ -6,6 +6,21 @@ import { createServer as createViteServer } from 'vite';
 import { createServer } from '../../server/app';
 import { TestDatabase } from '../helpers/database';
 import type { AccountSession } from '../../src/shared/community';
+
+async function expectContainedDialog(window: Page) {
+  const dialog = window.locator('dialog[open]');
+  await expect(dialog).toBeVisible();
+  const layout = await dialog.evaluate((element) => {
+    const body = element.querySelector('.modal-body')!;
+    const bounds = element.getBoundingClientRect();
+    return {
+      fits: bounds.left >= 0 && bounds.top >= 0 && bounds.right <= innerWidth && bounds.bottom <= innerHeight,
+      bodyFits: body.scrollWidth <= body.clientWidth + 1,
+      pageFits: document.documentElement.scrollWidth <= innerWidth,
+    };
+  });
+  expect(layout).toEqual({ fits: true, bodyFits: true, pageFits: true });
+}
 
 test('accounts, two private servers, invitations, chat, permissions and persistent login', async () => {
   test.setTimeout(120_000);
@@ -56,6 +71,8 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
     await expect(window.getByRole('dialog', { name: 'Save your recovery code' })).toBeVisible();
     await window.getByRole('button', { name: 'I saved my recovery code' }).click();
     await window.getByRole('button', { name: 'Create or join a server' }).click();
+    await expectContainedDialog(window);
+    await window.screenshot({ path: 'test-results/community-create-server.png' });
     await window.getByLabel('Server name', { exact: true }).fill('Just us');
     await window.getByRole('button', { name: 'Create server', exact: true }).click();
     await expect(window.getByRole('button', { name: 'Server settings and members' })).toContainText(
@@ -77,12 +94,16 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
     await window.getByLabel('Channel name', { exact: true }).fill('Game room');
     await window.getByLabel('Private channel', { exact: true }).check();
     await window.getByLabel('Share screen and system audio').uncheck();
+    await expectContainedDialog(window);
+    await window.screenshot({ path: 'test-results/community-channel-permissions.png' });
     await window.getByRole('button', { name: 'Save channel' }).click();
     await expect(window.getByRole('dialog', { name: 'Friends', exact: true })).toBeVisible();
     await window.getByRole('button', { name: 'Invites', exact: true }).click();
     await window.getByRole('button', { name: 'Generate invite' }).click();
     const invite = await window.getByLabel('Invite code — copy and share').inputValue();
     expect(invite).toHaveLength(43);
+    await expectContainedDialog(window);
+    await window.screenshot({ path: 'test-results/community-invite.png' });
     const friendResponse = await backend.inject({
       method: 'POST',
       url: '/api/auth/register',
@@ -117,13 +138,52 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
     await expect(window.getByRole('button', { name: 'Just us', exact: true })).toBeVisible();
     await expect(window.getByRole('heading', { name: 'Welcome back' })).toHaveCount(0);
     await window.getByRole('button', { name: 'Your account' }).click();
+    await expectContainedDialog(window);
+    await expect(window.getByRole('heading', { name: 'Password & security' })).toBeVisible();
+    const changeButton = window.getByRole('button', { name: 'Change password', exact: true });
+    await expect(changeButton).toHaveCSS('background-color', 'rgb(154, 171, 255)');
+    const changeBounds = await changeButton.boundingBox();
+    const signOutBounds = await window.getByRole('button', { name: 'Sign out', exact: true }).boundingBox();
+    expect(signOutBounds!.y - (changeBounds!.y + changeBounds!.height)).toBeGreaterThanOrEqual(20);
+    await window.screenshot({ path: 'test-results/community-account.png' });
+    await application.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows()[0].setContentSize(1080, 680),
+    );
+    await expectContainedDialog(window);
+    await window.screenshot({ path: 'test-results/community-account-compact.png' });
+    await window.keyboard.press('Escape');
+    await expect(window.getByRole('button', { name: 'Your account' })).toBeFocused();
+    await window.getByRole('button', { name: 'Server settings and members' }).click();
+    await window.getByRole('button', { name: 'Settings', exact: true }).click();
+    const longServerName = 'Our private room for games and conversations with friends';
+    await window.getByLabel('Server name', { exact: true }).fill(longServerName);
+    await window.getByRole('button', { name: 'Rename server', exact: true }).click();
+    await expect(window.getByRole('dialog', { name: longServerName, exact: true })).toBeVisible();
+    await expectContainedDialog(window);
+    await window.getByRole('button', { name: 'Close dialog' }).click();
+    expect(
+      await window.locator('.server-heading > span').evaluate((element) => {
+        return (
+          element.scrollWidth > element.clientWidth && getComputedStyle(element).textOverflow === 'ellipsis'
+        );
+      }),
+    ).toBe(true);
+    expect(
+      await window.locator('.app-shell').evaluate((element) => element.scrollWidth <= element.clientWidth),
+    ).toBe(true);
+    await window.screenshot({ path: 'test-results/community-long-name.png' });
+    await window.getByRole('button', { name: 'Your account' }).click();
+    await window.getByLabel('Current password', { exact: true }).fill('Testing private communities!');
+    await window.getByLabel('New password', { exact: true }).fill('A different secure password!');
+    await changeButton.click();
+    await expect(window.getByRole('status')).toContainText('Password changed.');
     await window.getByRole('button', { name: 'Sign out', exact: true }).click();
     await expect(window.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
     await window.getByLabel('Username', { exact: true }).fill('friend');
     await window.getByLabel('Password', { exact: true }).fill('Testing private communities!');
     await window.getByRole('button', { name: 'Sign in', exact: true }).click();
     await expect(window.getByRole('button', { name: 'Friends', exact: true })).toBeVisible();
-    await expect(window.getByRole('button', { name: 'Just us', exact: true })).toHaveCount(0);
+    await expect(window.getByRole('button', { name: longServerName, exact: true })).toHaveCount(0);
     await expect(window.getByRole('button', { name: 'Game room', exact: true })).toHaveCount(0);
     await window.getByRole('button', { name: 'Server settings and members' }).click();
     await expect(window.getByRole('button', { name: 'Invites', exact: true })).toHaveCount(0);

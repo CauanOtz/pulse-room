@@ -24,11 +24,11 @@ export function Modal({ title, children, onClose }: { title: string; children: R
     >
       <header>
         <h2>{title}</h2>
-        <button type="button" aria-label="Close dialog" onClick={onClose}>
+        <button className="modal-close" type="button" aria-label="Close dialog" onClick={onClose}>
           <X size={20} />
         </button>
       </header>
-      {children}
+      <div className="modal-body">{children}</div>
     </dialog>
   );
 }
