@@ -1,5 +1,5 @@
 import { RoomServiceClient } from 'livekit-server-sdk';
-import type { ServerConfiguration } from './config.js';
+import { selectLiveKitConnection, type ServerConfiguration } from './config.js';
 
 export interface RoomOccupant {
   identity: string;
@@ -38,12 +38,13 @@ export class LiveKitPresenceSource implements PresenceSource {
     private readonly cacheMilliseconds = 2_000,
     private readonly now: () => number = Date.now,
   ) {
+    const connection = selectLiveKitConnection(configuration);
     this.client =
       client ??
       new RoomServiceClient(
-        configuration.LIVEKIT_URL.replace(/^wss:/, 'https:'),
-        configuration.LIVEKIT_API_KEY,
-        configuration.LIVEKIT_API_SECRET,
+        connection.url.replace(/^wss:/, 'https:'),
+        connection.apiKey,
+        connection.apiSecret,
       );
   }
 

@@ -52,6 +52,27 @@ describe('token server', () => {
       token: expect.any(String),
     }));
   });
+
+  it('prefers the self-hosted LiveKit deployment when it is configured', async () => {
+    const selfHostedUrl = 'wss://livekit.example.com';
+    const server = await createServer({
+      ...configuration,
+      SELF_HOSTED_LIVEKIT_URL: selfHostedUrl,
+      SELF_HOSTED_LIVEKIT_API_KEY: 'self-hosted-key',
+      SELF_HOSTED_LIVEKIT_API_SECRET: 'self-hosted-secret',
+    });
+    servers.push(server);
+
+    const response = await server.inject({
+      method: 'POST',
+      url: '/api/rooms/lounge/token',
+      headers: { authorization: 'Bearer test-secret' },
+      payload: { participantName: 'Alex' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual(expect.objectContaining({ serverUrl: selfHostedUrl }));
+  });
 });
 
 describe('presence', () => {

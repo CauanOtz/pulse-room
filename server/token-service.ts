@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { AccessToken } from 'livekit-server-sdk';
-import type { ServerConfiguration } from './config.js';
+import { selectLiveKitConnection, type ServerConfiguration } from './config.js';
 
 export interface RoomTokenRequest {
   roomId: string;
@@ -16,10 +16,11 @@ export class TokenService {
   public constructor(private readonly configuration: ServerConfiguration) {}
 
   public async issueRoomToken(request: RoomTokenRequest): Promise<RoomTokenResponse> {
+    const connection = selectLiveKitConnection(this.configuration);
     const identity = `${this.slugify(request.participantName)}-${randomUUID().slice(0, 8)}`;
     const token = new AccessToken(
-      this.configuration.LIVEKIT_API_KEY,
-      this.configuration.LIVEKIT_API_SECRET,
+      connection.apiKey,
+      connection.apiSecret,
       {
         identity,
         name: request.participantName,
@@ -36,7 +37,7 @@ export class TokenService {
     });
 
     return {
-      serverUrl: this.configuration.LIVEKIT_URL,
+      serverUrl: connection.url,
       token: await token.toJwt(),
     };
   }

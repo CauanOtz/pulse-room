@@ -51,6 +51,11 @@ npm run package:windows
 
 Never include `LIVEKIT_API_SECRET` in the desktop build. It belongs only on Railway.
 
+To use a self-hosted server without deleting the LiveKit Cloud configuration,
+set `SELF_HOSTED_LIVEKIT_URL`, `SELF_HOSTED_LIVEKIT_API_KEY`, and
+`SELF_HOSTED_LIVEKIT_API_SECRET` on Railway. Removing those three variables
+switches the token service back to LiveKit Cloud.
+
 ## Verification
 
 ```powershell
