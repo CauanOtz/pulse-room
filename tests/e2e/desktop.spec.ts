@@ -25,8 +25,8 @@ test('launches the secured desktop shell and completes the join flow', async () 
     await expect(window.getByRole('heading', { name: 'Come as you are' })).toBeVisible();
     // Clicking a voice channel is the whole act of joining it.
     await window.getByRole('button', { name: 'Lounge' }).click();
-    await expect(window.getByRole('heading', { name: 'The room is yours' })).toBeVisible();
-    await expect(window.getByRole('button', { name: 'Share full screen' })).toBeVisible();
+    await expect(window.locator('.tile-grid .participant-tile')).toHaveCount(4);
+    await expect(window.locator('.voice-panel').getByRole('button', { name: 'Share full screen' })).toBeVisible();
     // Proof that this build carries no room credentials: only the demo roster
     // is present, so the test can never walk into a real call.
     await expect(window.locator('.voice-roster')).toContainText('Maya');
@@ -43,7 +43,7 @@ test('launches the secured desktop shell and completes the join flow', async () 
     await window.keyboard.press('Escape');
     await expect(popover).toBeHidden();
 
-    await window.getByRole('button', { name: 'Open audio settings' }).click();
+    await window.locator('.profile-strip').getByRole('button', { name: 'Open audio settings' }).click();
     await expect(window.getByRole('heading', { name: 'Voice and video' })).toBeVisible();
     await window.getByLabel('Microphone gain').fill('120');
     await window.getByRole('slider', { name: 'Noise gate' }).fill('70');
@@ -73,10 +73,17 @@ test('launches the secured desktop shell and completes the join flow', async () 
     await window.getByRole('button', { name: 'Exit full screen' }).click();
     await expect(window.getByRole('button', { name: 'Enter full screen' })).toBeVisible();
 
+    // The stream quality menu rides on the caret beside the share button.
+    await window.locator('.stage-live').hover();
+    await window.locator('.call-dock').getByRole('button', { name: 'Stream options' }).click();
+    const streamMenu = window.getByRole('menu', { name: 'Stream options' });
+    await expect(streamMenu.getByRole('menuitemradio', { name: /1080p . 30 fps/ })).toHaveAttribute('aria-checked', 'true');
+    await window.keyboard.press('Escape');
+
     await window.locator('.stage-live').hover();
     await window.locator('.call-dock').getByRole('button', { name: 'Stop sharing' }).click();
     await expect(window.locator('.voice-panel').getByRole('button', { name: 'Share full screen' })).toBeVisible();
-    await expect(window.getByRole('heading', { name: 'The room is yours' })).toBeVisible();
+    await expect(window.locator('.tile-grid .participant-tile')).toHaveCount(4);
 
     // The sidebar moves the call between voice channels.
     await window.getByRole('button', { name: 'Game room' }).click();

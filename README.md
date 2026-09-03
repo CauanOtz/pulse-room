@@ -11,7 +11,8 @@ Pulse Room is a Windows desktop voice room built for small groups that want to s
 - Processed microphone track with echo cancellation, browser noise suppression, an adjustable noise gate, automatic gain control, manual gain, and a limiter.
 - Stereo screen audio at up to 128 kbps, separate from the microphone.
 - 720p30, 1080p30, and 1080p60 screen quality strategies.
-- Several people sharing at once, chosen from live thumbnails, each with its own audio level and full screen.
+- The room drawn as participant tiles, with live screens among them, each with its own audio level and full screen.
+- Stream quality changed mid-broadcast from the caret beside the share button.
 - A voice panel in the sidebar carrying go live, disconnect, mute, deafen, device pickers, and settings.
 - Per-participant volume and local mute from a right click in the sidebar, boosted up to 200%, plus a live microphone meter and selectable input/output devices.
 - Voice channels in the sidebar that join on a click and show who is in each one, arrival and departure cues, and a demo adapter that runs without cloud credentials.

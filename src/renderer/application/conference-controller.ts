@@ -1,7 +1,7 @@
 import type { ConferenceGateway } from './ports/conference-gateway';
 import type { SettingsRepository, UserSettings } from './ports/settings-repository';
 import { noiseGateThresholdDb, screenSharePresets } from '../domain/conference';
-import type { MicrophoneOptions } from '../domain/conference';
+import type { MicrophoneOptions, ScreenSharePresetName } from '../domain/conference';
 
 export class ConferenceController {
   public constructor(
@@ -48,6 +48,15 @@ export class ConferenceController {
 
   public async toggleDeafen(): Promise<void> {
     await this.gateway.setDeafened(!this.gateway.getSnapshot().deafened);
+  }
+
+  /** Changing quality mid-broadcast restarts the capture at the new preset. */
+  public async setScreenQuality(preset: ScreenSharePresetName): Promise<void> {
+    const settings = { ...this.getSettings(), screenSharePreset: preset };
+    this.settingsRepository.save(settings);
+    if (!this.gateway.getSnapshot().screenSharing) return;
+    await this.gateway.stopScreenShare();
+    await this.gateway.startScreenShare(screenSharePresets[preset]);
   }
 
   public async toggleScreenShare(sourceId?: string): Promise<void> {

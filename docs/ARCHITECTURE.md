@@ -122,6 +122,15 @@ inside the picture with the rest of the overlay, appearing on the first movement
 of the mouse and stepping aside again. An empty channel floats nothing over
 itself, because the sidebar already carries those actions.
 
+## The room as tiles
+
+A voice channel is shown the way it is populated: one tile per person, avatar in
+the middle, name plate in the corner, a green ring while they speak. Somebody
+sharing has their picture in the tile with a live badge, and clicking it makes
+that screen the whole stage; clicking it again steps back to the room. While a
+screen is focused, the same tiles continue as a strip under the picture, so the
+room never disappears behind the thing being watched.
+
 ## The live stage
 
 Every participant may publish a screen at the same time. The stage lists each

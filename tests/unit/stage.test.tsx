@@ -31,10 +31,23 @@ afterEach(() => {
 });
 
 describe('Stage', () => {
-  it('invites the room in when nobody is broadcasting', () => {
-    render(<Stage participants={[createParticipant({ id: 'maya', name: 'Maya' })]} joined />);
+  it('invites you in before you have joined anywhere', () => {
+    render(<Stage participants={[]} joined={false} />);
 
-    expect(screen.getByRole('heading', { name: 'The room is yours' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Come as you are' })).toBeInTheDocument();
+  });
+
+  it('shows the room as tiles while no screen is live', () => {
+    const participants = [
+      createParticipant({ id: 'you', name: 'You', isLocal: true }),
+      createParticipant({ id: 'maya', name: 'Maya', isSpeaking: true }),
+    ];
+
+    render(<Stage participants={participants} joined />);
+
+    expect(screen.getByRole('button', { name: 'Maya' })).toBeDisabled();
+    expect(document.querySelectorAll('.participant-tile')).toHaveLength(2);
+    expect(document.querySelector('.participant-tile.is-speaking')).toHaveTextContent('Maya');
   });
 
   it('lets a viewer switch between two live screens', () => {
@@ -48,11 +61,15 @@ describe('Stage', () => {
     // A friend's screen wins the default so the local capture never mirrors itself.
     expect(screen.getByText('Live from Maya')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Your screen' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Watch You' }));
 
     expect(screen.getByText('Live from your screen')).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Your screen' })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByRole('tab', { name: 'Maya' })).toHaveAttribute('aria-selected', 'false');
+    expect(screen.getByRole('button', { name: 'Watch You' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Watch Maya' })).toHaveAttribute('aria-pressed', 'false');
+
+    // Clicking the screen you are watching steps back to the room.
+    fireEvent.click(screen.getByRole('button', { name: 'Watch You' }));
+    expect(screen.queryByText('Live from your screen')).not.toBeInTheDocument();
   });
 
   it('still previews your own screen when you are the only one live', () => {
@@ -66,13 +83,16 @@ describe('Stage', () => {
     expect(screen.getByText('Live from your screen')).toBeInTheDocument();
   });
 
-  it('offers no switcher while a single screen is live', () => {
-    const participants = [createParticipant({ id: 'maya', name: 'Maya', screenStream: new MediaStream() })];
+  it('keeps the room visible as a strip while a screen is live', () => {
+    const participants = [
+      createParticipant({ id: 'maya', name: 'Maya', screenStream: new MediaStream() }),
+      createParticipant({ id: 'noah', name: 'Noah' }),
+    ];
 
     render(<Stage participants={participants} joined />);
 
-    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
     expect(screen.getByText('Live from Maya')).toBeInTheDocument();
+    expect(document.querySelector('.tile-strip')?.querySelectorAll('.participant-tile')).toHaveLength(2);
   });
 
   it('gives screen audio a level of its own', () => {

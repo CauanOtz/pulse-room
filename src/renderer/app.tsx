@@ -181,11 +181,20 @@ export function App() {
           >
             {joined && (
               <CallControls
+                microphoneEnabled={snapshot.microphoneEnabled}
+                deafened={snapshot.deafened}
                 screenSharing={snapshot.screenSharing}
+                quality={settings.screenSharePreset}
                 busy={busy}
-                onLeave={() => void run(() => controller.gateway.leave())}
+                onToggleMicrophone={() => void run(() => controller.toggleMicrophone())}
+                onToggleDeafen={() => void run(() => controller.toggleDeafen())}
                 onShare={handleShareRequest}
+                onSelectQuality={(preset) => {
+                  setSettings((current) => ({ ...current, screenSharePreset: preset }));
+                  void run(() => controller.setScreenQuality(preset));
+                }}
                 onOpenSettings={() => setSettingsOpen(true)}
+                onLeave={() => void run(() => controller.gateway.leave())}
               />
             )}
           </Stage>

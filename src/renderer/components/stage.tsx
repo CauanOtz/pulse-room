@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Headphones, Maximize2, Minimize2, MonitorUp, Radio, ShieldCheck, Volume2 } from 'lucide-react';
 import type { Participant } from '../domain/conference';
 import { MediaOutput } from './media-output';
+import { ParticipantTiles } from './participant-tiles';
 
 interface StageProps {
   participants: Participant[];
@@ -14,11 +15,16 @@ interface StageProps {
 
 export function Stage({ participants, joined, speakerDeviceId, expandLevels, children }: StageProps) {
   const broadcasts = participants.filter((participant) => participant.screenStream);
-  const [preferredId, setPreferredId] = useState<string>();
+  // Undefined follows the room; null is a viewer who stepped back to the grid.
+  const [focusRequest, setFocusRequest] = useState<string | null>();
   // Showing your own monitor on the monitor being captured feeds the capture
   // back into itself, so a friend's screen is the better default view.
-  const fallback = broadcasts.find((broadcast) => !broadcast.isLocal) ?? broadcasts[0];
-  const active = broadcasts.find((broadcast) => broadcast.id === preferredId) ?? fallback;
+  const suggested = broadcasts.find((broadcast) => !broadcast.isLocal) ?? broadcasts[0];
+  const active =
+    focusRequest === null
+      ? undefined
+      : broadcasts.find((broadcast) => broadcast.id === focusRequest) ?? suggested;
+
   const stageRef = useRef<HTMLElement>(null);
   const [fullScreen, setFullScreen] = useState(false);
   // Screen audio carries games and music, so it needs its own level, apart from
@@ -74,110 +80,106 @@ export function Stage({ participants, joined, speakerDeviceId, expandLevels, chi
     }
   }, [active]);
 
-  if (active?.screenStream) {
+  const focus = (participant: Participant) => {
+    if (!participant.screenStream) return;
+    setFocusRequest(participant.id === activeId ? null : participant.id);
+  };
+
+  if (!joined) {
     return (
-      <section
-        className={`stage stage-live${controlsVisible ? '' : ' is-idle'}`}
-        ref={stageRef}
-        onMouseMove={revealControls}
-        onMouseLeave={() => setControlsVisible(false)}
-        onFocusCapture={holdControls}
-      >
-        <div
-          className={`live-toolbar${controlsVisible ? '' : ' is-hidden'}`}
-          onMouseEnter={holdControls}
-          onMouseMove={holdControls}
-        >
-          <div className="live-source">
-            <span className="live-pulse" /> Live from {active.isLocal ? 'your screen' : active.name}
-          </div>
-
-          <div className="live-tools">
-            {!active.isLocal && (
-              <label className="live-volume">
-                <Volume2 size={15} />
-                <input
-                  aria-label={`${active.name} screen volume`}
-                  type="range"
-                  min="0"
-                  max="200"
-                  value={screenVolume}
-                  onChange={(event) =>
-                    setScreenVolumes((volumes) => ({ ...volumes, [active.id]: Number(event.target.value) }))
-                  }
-                />
-                <span>{screenVolume}%</span>
-              </label>
-            )}
-
-            <button
-              className="live-action"
-              type="button"
-              onClick={toggleFullScreen}
-              aria-label={fullScreen ? 'Exit full screen' : 'Enter full screen'}
-            >
-              {fullScreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
-              <span>{fullScreen ? 'Exit' : 'Full screen'}</span>
-            </button>
-          </div>
-        </div>
-
-        <div className="live-surface" onDoubleClick={toggleFullScreen}>
-          <MediaOutput
-            key={active.id}
-            stream={active.screenStream}
-            muted={active.isLocal}
-            speakerDeviceId={speakerDeviceId}
-            video
-            className={expandLevels ? 'screen-video is-expanded' : 'screen-video'}
-            volume={screenVolume}
-          />
-        </div>
-
-        <div className={`live-overlay${controlsVisible ? '' : ' is-hidden'}`}>
-          {broadcasts.length > 1 && (
-            <div className="live-tiles" role="tablist" aria-label="Live screens">
-              {broadcasts.map((broadcast) => (
-                <button
-                  className={`live-tile${broadcast.id === active.id ? ' is-active' : ''}`}
-                  key={broadcast.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={broadcast.id === active.id}
-                  aria-label={broadcast.isLocal ? 'Your screen' : broadcast.name}
-                  onClick={() => setPreferredId(broadcast.id)}
-                >
-                  <MediaOutput
-                    stream={broadcast.screenStream}
-                    muted
-                    video
-                    className="tile-video"
-                    label={`${broadcast.isLocal ? 'Your' : broadcast.name} screen preview`}
-                  />
-                  <span>{broadcast.isLocal ? 'Your screen' : broadcast.name}</span>
-                </button>
-              ))}
-            </div>
-          )}
-          {children}
+      <section className="stage stage-empty" ref={stageRef}>
+        <div className="stage-symbol"><Radio size={22} /></div>
+        <h1>Come as you are</h1>
+        <p>A quiet place for loud nights. Pick a voice channel on the left to join.</p>
+        <div className="stage-facts">
+          <span><ShieldCheck size={16} /> Noise suppression</span>
+          <span><Headphones size={16} /> Separate volumes</span>
+          <span><MonitorUp size={16} /> 1080p screen audio</span>
         </div>
       </section>
     );
   }
 
+  if (!active?.screenStream) {
+    return (
+      <section className="stage stage-room" ref={stageRef}>
+        <ParticipantTiles participants={participants} layout="grid" onFocus={focus} />
+        <div className="live-overlay">{children}</div>
+      </section>
+    );
+  }
+
   return (
-    <section className="stage stage-empty" ref={stageRef}>
-      <div className="stage-symbol"><Radio size={31} /></div>
-      <h1>{joined ? 'The room is yours' : 'Come as you are'}</h1>
-      <p>
-        {joined
-          ? 'Share your entire monitor with game sound, music, and desktop audio in one stream.'
-          : 'A quiet place for loud nights. Pick a voice channel on the left to join.'}
-      </p>
-      <div className="stage-facts">
-        <span><ShieldCheck size={16} /> Noise suppression</span>
-        <span><Headphones size={16} /> Separate volumes</span>
-        <span><MonitorUp size={16} /> 1080p screen audio</span>
+    <section
+      className={`stage stage-live${controlsVisible ? '' : ' is-idle'}`}
+      ref={stageRef}
+      onMouseMove={revealControls}
+      onMouseLeave={() => setControlsVisible(false)}
+      onFocusCapture={holdControls}
+    >
+      <div
+        className={`live-toolbar${controlsVisible ? '' : ' is-hidden'}`}
+        onMouseEnter={holdControls}
+        onMouseMove={holdControls}
+      >
+        <div className="live-source">
+          <span className="live-pulse" /> Live from {active.isLocal ? 'your screen' : active.name}
+        </div>
+
+        <div className="live-tools">
+          {!active.isLocal && (
+            <label className="live-volume">
+              <Volume2 size={15} />
+              <input
+                aria-label={`${active.name} screen volume`}
+                type="range"
+                min="0"
+                max="200"
+                value={screenVolume}
+                onChange={(event) =>
+                  setScreenVolumes((volumes) => ({ ...volumes, [active.id]: Number(event.target.value) }))
+                }
+              />
+              <span>{screenVolume}%</span>
+            </label>
+          )}
+
+          <button
+            className="live-action"
+            type="button"
+            onClick={toggleFullScreen}
+            aria-label={fullScreen ? 'Exit full screen' : 'Enter full screen'}
+          >
+            {fullScreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+            <span>{fullScreen ? 'Exit' : 'Full screen'}</span>
+          </button>
+        </div>
+      </div>
+
+      <div className="live-surface" onDoubleClick={toggleFullScreen}>
+        <MediaOutput
+          key={active.id}
+          stream={active.screenStream}
+          muted={active.isLocal}
+          speakerDeviceId={speakerDeviceId}
+          video
+          className={expandLevels ? 'screen-video is-expanded' : 'screen-video'}
+          volume={screenVolume}
+        />
+      </div>
+
+      <div
+        className={`live-overlay${controlsVisible ? '' : ' is-hidden'}`}
+        onMouseEnter={holdControls}
+        onMouseMove={holdControls}
+      >
+        <ParticipantTiles
+          participants={participants}
+          focusedId={active.id}
+          layout="strip"
+          onFocus={focus}
+        />
+        {children}
       </div>
     </section>
   );
