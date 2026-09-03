@@ -150,7 +150,7 @@ export class LiveKitConferenceGateway extends ObservableConference {
       }
 
       videoTrack.addEventListener('ended', () => void this.stopScreenShare());
-      videoTrack.contentHint = options.frameRate >= 60 ? 'motion' : 'detail';
+      videoTrack.contentHint = options.contentHint;
 
       const videoPublication = await this.room.localParticipant.publishTrack(
         new LocalVideoTrack(videoTrack),

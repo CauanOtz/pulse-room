@@ -23,6 +23,29 @@ export function Stage({ participants, joined, speakerDeviceId, expandLevels }: S
   // the voice volume of the person sharing.
   const [screenVolumes, setScreenVolumes] = useState<Record<string, number>>({});
   const screenVolume = active ? screenVolumes[active.id] ?? 100 : 100;
+  // The controls sit over the picture, so they step aside while nobody reaches
+  // for them, the way a video player does.
+  const [controlsVisible, setControlsVisible] = useState(true);
+  const hideTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  const revealControls = useCallback(() => {
+    setControlsVisible(true);
+    clearTimeout(hideTimer.current);
+    hideTimer.current = setTimeout(() => setControlsVisible(false), 2_600);
+  }, []);
+
+  const holdControls = useCallback(() => {
+    setControlsVisible(true);
+    clearTimeout(hideTimer.current);
+  }, []);
+
+  useEffect(() => () => clearTimeout(hideTimer.current), []);
+
+  // A screen that has just gone live shows its controls, then lets them fade.
+  const activeId = active?.id;
+  useEffect(() => {
+    if (activeId) revealControls();
+  }, [activeId, revealControls]);
 
   useEffect(() => {
     const handleChange = () => setFullScreen(document.fullscreenElement === stageRef.current);
@@ -49,8 +72,18 @@ export function Stage({ participants, joined, speakerDeviceId, expandLevels }: S
 
   if (active?.screenStream) {
     return (
-      <section className="stage stage-live" ref={stageRef}>
-        <div className="live-toolbar">
+      <section
+        className={`stage stage-live${controlsVisible ? '' : ' is-idle'}`}
+        ref={stageRef}
+        onMouseMove={revealControls}
+        onMouseLeave={() => setControlsVisible(false)}
+        onFocusCapture={holdControls}
+      >
+        <div
+          className={`live-toolbar${controlsVisible ? '' : ' is-hidden'}`}
+          onMouseEnter={holdControls}
+          onMouseMove={holdControls}
+        >
           <div className="live-source">
             <span className="live-pulse" /> Live from {active.isLocal ? 'your screen' : active.name}
           </div>

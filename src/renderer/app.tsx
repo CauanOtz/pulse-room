@@ -140,6 +140,8 @@ export function App() {
         devices={devices}
         version={version}
         updateStatus={updateStatus}
+        microphoneLive={joined && snapshot.microphoneEnabled}
+        microphoneProblem={snapshot.error}
         onClose={() => setSettingsOpen(false)}
         onSave={handleSettingsSaved}
         onCheckUpdates={() => window.desktop && void window.desktop.updates.check().then(setUpdateStatus)}

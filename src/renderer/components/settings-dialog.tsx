@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { RefreshCw, X } from 'lucide-react';
+import { noiseGateThresholdDb } from '../domain/conference';
+import { MicrophoneMeter } from './microphone-meter';
 import type { UserSettings } from '../application/ports/settings-repository';
 import type { AvailableMediaDevices } from '../infrastructure/media/media-devices-service';
 import type { UpdateStatus } from '../../shared/desktop-api';
@@ -10,6 +12,8 @@ interface SettingsDialogProps {
   devices: AvailableMediaDevices;
   version: string;
   updateStatus: UpdateStatus;
+  microphoneLive: boolean;
+  microphoneProblem?: string;
   onClose(): void;
   onSave(settings: UserSettings): void;
   onCheckUpdates(): void;
@@ -55,6 +59,18 @@ export function SettingsDialog(props: SettingsDialogProps) {
               {props.devices.speakers.map((device) => <option key={device.id} value={device.id}>{device.label}</option>)}
             </select>
           </label>
+          <div className="mic-status field-span" role="status">
+            <span className={props.microphoneLive ? 'is-live' : 'is-off'} />
+            {props.microphoneLive
+              ? 'Your microphone is live in the room.'
+              : props.microphoneProblem ?? 'Your microphone is not publishing.'}
+          </div>
+
+          <MicrophoneMeter
+            deviceId={settings.microphoneDeviceId}
+            gateThresholdDb={noiseGateThresholdDb(settings.noiseGate)}
+          />
+
           <label className="field-label field-span gain-field">
             <span>Microphone gain <strong>{settings.microphoneGain}%</strong></span>
             <input
@@ -90,9 +106,9 @@ export function SettingsDialog(props: SettingsDialogProps) {
 
           <fieldset className="quality-field field-span">
             <legend>Screen quality</legend>
-            <QualityOption id="efficient" label="Efficient" detail="720p · 30 fps" selected={settings.screenSharePreset === 'efficient'} onSelect={() => setSettings({ ...settings, screenSharePreset: 'efficient' })} />
-            <QualityOption id="balanced" label="Balanced" detail="1080p · 30 fps" selected={settings.screenSharePreset === 'balanced'} onSelect={() => setSettings({ ...settings, screenSharePreset: 'balanced' })} />
-            <QualityOption id="motion" label="Motion" detail="1080p · 60 fps" selected={settings.screenSharePreset === 'motion'} onSelect={() => setSettings({ ...settings, screenSharePreset: 'motion' })} />
+            <QualityOption id="efficient" label="Efficient" detail="720p · 30 fps · up to 2.5 Mbps" selected={settings.screenSharePreset === 'efficient'} onSelect={() => setSettings({ ...settings, screenSharePreset: 'efficient' })} />
+            <QualityOption id="balanced" label="Balanced" detail="1080p · 30 fps · up to 4.5 Mbps" selected={settings.screenSharePreset === 'balanced'} onSelect={() => setSettings({ ...settings, screenSharePreset: 'balanced' })} />
+            <QualityOption id="motion" label="Motion" detail="1080p · 60 fps · up to 7 Mbps" selected={settings.screenSharePreset === 'motion'} onSelect={() => setSettings({ ...settings, screenSharePreset: 'motion' })} />
           </fieldset>
 
           <div className="update-row field-span">

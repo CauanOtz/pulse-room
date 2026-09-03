@@ -31,6 +31,14 @@ if (typeof window !== 'undefined') {
         return [...this.tracks];
       }
 
+      public getAudioTracks(): MediaStreamTrack[] {
+        return this.tracks.filter((track) => track.kind === 'audio');
+      }
+
+      public getVideoTracks(): MediaStreamTrack[] {
+        return this.tracks.filter((track) => track.kind === 'video');
+      }
+
       public getTrackById(id: string): MediaStreamTrack | null {
         return this.tracks.find((track) => track.id === id) ?? null;
       }

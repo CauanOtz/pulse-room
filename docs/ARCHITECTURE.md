@@ -30,7 +30,7 @@ Railway token server
 - **Facade/controller:** `ConferenceController` presents complete user actions such as joining, muting, and sharing instead of exposing transport details to components.
 - **Factory:** `ConferenceGatewayFactory` selects demo or production infrastructure from the build environment.
 - **Repository:** `SettingsRepository` isolates persistence and supports future migration from local storage to a server profile.
-- **Strategy:** named screen quality presets encapsulate the bitrate, resolution, and frame-rate trade-off.
+- **Strategy:** named screen quality presets encapsulate the resolution, frame rate, bitrate ceiling, and the encoder's content hint. The ceiling is not a target: a preset hinted for detail spends its budget keeping text sharp, while one hinted for motion can send far less than a lower preset does.
 - **Observer:** gateways publish immutable snapshots through subscriptions compatible with React's `useSyncExternalStore`.
 - **Service layer:** screen capture, microphone processing, token issuance, and updates each have a single runtime owner.
 - **Registry:** `ParticipantStreamRegistry` keeps one long-lived `MediaStream` per participant and kind, so snapshot rebuilds never hand a new stream to a media element.
@@ -43,7 +43,10 @@ The microphone is captured at 48 kHz and requests browser-native echo cancellati
 
 Browser suppression removes steady broadband noise but leaves fans, keystrokes, and room tone between words, which is what the gate closes. Its strength is one slider: 0 leaves the gate open at -80 dBFS and 100 closes it at -30 dBFS. The worklet is loaded from a real asset file, because `addModule` rejects the inlined data URL a small asset would otherwise become.
 
-A microphone counts as enabled only once its track is published. If the saved input device has disappeared, capture falls back to the system default, and if capture fails entirely the state reports a muted microphone with the reason, rather than a working one nobody can hear.
+The stage controls float over the picture and fade out while nobody reaches for
+them, so a full-screen broadcast is not framed by a permanent bar.
+
+A microphone counts as enabled only once its track is published. If the saved input device has disappeared, capture falls back to the system default. If the processing graph cannot be built at all, which happens on sound cards that refuse a 48 kHz context, the plain microphone is published instead, because being heard matters more than being filtered. Only a machine with no usable microphone ends in a reported failure, and the settings dialog shows the live input level next to the gate threshold so a speaker can tell the difference.
 
 Screen audio is captured by Electron loopback and published separately as stereo Opus. It deliberately bypasses microphone processing to preserve music and game sound.
 

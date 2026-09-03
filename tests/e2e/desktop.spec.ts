@@ -49,6 +49,12 @@ test('launches the secured desktop shell and completes the join flow', async () 
     await expect(window.getByLabel('Shared screen')).toHaveClass(/is-expanded/);
     await window.screenshot({ path: 'test-results/pulse-room-stage.png', fullPage: true });
 
+    // The controls fade away, so reach for them the way a person would.
+    const toolbar = window.locator('.live-toolbar');
+    await expect(toolbar).toHaveClass(/is-hidden/);
+    await window.locator('.stage-live').hover();
+    await expect(toolbar).not.toHaveClass(/is-hidden/);
+
     await window.getByRole('button', { name: 'Enter full screen' }).click();
     await expect(window.getByRole('button', { name: 'Exit full screen' })).toBeVisible();
     await window.getByRole('button', { name: 'Exit full screen' }).click();

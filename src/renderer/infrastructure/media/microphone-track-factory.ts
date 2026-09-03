@@ -5,6 +5,7 @@ import noiseGateProcessorUrl from './noise-gate-processor.js?url&no-inline';
 
 export interface ProcessedMicrophoneTrack {
   track: MediaStreamTrack;
+  processed: boolean;
   dispose(): Promise<void>;
 }
 
@@ -12,7 +13,21 @@ export class MicrophoneTrackFactory {
   public async create(options: MicrophoneOptions): Promise<ProcessedMicrophoneTrack> {
     const inputStream = await this.captureInput(options);
 
-    const context = new AudioContext({ sampleRate: 48_000 });
+    try {
+      return await this.process(inputStream, options);
+    } catch (error) {
+      // Being heard matters more than being filtered: if the processing graph
+      // cannot be built on this machine, publish the plain microphone.
+      console.warn('Microphone processing is unavailable; using the raw input.', error);
+      return this.rawTrack(inputStream);
+    }
+  }
+
+  private async process(
+    inputStream: MediaStream,
+    options: MicrophoneOptions,
+  ): Promise<ProcessedMicrophoneTrack> {
+    const context = this.createContext();
     if (context.state === 'suspended') await context.resume();
 
     const source = context.createMediaStreamSource(inputStream);
@@ -40,17 +55,45 @@ export class MicrophoneTrackFactory {
 
     const processedTrack = output.stream.getAudioTracks()[0];
     if (!processedTrack) {
-      inputStream.getTracks().forEach((track) => track.stop());
       await context.close();
-      throw new Error('The microphone did not provide an audio track.');
+      throw new Error('The audio engine did not produce a microphone track.');
     }
 
     return {
       track: processedTrack,
+      processed: true,
       dispose: async () => {
         inputStream.getTracks().forEach((track) => track.stop());
         processedTrack.stop();
         if (context.state !== 'closed') await context.close();
+      },
+    };
+  }
+
+  /**
+   * Not every sound card runs at 48 kHz, and asking for a rate the device
+   * cannot serve makes the constructor throw instead of resampling.
+   */
+  private createContext(): AudioContext {
+    try {
+      return new AudioContext({ sampleRate: 48_000 });
+    } catch {
+      return new AudioContext();
+    }
+  }
+
+  private rawTrack(inputStream: MediaStream): ProcessedMicrophoneTrack {
+    const track = inputStream.getAudioTracks()[0];
+    if (!track) {
+      inputStream.getTracks().forEach((each) => each.stop());
+      throw new Error('The microphone did not provide an audio track.');
+    }
+
+    return {
+      track,
+      processed: false,
+      dispose: async () => {
+        inputStream.getTracks().forEach((each) => each.stop());
       },
     };
   }

@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Stage } from '../../src/renderer/components/stage';
 import type { Participant } from '../../src/renderer/domain/conference';
@@ -103,6 +103,35 @@ describe('Stage', () => {
 
     rerender(<Stage participants={participants} joined expandLevels />);
     expect(document.querySelector('video')).toHaveClass('is-expanded');
+  });
+
+  it('steps the controls aside while nobody reaches for them', () => {
+    vi.useFakeTimers();
+    try {
+      const participants = [createParticipant({ id: 'maya', name: 'Maya', screenStream: new MediaStream() })];
+      render(<Stage participants={participants} joined />);
+      const toolbar = document.querySelector('.live-toolbar');
+      const stage = document.querySelector('.stage-live') as HTMLElement;
+
+      expect(toolbar).not.toHaveClass('is-hidden');
+
+      act(() => {
+        vi.advanceTimersByTime(3_000);
+      });
+      expect(toolbar).toHaveClass('is-hidden');
+
+      act(() => {
+        fireEvent.mouseMove(stage);
+      });
+      expect(toolbar).not.toHaveClass('is-hidden');
+
+      act(() => {
+        vi.advanceTimersByTime(3_000);
+      });
+      expect(toolbar).toHaveClass('is-hidden');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('enlarges the live screen on request', () => {

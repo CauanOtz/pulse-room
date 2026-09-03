@@ -12,7 +12,7 @@ Pulse Room is a Windows desktop voice room built for small groups that want to s
 - Stereo screen audio at up to 128 kbps, separate from the microphone.
 - 720p30, 1080p30, and 1080p60 screen quality strategies.
 - Several people sharing at once, with a switcher, its own audio level, and full screen on the stage.
-- Per-participant playback volume and selectable input/output devices.
+- Per-participant playback volume, a live microphone meter, and selectable input/output devices.
 - A demo adapter that runs without cloud credentials.
 - A small Fastify token service suitable for Railway.
 - SemVer application versions, NSIS installer generation, and automatic updates from GitHub Releases.
