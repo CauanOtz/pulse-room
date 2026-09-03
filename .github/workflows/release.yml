@@ -95,8 +95,7 @@ jobs:
         run: |
           if [ -z "$KEYSTORE" ]; then echo "The Android signing identity is missing."; exit 1; fi
           # Secrets can carry the line endings of the machine that stored them.
-          printf '%s' "$KEYSTORE" | tr -d '
-' | base64 -d > "$RUNNER_TEMP/pulse-room-android.jks"
+          printf '%s' "$KEYSTORE" | tr -d '[:space:]' | base64 -d > "$RUNNER_TEMP/pulse-room-android.jks"
 
       - name: Build the signed application
         working-directory: android
