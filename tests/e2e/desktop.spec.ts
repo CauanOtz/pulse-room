@@ -35,6 +35,7 @@ test('launches the secured desktop shell and completes the join flow', async () 
     await window.getByRole('button', { name: 'Audio options for Maya' }).click({ button: 'right' });
     const popover = window.getByRole('dialog', { name: 'Maya audio' });
     await expect(popover).toBeVisible();
+    await window.screenshot({ path: 'test-results/pulse-room-popover.png' });
     await popover.getByRole('slider', { name: 'Maya volume' }).fill('160');
     await expect(popover).toContainText('160%');
     await popover.getByRole('button', { name: 'Mute for me' }).click();

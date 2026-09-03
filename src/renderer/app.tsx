@@ -49,12 +49,16 @@ export function App() {
   useEffect(() => {
     const next: RoomPresence = {
       connected: snapshot.connectionState === 'connected',
-      remoteIds: snapshot.participants.filter((participant) => !participant.isLocal).map((participant) => participant.id),
+      remoteIds: snapshot.participants
+        .filter((participant) => !participant.isLocal)
+        .map((participant) => participant.id),
+      microphoneOn: snapshot.microphoneEnabled,
+      broadcastIds: broadcasters.map((participant) => participant.id),
     };
     const sounds = presenceSounds(presence.current, next);
     presence.current = next;
     if (settings.roomSounds) sounds.forEach((sound) => roomSoundPlayer.play(sound));
-  }, [settings.roomSounds, snapshot.connectionState, snapshot.participants]);
+  }, [broadcasters, settings.roomSounds, snapshot.connectionState, snapshot.microphoneEnabled, snapshot.participants]);
 
   // Rooms this client did not join can only be seen through the service.
   useEffect(() => {

@@ -101,7 +101,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
             <Toggle label="Noise suppression" detail="Filtering from the browser audio engine." checked={settings.noiseSuppression} onChange={(checked) => setSettings({ ...settings, noiseSuppression: checked })} />
             <Toggle label="Echo cancellation" detail="Prevent speaker output from returning through your mic." checked={settings.echoCancellation} onChange={(checked) => setSettings({ ...settings, echoCancellation: checked })} />
             <Toggle label="Automatic gain" detail="Keep quiet and loud speech at a stable level." checked={settings.autoGainControl} onChange={(checked) => setSettings({ ...settings, autoGainControl: checked })} />
-            <Toggle label="Arrival sounds" detail="A short cue when somebody joins or leaves the room." checked={settings.roomSounds} onChange={(checked) => setSettings({ ...settings, roomSounds: checked })} />
+            <Toggle label="Room sounds" detail="Short cues for arrivals, muting, and screens going live." checked={settings.roomSounds} onChange={(checked) => setSettings({ ...settings, roomSounds: checked })} />
             <Toggle label="Expand screen levels" detail="Restores true black when a shared screen looks washed out." checked={settings.expandScreenLevels} onChange={(checked) => setSettings({ ...settings, expandScreenLevels: checked })} />
           </div>
 

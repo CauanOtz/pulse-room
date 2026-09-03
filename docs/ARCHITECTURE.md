@@ -101,6 +101,13 @@ is inside a room that was listed a moment earlier can answer that the room does
 not exist. Each room is therefore read on its own: one that vanishes reports an
 empty roster instead of failing the whole request.
 
+## Room cues
+
+Arrivals, departures, muting, and a screen going live each have a short
+synthesised cue, decided by one pure function over the room's state. A change of
+connection speaks for everything that arrived with it, so joining a busy room is
+one sound rather than one per person and one more for the microphone opening.
+
 ## Where the controls live
 
 Clicking a voice channel is the whole act of joining it, so there is no separate

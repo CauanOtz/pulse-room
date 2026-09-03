@@ -35,14 +35,12 @@ export function ParticipantPopover({ entry, position, onVolumeChange, onMutedCha
         onMouseDown={(event) => event.stopPropagation()}
       >
         <header>
-          <span className="avatar-shell small" style={{ '--avatar-accent': entry.accent } as React.CSSProperties}>
-            <span>{entry.initials}</span>
-          </span>
+          <span className="popover-avatar" style={{ background: entry.accent }}>{entry.initials}</span>
           <strong>{entry.name}</strong>
         </header>
 
         <label className="popover-volume">
-          <span>User volume <strong>{entry.volume}%</strong></span>
+          <span>Volume<em>{entry.volume}%</em></span>
           <input
             aria-label={`${entry.name} volume`}
             type="range"
@@ -54,7 +52,7 @@ export function ParticipantPopover({ entry, position, onVolumeChange, onMutedCha
         </label>
 
         <button type="button" className={entry.locallyMuted ? 'popover-action is-active' : 'popover-action'} onClick={() => onMutedChange(!entry.locallyMuted)}>
-          {entry.locallyMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+          {entry.locallyMuted ? <VolumeX size={15} /> : <Volume2 size={15} />}
           {entry.locallyMuted ? 'Unmute for me' : 'Mute for me'}
         </button>
       </div>
