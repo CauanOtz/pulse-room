@@ -89,3 +89,20 @@ describe('ConferenceController', () => {
     }));
   });
 });
+
+describe('microphone options', () => {
+  it('translates the noise gate strength into a threshold in decibels', async () => {
+    const gateway = createGateway();
+    const settingsRepository: SettingsRepository = {
+      load: () => ({ ...defaultSettings, noiseGate: 100 }),
+      save: vi.fn(),
+    };
+    const controller = new ConferenceController(gateway, settingsRepository);
+
+    await controller.join();
+
+    expect(gateway.setMicrophoneEnabled).toHaveBeenCalledWith(true, expect.objectContaining({
+      noiseGateThreshold: -30,
+    }));
+  });
+});

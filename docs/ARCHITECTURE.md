@@ -39,7 +39,11 @@ Patterns are applied only at volatile boundaries. Presentational components rema
 
 ## Audio pipeline
 
-The microphone is captured at 48 kHz and requests browser-native echo cancellation, noise suppression, and automatic gain control. A Web Audio gain node applies the user's chosen level and a dynamics compressor acts as a limiter before the track is encoded as mono Opus.
+The microphone is captured at 48 kHz and requests browser-native echo cancellation, noise suppression, and automatic gain control. The signal then passes a high-pass filter at 90 Hz, a noise gate running in an AudioWorklet, the user's gain, and a dynamics compressor acting as a limiter, before the track is encoded as mono Opus.
+
+Browser suppression removes steady broadband noise but leaves fans, keystrokes, and room tone between words, which is what the gate closes. Its strength is one slider: 0 leaves the gate open at -80 dBFS and 100 closes it at -30 dBFS. The worklet is loaded from a real asset file, because `addModule` rejects the inlined data URL a small asset would otherwise become.
+
+A microphone counts as enabled only once its track is published. If the saved input device has disappeared, capture falls back to the system default, and if capture fails entirely the state reports a muted microphone with the reason, rather than a working one nobody can hear.
 
 Screen audio is captured by Electron loopback and published separately as stereo Opus. It deliberately bypasses microphone processing to preserve music and game sound.
 
@@ -62,8 +66,14 @@ rules keep playback continuous:
 Every participant may publish a screen at the same time. The stage lists each
 live screen and the viewer chooses which one to watch, in normal size or full
 screen. Only the selected screen plays, so its audio is the only screen audio in
-the room. A remote screen wins the default selection, because previewing your
-own monitor on the monitor being captured feeds the capture back into itself.
+the room, and it carries its own volume, separate from the voice level of the
+person sharing. A remote screen wins the default selection, because previewing
+your own monitor on the monitor being captured feeds the capture back into
+itself.
+
+Screen capture travels as limited-range video. A decoder that renders it as full
+range turns black into grey, so an optional filter maps the limited range back
+onto the full one for viewers who see that.
 
 ## Security decisions
 

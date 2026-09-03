@@ -77,12 +77,17 @@ export class LiveKitConferenceGateway extends ObservableConference {
   }
 
   public async setMicrophoneEnabled(enabled: boolean, options: MicrophoneOptions): Promise<void> {
+    await this.disableMicrophone();
+
     if (!enabled) {
-      await this.disableMicrophone();
-    } else {
-      await this.disableMicrophone();
+      this.update({ microphoneEnabled: false });
+      this.refreshParticipants();
+      return;
+    }
+
+    try {
       this.processedMicrophone = await this.microphoneTrackFactory.create(options);
-      this.microphonePublication = await this.room.localParticipant.publishTrack(
+      const publication = await this.room.localParticipant.publishTrack(
         new LocalAudioTrack(this.processedMicrophone.track),
         {
           source: Track.Source.Microphone,
@@ -91,8 +96,21 @@ export class LiveKitConferenceGateway extends ObservableConference {
           red: true,
         },
       );
+      if (publication.isMuted) await publication.unmute();
+      this.microphonePublication = publication;
+      this.update({ microphoneEnabled: true, error: undefined });
+    } catch (error) {
+      // Reporting an open microphone that never published would leave the
+      // speaker believing the room can hear them.
+      await this.disableMicrophone();
+      this.update({
+        microphoneEnabled: false,
+        error: error instanceof Error ? error.message : 'The microphone could not be opened.',
+      });
+      this.refreshParticipants();
+      throw error;
     }
-    this.update({ microphoneEnabled: enabled });
+
     this.refreshParticipants();
   }
 
@@ -237,7 +255,7 @@ export class LiveKitConferenceGateway extends ObservableConference {
       initials: this.getInitials(this.room.localParticipant.name || 'You'),
       accent: '#a8bdff',
       isLocal: true,
-      isMuted: !this.room.localParticipant.isMicrophoneEnabled,
+      isMuted: !this.microphonePublication,
       isSpeaking: this.room.localParticipant.isSpeaking,
       volume: 100,
       screenStream: this.createLocalScreenStream(),

@@ -40,6 +40,16 @@ export interface MicrophoneOptions {
   echoCancellation: boolean;
   noiseSuppression: boolean;
   autoGainControl: boolean;
+  noiseGateThreshold: number;
+}
+
+/**
+ * Turns the friendly 0-100 strength into the level in decibels below which the
+ * microphone is treated as silence. Room tone usually sits near -55 dBFS.
+ */
+export function noiseGateThresholdDb(strength: number): number {
+  const bounded = Math.min(100, Math.max(0, strength));
+  return -80 + (bounded / 100) * 50;
 }
 
 export const screenSharePresets = {

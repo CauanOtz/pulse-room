@@ -5,8 +5,10 @@ export const defaultSettings: UserSettings = {
   roomId: 'lounge',
   microphoneGain: 100,
   noiseSuppression: true,
+  noiseGate: 60,
   echoCancellation: true,
   autoGainControl: true,
+  expandScreenLevels: false,
   screenSharePreset: 'balanced',
 };
 

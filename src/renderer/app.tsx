@@ -75,6 +75,7 @@ export function App() {
 
   return (
     <div className="app-shell">
+      <VideoLevelFilter />
       <ServerRail />
       <ChannelSidebar
         connectionState={snapshot.connectionState}
@@ -96,7 +97,12 @@ export function App() {
         </header>
 
         <div className="room-content">
-          <Stage participants={snapshot.participants} joined={joined} speakerDeviceId={settings.speakerDeviceId} />
+          <Stage
+            participants={snapshot.participants}
+            joined={joined}
+            speakerDeviceId={settings.speakerDeviceId}
+            expandLevels={settings.expandScreenLevels}
+          />
           {snapshot.error && <div className="error-banner" role="alert">{snapshot.error}</div>}
           <CallControls
             joined={joined}
@@ -140,5 +146,24 @@ export function App() {
         onInstallUpdate={() => window.desktop && void window.desktop.updates.install()}
       />
     </div>
+  );
+}
+
+/**
+ * Screen capture is encoded as limited-range video. When a decoder renders it
+ * as full range, black turns into grey. This filter maps the limited range back
+ * onto the full one for viewers who need it.
+ */
+function VideoLevelFilter() {
+  return (
+    <svg className="filter-defs" aria-hidden="true" focusable="false">
+      <filter id="expanded-video-levels" colorInterpolationFilters="sRGB">
+        <feComponentTransfer>
+          <feFuncR type="linear" slope="1.164" intercept="-0.073" />
+          <feFuncG type="linear" slope="1.164" intercept="-0.073" />
+          <feFuncB type="linear" slope="1.164" intercept="-0.073" />
+        </feComponentTransfer>
+      </filter>
+    </svg>
   );
 }

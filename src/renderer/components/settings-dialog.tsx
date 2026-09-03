@@ -68,10 +68,24 @@ export function SettingsDialog(props: SettingsDialogProps) {
             <small>A limiter protects the signal when gain goes above 100%.</small>
           </label>
 
+          <label className="field-label field-span gain-field">
+            <span>Noise gate <strong>{settings.noiseGate}%</strong></span>
+            <input
+              aria-label="Noise gate"
+              type="range"
+              min="0"
+              max="100"
+              value={settings.noiseGate}
+              onChange={(event) => setSettings({ ...settings, noiseGate: Number(event.target.value) })}
+            />
+            <small>Silences fans and keyboards between words. Lower it if your voice gets clipped.</small>
+          </label>
+
           <div className="toggle-block field-span">
-            <Toggle label="Noise suppression" detail="Reduce fans, keyboard noise, and room sound." checked={settings.noiseSuppression} onChange={(checked) => setSettings({ ...settings, noiseSuppression: checked })} />
+            <Toggle label="Noise suppression" detail="Filtering from the browser audio engine." checked={settings.noiseSuppression} onChange={(checked) => setSettings({ ...settings, noiseSuppression: checked })} />
             <Toggle label="Echo cancellation" detail="Prevent speaker output from returning through your mic." checked={settings.echoCancellation} onChange={(checked) => setSettings({ ...settings, echoCancellation: checked })} />
             <Toggle label="Automatic gain" detail="Keep quiet and loud speech at a stable level." checked={settings.autoGainControl} onChange={(checked) => setSettings({ ...settings, autoGainControl: checked })} />
+            <Toggle label="Expand screen levels" detail="Restores true black when a shared screen looks washed out." checked={settings.expandScreenLevels} onChange={(checked) => setSettings({ ...settings, expandScreenLevels: checked })} />
           </div>
 
           <fieldset className="quality-field field-span">

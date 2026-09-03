@@ -5,6 +5,7 @@ import { _electron as electron, expect, test } from '@playwright/test';
 const { version } = JSON.parse(readFileSync(path.resolve('package.json'), 'utf8')) as { version: string };
 
 test('launches the secured desktop shell and completes the join flow', async () => {
+  // No fake devices here: this test has to capture the real monitor.
   const application = await electron.launch({
     args: [path.resolve('.')],
     env: { ...process.env, NODE_ENV: 'test' },
@@ -21,6 +22,8 @@ test('launches the secured desktop shell and completes the join flow', async () 
     await window.getByRole('button', { name: 'Open settings' }).click();
     await expect(window.getByRole('heading', { name: 'Voice and video' })).toBeVisible();
     await window.getByLabel('Microphone gain').fill('120');
+    await window.getByRole('slider', { name: 'Noise gate' }).fill('70');
+    await window.getByRole('checkbox', { name: /Expand screen levels/ }).check();
     await window.getByRole('button', { name: 'Check now' }).click();
     await expect(window.getByText(`Pulse Room ${version} is current.`)).toBeVisible();
     await window.getByRole('button', { name: 'Save changes' }).click();
@@ -32,6 +35,7 @@ test('launches the secured desktop shell and completes the join flow', async () 
     await shareDialog.getByRole('button', { name: 'Share full screen' }).click();
     await expect(window.getByRole('button', { name: 'Stop sharing' })).toBeVisible();
     await expect(window.getByLabel('Shared screen')).toBeVisible();
+    await expect(window.getByLabel('Shared screen')).toHaveClass(/is-expanded/);
     await window.screenshot({ path: 'test-results/pulse-room-stage.png', fullPage: true });
 
     await window.getByRole('button', { name: 'Enter full screen' }).click();

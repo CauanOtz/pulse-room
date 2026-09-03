@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Headphones, Maximize2, Minimize2, MonitorUp, Radio, ShieldCheck } from 'lucide-react';
+import { Headphones, Maximize2, Minimize2, MonitorUp, Radio, ShieldCheck, Volume2 } from 'lucide-react';
 import type { Participant } from '../domain/conference';
 import { MediaOutput } from './media-output';
 
@@ -7,9 +7,10 @@ interface StageProps {
   participants: Participant[];
   joined: boolean;
   speakerDeviceId?: string;
+  expandLevels?: boolean;
 }
 
-export function Stage({ participants, joined, speakerDeviceId }: StageProps) {
+export function Stage({ participants, joined, speakerDeviceId, expandLevels }: StageProps) {
   const broadcasts = participants.filter((participant) => participant.screenStream);
   const [preferredId, setPreferredId] = useState<string>();
   // Showing your own monitor on the monitor being captured feeds the capture
@@ -18,6 +19,10 @@ export function Stage({ participants, joined, speakerDeviceId }: StageProps) {
   const active = broadcasts.find((broadcast) => broadcast.id === preferredId) ?? fallback;
   const stageRef = useRef<HTMLElement>(null);
   const [fullScreen, setFullScreen] = useState(false);
+  // Screen audio carries games and music, so it needs its own level, apart from
+  // the voice volume of the person sharing.
+  const [screenVolumes, setScreenVolumes] = useState<Record<string, number>>({});
+  const screenVolume = active ? screenVolumes[active.id] ?? 100 : 100;
 
   useEffect(() => {
     const handleChange = () => setFullScreen(document.fullscreenElement === stageRef.current);
@@ -67,15 +72,34 @@ export function Stage({ participants, joined, speakerDeviceId }: StageProps) {
             </div>
           )}
 
-          <button
-            className="live-action"
-            type="button"
-            onClick={toggleFullScreen}
-            aria-label={fullScreen ? 'Exit full screen' : 'Enter full screen'}
-          >
-            {fullScreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
-            <span>{fullScreen ? 'Exit' : 'Full screen'}</span>
-          </button>
+          <div className="live-tools">
+            {!active.isLocal && (
+              <label className="live-volume">
+                <Volume2 size={15} />
+                <input
+                  aria-label={`${active.name} screen volume`}
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={screenVolume}
+                  onChange={(event) =>
+                    setScreenVolumes((volumes) => ({ ...volumes, [active.id]: Number(event.target.value) }))
+                  }
+                />
+                <span>{screenVolume}%</span>
+              </label>
+            )}
+
+            <button
+              className="live-action"
+              type="button"
+              onClick={toggleFullScreen}
+              aria-label={fullScreen ? 'Exit full screen' : 'Enter full screen'}
+            >
+              {fullScreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+              <span>{fullScreen ? 'Exit' : 'Full screen'}</span>
+            </button>
+          </div>
         </div>
 
         <div className="live-surface" onDoubleClick={toggleFullScreen}>
@@ -85,8 +109,8 @@ export function Stage({ participants, joined, speakerDeviceId }: StageProps) {
             muted={active.isLocal}
             speakerDeviceId={speakerDeviceId}
             video
-            className="screen-video"
-            volume={active.volume}
+            className={expandLevels ? 'screen-video is-expanded' : 'screen-video'}
+            volume={screenVolume}
           />
         </div>
       </section>

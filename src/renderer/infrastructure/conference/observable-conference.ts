@@ -2,10 +2,12 @@ import type { ConferenceGateway } from '../../application/ports/conference-gatew
 import type { ConferenceSnapshot } from '../../domain/conference';
 
 export abstract class ObservableConference implements ConferenceGateway {
+  // The microphone only counts as enabled once a track is really live, so the
+  // controls never promise the room can hear someone who is not publishing.
   protected snapshot: ConferenceSnapshot = {
     connectionState: 'disconnected',
     participants: [],
-    microphoneEnabled: true,
+    microphoneEnabled: false,
     deafened: false,
     screenSharing: false,
   };

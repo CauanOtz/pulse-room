@@ -74,6 +74,37 @@ describe('Stage', () => {
     expect(screen.getByText('Live from Maya')).toBeInTheDocument();
   });
 
+  it('gives screen audio a level of its own', () => {
+    const participants = [createParticipant({ id: 'maya', name: 'Maya', volume: 40, screenStream: new MediaStream() })];
+
+    render(<Stage participants={participants} joined />);
+    const video = document.querySelector('video');
+    expect(video?.volume).toBe(1);
+
+    fireEvent.change(screen.getByLabelText('Maya screen volume'), { target: { value: '30' } });
+
+    expect(video?.volume).toBeCloseTo(0.3);
+  });
+
+  it('offers no screen volume for your own preview, which plays muted', () => {
+    const participants = [createParticipant({ id: 'you', name: 'You', isLocal: true, screenStream: new MediaStream() })];
+
+    render(<Stage participants={participants} joined />);
+
+    expect(screen.queryByLabelText(/screen volume/)).not.toBeInTheDocument();
+    expect(document.querySelector('video')?.muted).toBe(true);
+  });
+
+  it('expands the video levels only when the viewer asks for it', () => {
+    const participants = [createParticipant({ id: 'maya', name: 'Maya', screenStream: new MediaStream() })];
+
+    const { rerender } = render(<Stage participants={participants} joined />);
+    expect(document.querySelector('video')).not.toHaveClass('is-expanded');
+
+    rerender(<Stage participants={participants} joined expandLevels />);
+    expect(document.querySelector('video')).toHaveClass('is-expanded');
+  });
+
   it('enlarges the live screen on request', () => {
     const participants = [createParticipant({ id: 'maya', name: 'Maya', screenStream: new MediaStream() })];
 

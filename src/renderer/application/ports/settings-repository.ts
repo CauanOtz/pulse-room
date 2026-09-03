@@ -7,8 +7,10 @@ export interface UserSettings {
   speakerDeviceId?: string;
   microphoneGain: number;
   noiseSuppression: boolean;
+  noiseGate: number;
   echoCancellation: boolean;
   autoGainControl: boolean;
+  expandScreenLevels: boolean;
   screenSharePreset: ScreenSharePresetName;
 }
 

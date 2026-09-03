@@ -1,6 +1,7 @@
 import type { ConferenceGateway } from './ports/conference-gateway';
 import type { SettingsRepository, UserSettings } from './ports/settings-repository';
-import { screenSharePresets } from '../domain/conference';
+import { noiseGateThresholdDb, screenSharePresets } from '../domain/conference';
+import type { MicrophoneOptions } from '../domain/conference';
 
 export class ConferenceController {
   public constructor(
@@ -16,38 +17,20 @@ export class ConferenceController {
     this.settingsRepository.save(settings);
     const snapshot = this.gateway.getSnapshot();
     if (snapshot.connectionState === 'connected' && snapshot.microphoneEnabled) {
-      await this.gateway.setMicrophoneEnabled(true, {
-        deviceId: settings.microphoneDeviceId,
-        gain: settings.microphoneGain / 100,
-        echoCancellation: settings.echoCancellation,
-        noiseSuppression: settings.noiseSuppression,
-        autoGainControl: settings.autoGainControl,
-      });
+      await this.gateway.setMicrophoneEnabled(true, this.microphoneOptions(settings));
     }
   }
 
   public async join(): Promise<void> {
     const settings = this.getSettings();
     await this.gateway.join({ roomId: settings.roomId, participantName: settings.displayName });
-    await this.gateway.setMicrophoneEnabled(true, {
-      deviceId: settings.microphoneDeviceId,
-      gain: settings.microphoneGain / 100,
-      echoCancellation: settings.echoCancellation,
-      noiseSuppression: settings.noiseSuppression,
-      autoGainControl: settings.autoGainControl,
-    });
+    await this.gateway.setMicrophoneEnabled(true, this.microphoneOptions(settings));
   }
 
   public async toggleMicrophone(): Promise<void> {
     const settings = this.getSettings();
     const enabled = !this.gateway.getSnapshot().microphoneEnabled;
-    await this.gateway.setMicrophoneEnabled(enabled, {
-      deviceId: settings.microphoneDeviceId,
-      gain: settings.microphoneGain / 100,
-      echoCancellation: settings.echoCancellation,
-      noiseSuppression: settings.noiseSuppression,
-      autoGainControl: settings.autoGainControl,
-    });
+    await this.gateway.setMicrophoneEnabled(enabled, this.microphoneOptions(settings));
   }
 
   public async toggleDeafen(): Promise<void> {
@@ -66,5 +49,16 @@ export class ConferenceController {
 
     const preset = screenSharePresets[this.getSettings().screenSharePreset];
     await this.gateway.startScreenShare(preset);
+  }
+
+  private microphoneOptions(settings: UserSettings): MicrophoneOptions {
+    return {
+      deviceId: settings.microphoneDeviceId,
+      gain: settings.microphoneGain / 100,
+      echoCancellation: settings.echoCancellation,
+      noiseSuppression: settings.noiseSuppression,
+      autoGainControl: settings.autoGainControl,
+      noiseGateThreshold: noiseGateThresholdDb(settings.noiseGate),
+    };
   }
 }

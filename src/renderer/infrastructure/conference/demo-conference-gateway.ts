@@ -6,6 +6,7 @@ import type {
 } from '../../domain/conference';
 import { ObservableConference } from './observable-conference';
 import { createDisplayMediaOptions } from '../media/display-media-options';
+import { MicrophoneTrackFactory, type ProcessedMicrophoneTrack } from '../media/microphone-track-factory';
 
 const demoFriends: Participant[] = [
   {
@@ -42,6 +43,8 @@ const demoFriends: Participant[] = [
 
 export class DemoConferenceGateway extends ObservableConference {
   private displayStream?: MediaStream;
+  private microphone?: ProcessedMicrophoneTrack;
+  private readonly microphoneTrackFactory = new MicrophoneTrackFactory();
 
   public async join(command: JoinRoomCommand): Promise<void> {
     this.update({ connectionState: 'connecting', error: undefined });
@@ -55,7 +58,7 @@ export class DemoConferenceGateway extends ObservableConference {
           initials: this.getInitials(command.participantName),
           accent: '#a8bdff',
           isLocal: true,
-          isMuted: false,
+          isMuted: !this.microphone,
           isSpeaking: false,
           volume: 100,
         },
@@ -66,19 +69,42 @@ export class DemoConferenceGateway extends ObservableConference {
 
   public async leave(): Promise<void> {
     await this.stopScreenShare();
+    await this.releaseMicrophone();
     this.update({ connectionState: 'disconnected', participants: [] });
   }
 
-  public async setMicrophoneEnabled(
-    enabled: boolean,
-    _options: MicrophoneOptions,
-  ): Promise<void> {
+  // The demo transport still opens the real microphone, so the processing
+  // chain and the device fallback behave exactly as they do in a live room.
+  public async setMicrophoneEnabled(enabled: boolean, options: MicrophoneOptions): Promise<void> {
+    await this.releaseMicrophone();
+
+    if (enabled) {
+      try {
+        this.microphone = await this.microphoneTrackFactory.create(options);
+      } catch (error) {
+        this.publishMicrophoneState(false);
+        this.update({
+          error: error instanceof Error ? error.message : 'The microphone could not be opened.',
+        });
+        throw error;
+      }
+    }
+
+    this.publishMicrophoneState(enabled);
+  }
+
+  private publishMicrophoneState(enabled: boolean): void {
     this.update({
       microphoneEnabled: enabled,
       participants: this.snapshot.participants.map((participant) =>
         participant.isLocal ? { ...participant, isMuted: !enabled } : participant,
       ),
     });
+  }
+
+  private async releaseMicrophone(): Promise<void> {
+    await this.microphone?.dispose();
+    this.microphone = undefined;
   }
 
   public async setDeafened(deafened: boolean): Promise<void> {
