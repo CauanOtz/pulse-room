@@ -11,8 +11,16 @@ test('launches the secured desktop shell and completes the join flow', async () 
     env: { ...process.env, NODE_ENV: 'test' },
   });
 
+  const problems: string[] = [];
+
   try {
     const window = await application.firstWindow();
+    window.on('console', (message) => {
+      if (message.type() === 'error') problems.push(`console: ${message.text()}`);
+    });
+    window.on('pageerror', (error) => problems.push(`page error: ${error.message}`));
+    window.on('crash', () => problems.push('the renderer crashed'));
+    await window.evaluate(() => localStorage.removeItem('pulse-room:settings:v1'));
     await expect(window).toHaveTitle('Pulse Room');
     await expect(window.getByRole('heading', { name: 'Come as you are' })).toBeVisible();
     await window.getByRole('button', { name: 'Join voice' }).click();
@@ -44,11 +52,13 @@ test('launches the secured desktop shell and completes the join flow', async () 
     await expect(window.getByRole('button', { name: 'Enter full screen' })).toBeVisible();
 
     await window.getByRole('button', { name: 'Stop sharing' }).click();
+    await expect(window.getByRole('button', { name: 'Share full screen' })).toBeVisible();
     await expect(window.getByRole('heading', { name: 'The room is yours' })).toBeVisible();
 
     const bridgeVersion = await window.evaluate(() => window.desktop?.app.getVersion());
     expect(bridgeVersion).toBe(version);
   } finally {
+    problems.forEach((problem) => console.log('Renderer problem:', problem));
     await application.close();
   }
 });

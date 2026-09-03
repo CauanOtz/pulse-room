@@ -16,6 +16,9 @@ test('runs the microphone through the noise gate when joining', async () => {
     const window = await application.firstWindow();
 
     await window.evaluate(() => {
+      // Settings survive between launches, so start from the shipped defaults.
+      localStorage.removeItem('pulse-room:settings:v1');
+
       const store = { modules: [] as string[], failures: [] as string[], nodes: [] as AudioWorkletNode[] };
       (window as any).gateProbe = store;
 
