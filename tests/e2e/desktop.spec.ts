@@ -33,6 +33,12 @@ test('launches the secured desktop shell and completes the join flow', async () 
     await expect(window.getByRole('button', { name: 'Stop sharing' })).toBeVisible();
     await expect(window.getByLabel('Shared screen')).toBeVisible();
     await window.screenshot({ path: 'test-results/pulse-room-stage.png', fullPage: true });
+
+    await window.getByRole('button', { name: 'Enter full screen' }).click();
+    await expect(window.getByRole('button', { name: 'Exit full screen' })).toBeVisible();
+    await window.getByRole('button', { name: 'Exit full screen' }).click();
+    await expect(window.getByRole('button', { name: 'Enter full screen' })).toBeVisible();
+
     await window.getByRole('button', { name: 'Stop sharing' }).click();
     await expect(window.getByRole('heading', { name: 'The room is yours' })).toBeVisible();
 

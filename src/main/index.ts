@@ -3,6 +3,10 @@ import { app, BrowserWindow, ipcMain, session } from 'electron';
 import { ScreenCaptureService } from './application/screen-capture-service';
 import { UpdateService } from './application/update-service';
 
+// Screen sharing needs media and display capture; the live stage needs the
+// HTML fullscreen permission that Electron asks for separately.
+const allowedPermissions = new Set(['media', 'display-capture', 'fullscreen']);
+
 let mainWindow: BrowserWindow | null = null;
 const screenCaptureService = new ScreenCaptureService();
 const updateService = new UpdateService(() => mainWindow);
@@ -53,11 +57,11 @@ app.whenReady().then(() => {
   registerIpcHandlers();
   mainWindow = createMainWindow();
 
-  session.defaultSession.setPermissionCheckHandler((_webContents, permission) => {
-    return permission === 'media' || permission === 'display-capture';
-  });
+  session.defaultSession.setPermissionCheckHandler((_webContents, permission) =>
+    allowedPermissions.has(permission),
+  );
   session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
-    callback(permission === 'media' || permission === 'display-capture');
+    callback(allowedPermissions.has(permission));
   });
 
   if (app.isPackaged) {

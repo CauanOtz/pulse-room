@@ -33,6 +33,7 @@ Railway token server
 - **Strategy:** named screen quality presets encapsulate the bitrate, resolution, and frame-rate trade-off.
 - **Observer:** gateways publish immutable snapshots through subscriptions compatible with React's `useSyncExternalStore`.
 - **Service layer:** screen capture, microphone processing, token issuance, and updates each have a single runtime owner.
+- **Registry:** `ParticipantStreamRegistry` keeps one long-lived `MediaStream` per participant and kind, so snapshot rebuilds never hand a new stream to a media element.
 
 Patterns are applied only at volatile boundaries. Presentational components remain simple functions.
 
@@ -42,13 +43,35 @@ The microphone is captured at 48 kHz and requests browser-native echo cancellati
 
 Screen audio is captured by Electron loopback and published separately as stereo Opus. It deliberately bypasses microphone processing to preserve music and game sound.
 
+## Stable playback
+
+Media elements restart whenever their `srcObject` is reassigned, which viewers
+see as a flickering screen share and hear as short gaps in the audio. Three
+rules keep playback continuous:
+
+- The gateway reuses one `MediaStream` per participant and kind, and mutates its
+  track list in place.
+- `MediaOutput` reassigns `srcObject` only when the stream itself changes;
+  volume and output device live in their own effects.
+- Adaptive stream is disabled, because it pauses tracks whose elements were not
+  attached through the LiveKit API, and screen shares publish a single quality
+  layer so the sender never hops between resolutions.
+
+## The live stage
+
+Every participant may publish a screen at the same time. The stage lists each
+live screen and the viewer chooses which one to watch, in normal size or full
+screen. Only the selected screen plays, so its audio is the only screen audio in
+the room. A remote screen wins the default selection, because previewing your
+own monitor on the monitor being captured feeds the capture back into itself.
+
 ## Security decisions
 
 - Renderer Node integration is disabled.
 - Context isolation and the Electron sandbox are enabled.
 - The preload bridge exposes a small typed API.
 - New windows are denied.
-- Only media and display-capture permissions are granted.
+- Only media, display-capture, and fullscreen permissions are granted.
 - Only full-screen source IDs are accepted.
 - LiveKit secrets stay on the Railway token server.
 - Room tokens expire after six hours and grant access to one room.

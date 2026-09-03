@@ -31,8 +31,8 @@ export function App() {
   const [devices, setDevices] = useState<AvailableMediaDevices>({ microphones: [], speakers: [] });
 
   const joined = snapshot.connectionState !== 'disconnected';
-  const sharingParticipant = useMemo(
-    () => snapshot.participants.find((participant) => participant.screenStream),
+  const broadcasters = useMemo(
+    () => snapshot.participants.filter((participant) => participant.screenStream),
     [snapshot.participants],
   );
 
@@ -111,7 +111,13 @@ export function App() {
             onShare={handleShareRequest}
             onOpenSettings={() => setSettingsOpen(true)}
           />
-          {sharingParticipant && <span className="share-caption">{sharingParticipant.name} is sharing full-screen audio</span>}
+          {broadcasters.length > 0 && (
+            <span className="share-caption">
+              {broadcasters.length === 1
+                ? `${broadcasters[0].name} is sharing full-screen audio`
+                : `${broadcasters.length} screens are live · pick one on the stage`}
+            </span>
+          )}
         </div>
       </main>
 

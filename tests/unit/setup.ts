@@ -15,6 +15,39 @@ if (typeof window !== 'undefined') {
     }),
   });
 
+  // jsdom has no media stack; playback requests should resolve quietly.
+  HTMLMediaElement.prototype.play = async () => undefined;
+  HTMLMediaElement.prototype.pause = () => undefined;
+
+  if (typeof globalThis.MediaStream === 'undefined') {
+    class MediaStreamStub {
+      private readonly tracks: MediaStreamTrack[] = [];
+
+      public constructor(tracks: MediaStreamTrack[] = []) {
+        tracks.forEach((track) => this.addTrack(track));
+      }
+
+      public getTracks(): MediaStreamTrack[] {
+        return [...this.tracks];
+      }
+
+      public getTrackById(id: string): MediaStreamTrack | null {
+        return this.tracks.find((track) => track.id === id) ?? null;
+      }
+
+      public addTrack(track: MediaStreamTrack): void {
+        if (!this.getTrackById(track.id)) this.tracks.push(track);
+      }
+
+      public removeTrack(track: MediaStreamTrack): void {
+        const index = this.tracks.findIndex((candidate) => candidate.id === track.id);
+        if (index >= 0) this.tracks.splice(index, 1);
+      }
+    }
+
+    globalThis.MediaStream = MediaStreamStub as unknown as typeof MediaStream;
+  }
+
   Object.defineProperty(navigator, 'mediaDevices', {
     configurable: true,
     value: {

@@ -17,6 +17,7 @@ import type {
 } from '../../domain/conference';
 import { ObservableConference } from './observable-conference';
 import { createDisplayMediaOptions } from '../media/display-media-options';
+import { ParticipantStreamRegistry } from '../media/participant-stream-registry';
 import { MicrophoneTrackFactory, type ProcessedMicrophoneTrack } from '../media/microphone-track-factory';
 
 interface TokenResponse {
@@ -30,8 +31,11 @@ export interface LiveKitGatewayConfiguration {
 }
 
 export class LiveKitConferenceGateway extends ObservableConference {
+  // Adaptive stream pauses tracks it believes are off screen, and it can only
+  // see elements attached through the LiveKit API. This client renders media
+  // itself, so the feature would pause a screen share that is plainly visible.
   private readonly room = new Room({
-    adaptiveStream: true,
+    adaptiveStream: false,
     dynacast: true,
     disconnectOnPageLeave: true,
   });
@@ -40,6 +44,7 @@ export class LiveKitConferenceGateway extends ObservableConference {
   private microphonePublication?: LocalTrackPublication;
   private processedMicrophone?: ProcessedMicrophoneTrack;
   private readonly microphoneTrackFactory = new MicrophoneTrackFactory();
+  private readonly streams = new ParticipantStreamRegistry();
 
   public constructor(private readonly configuration: LiveKitGatewayConfiguration) {
     super();
@@ -67,6 +72,7 @@ export class LiveKitConferenceGateway extends ObservableConference {
     await this.stopScreenShare();
     await this.disableMicrophone();
     await this.room.disconnect();
+    this.streams.clear();
     this.update({ connectionState: 'disconnected', participants: [] });
   }
 
@@ -126,6 +132,7 @@ export class LiveKitConferenceGateway extends ObservableConference {
       }
 
       videoTrack.addEventListener('ended', () => void this.stopScreenShare());
+      videoTrack.contentHint = options.frameRate >= 60 ? 'motion' : 'detail';
 
       const videoPublication = await this.room.localParticipant.publishTrack(
         new LocalVideoTrack(videoTrack),
@@ -135,7 +142,10 @@ export class LiveKitConferenceGateway extends ObservableConference {
             maxBitrate: options.maxBitrate,
             maxFramerate: options.frameRate,
           },
-          simulcast: true,
+          // A monitor share has one meaningful resolution. Simulcast would make
+          // the sender hop between quality layers, which viewers see as flicker.
+          simulcast: false,
+          degradationPreference: 'maintain-resolution',
         },
       );
       this.screenPublications.push(videoPublication);
@@ -201,7 +211,10 @@ export class LiveKitConferenceGateway extends ObservableConference {
   private registerRoomEvents(): void {
     this.room
       .on(RoomEvent.ParticipantConnected, () => this.refreshParticipants())
-      .on(RoomEvent.ParticipantDisconnected, () => this.refreshParticipants())
+      .on(RoomEvent.ParticipantDisconnected, (participant: RemoteParticipant) => {
+        this.streams.forget(participant.identity);
+        this.refreshParticipants();
+      })
       .on(RoomEvent.ActiveSpeakersChanged, () => this.refreshParticipants())
       .on(
         RoomEvent.TrackSubscribed,
@@ -211,12 +224,15 @@ export class LiveKitConferenceGateway extends ObservableConference {
       .on(RoomEvent.TrackUnsubscribed, () => this.refreshParticipants())
       .on(RoomEvent.Reconnecting, () => this.update({ connectionState: 'reconnecting' }))
       .on(RoomEvent.Reconnected, () => this.update({ connectionState: 'connected' }))
-      .on(RoomEvent.Disconnected, () => this.update({ connectionState: 'disconnected' }));
+      .on(RoomEvent.Disconnected, () => {
+        this.streams.clear();
+        this.update({ connectionState: 'disconnected', participants: [] });
+      });
   }
 
   private refreshParticipants(): void {
     const local: Participant = {
-      id: this.room.localParticipant.identity || 'local',
+      id: this.localIdentity(),
       name: this.room.localParticipant.name || 'You',
       initials: this.getInitials(this.room.localParticipant.name || 'You'),
       accent: '#a8bdff',
@@ -234,15 +250,15 @@ export class LiveKitConferenceGateway extends ObservableConference {
   }
 
   private mapRemoteParticipant(participant: RemoteParticipant, index: number): Participant {
-    const microphoneStream = new MediaStream();
-    const screenStream = new MediaStream();
+    const microphoneTracks: MediaStreamTrack[] = [];
+    const screenTracks: MediaStreamTrack[] = [];
     participant.trackPublications.forEach((publication) => {
       const mediaTrack = publication.track?.mediaStreamTrack;
       if (!mediaTrack) return;
       if (publication.source === Track.Source.ScreenShare || publication.source === Track.Source.ScreenShareAudio) {
-        screenStream.addTrack(mediaTrack);
+        screenTracks.push(mediaTrack);
       } else if (publication.source === Track.Source.Microphone) {
-        microphoneStream.addTrack(mediaTrack);
+        microphoneTracks.push(mediaTrack);
       }
     });
 
@@ -256,18 +272,20 @@ export class LiveKitConferenceGateway extends ObservableConference {
       isMuted: !participant.isMicrophoneEnabled,
       isSpeaking: participant.isSpeaking,
       volume: Math.round((participant.getVolume(Track.Source.Microphone) ?? 1) * 100),
-      microphoneStream: microphoneStream.getTracks().length ? microphoneStream : undefined,
-      screenStream: screenStream.getTracks().length ? screenStream : undefined,
+      microphoneStream: this.streams.sync(participant.identity, 'microphone', microphoneTracks),
+      screenStream: this.streams.sync(participant.identity, 'screen', screenTracks),
     };
   }
 
   private createLocalScreenStream(): MediaStream | undefined {
-    const stream = new MediaStream();
-    this.screenPublications.forEach((publication) => {
-      const mediaTrack = publication.track?.mediaStreamTrack;
-      if (mediaTrack) stream.addTrack(mediaTrack);
-    });
-    return stream.getTracks().length ? stream : undefined;
+    const tracks = this.screenPublications
+      .map((publication) => publication.track?.mediaStreamTrack)
+      .filter((track): track is MediaStreamTrack => Boolean(track));
+    return this.streams.sync(this.localIdentity(), 'screen', tracks);
+  }
+
+  private localIdentity(): string {
+    return this.room.localParticipant.identity || 'local';
   }
 
   private getInitials(name: string): string {
