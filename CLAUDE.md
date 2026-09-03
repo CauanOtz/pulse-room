@@ -27,3 +27,19 @@ server deployed on Railway.
 
 - `npm run verify` runs the type check, the unit tests, and the Playwright
   Electron end-to-end test. Run it before tagging a release.
+
+## Android
+
+- The phone application lives in `android/` (Kotlin and Compose) and shares the
+  account, server, channel and voice APIs with the desktop client.
+- `.github/workflows/android.yml` runs the unit tests, lint and a debug build on
+  every pull request, and the interface tests on an emulator.
+- Tagging a release also publishes `Pulse-Room-Android-<version>.apk`, signed
+  from the `ANDROID_KEYSTORE_BASE64` and `ANDROID_KEYSTORE_PASSWORD` secrets.
+- The signing identity is permanent: an application signed with a different key
+  cannot update an installed one, so every friend would have to uninstall first.
+  It lives in `%LOCALAPPDATA%\PulseRoomSigning`, where the password is sealed to
+  this Windows account. Keep a copy of the keystore and its password somewhere
+  that survives the machine.
+- `scripts/build-android.ps1` builds locally; `-InitializeSigning` creates the
+  identity once and refuses to replace an existing one.
