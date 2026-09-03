@@ -2,6 +2,9 @@
   "name": "pulse-room",
   "productName": "Pulse Room",
   "version": "0.1.0",
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "private": true,
   "description": "A focused desktop voice room with full-screen system audio sharing.",
   "author": "Pulse Room contributors",
