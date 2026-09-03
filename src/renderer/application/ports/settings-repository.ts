@@ -11,6 +11,7 @@ export interface UserSettings {
   echoCancellation: boolean;
   autoGainControl: boolean;
   expandScreenLevels: boolean;
+  roomSounds: boolean;
   screenSharePreset: ScreenSharePresetName;
 }
 

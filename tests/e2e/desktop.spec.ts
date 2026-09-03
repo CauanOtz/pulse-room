@@ -64,6 +64,13 @@ test('launches the secured desktop shell and completes the join flow', async () 
     await expect(window.getByRole('button', { name: 'Share full screen' })).toBeVisible();
     await expect(window.getByRole('heading', { name: 'The room is yours' })).toBeVisible();
 
+    // The sidebar moves the call between voice channels.
+    await window.getByRole('button', { name: 'Game room' }).click();
+    await expect(window.locator('.connection-card')).toContainText('Game room');
+    await expect(window.getByRole('button', { name: 'Game room' })).toHaveAttribute('aria-current', 'true');
+    await window.getByRole('button', { name: 'Lounge' }).click();
+    await expect(window.locator('.connection-card')).toContainText('Lounge');
+
     const bridgeVersion = await window.evaluate(() => window.desktop?.app.getVersion());
     expect(bridgeVersion).toBe(version);
   } finally {

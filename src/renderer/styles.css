@@ -68,9 +68,9 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .channel-row { display: flex; align-items: center; gap: 9px; width: 100%; padding: 8px 10px; border: 0; border-radius: 7px; background: transparent; color: var(--muted); text-align: left; cursor: pointer; }
 .channel-row:hover { color: var(--ink); background: #172130; }
 .channel-row.is-selected { color: #f3f6ff; background: #1b2636; }
-.voice-roster { display: grid; grid-template-columns: 24px 1fr; gap: 7px 8px; align-items: center; margin: 7px 0 12px 29px; color: #8d9bb0; font-size: 12px; }
+.voice-roster { display: flex; flex-direction: column; gap: 7px; align-items: stretch; margin: 7px 0 12px 29px; color: #8d9bb0; font-size: 12px; }
 .mini-avatar { display: grid; place-items: center; width: 23px; height: 23px; border-radius: 8px; color: #101722; font-size: 8px; font-weight: 800; }
-.mini-avatar.coral { background: #ee8d72; }.mini-avatar.blue { background: #7c98ed; }.mini-avatar.green { background: #7bc6aa; }
+.roster-entry { display: flex; align-items: center; gap: 8px; }.channel-row:disabled { opacity: .45; cursor: not-allowed; }.channel-row:disabled:hover { color: var(--muted); background: transparent; }.channel-note { margin: 4px 0 0 10px; color: var(--dim); font-size: 10px; }
 .connection-card { display: flex; justify-content: space-between; align-items: center; margin: 0 10px 10px; padding: 12px; border: 1px solid #264839; border-radius: 10px; background: #11251f; }
 .connection-card div:first-child { display: flex; flex-direction: column; gap: 3px; }
 .connection-card strong { color: #74d9ae; font-size: 12px; }.connection-card span { color: #6f887f; font-size: 10px; }

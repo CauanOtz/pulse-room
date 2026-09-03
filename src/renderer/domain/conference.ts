@@ -22,6 +22,16 @@ export interface ConferenceSnapshot {
   error?: string;
 }
 
+export interface VoiceChannel {
+  id: string;
+  name: string;
+}
+
+export const voiceChannels: VoiceChannel[] = [
+  { id: 'lounge', name: 'Lounge' },
+  { id: 'game-room', name: 'Game room' },
+];
+
 export interface JoinRoomCommand {
   roomId: string;
   participantName: string;

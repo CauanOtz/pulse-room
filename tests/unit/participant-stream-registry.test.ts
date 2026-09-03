@@ -17,7 +17,7 @@ describe('ParticipantStreamRegistry', () => {
     expect(first?.getTracks()).toHaveLength(1);
   });
 
-  it('keeps the stream instance when a track is added or removed', () => {
+  it('replaces the stream when the tracks change, so elements re-attach', () => {
     const registry = new ParticipantStreamRegistry();
     const video = createTrack('screen-video');
     const audio = createTrack('screen-audio');
@@ -25,12 +25,15 @@ describe('ParticipantStreamRegistry', () => {
     const stream = registry.sync('maya', 'screen', [video]);
 
     const withAudio = registry.sync('maya', 'screen', [video, audio]);
-    expect(withAudio).toBe(stream);
+    expect(withAudio).not.toBe(stream);
     expect(withAudio?.getTracks().map((track) => track.id)).toEqual(['screen-video', 'screen-audio']);
 
-    const withoutAudio = registry.sync('maya', 'screen', [video]);
-    expect(withoutAudio).toBe(stream);
-    expect(withoutAudio?.getTracks().map((track) => track.id)).toEqual(['screen-video']);
+    const again = registry.sync('maya', 'screen', [video, audio]);
+    expect(again).toBe(withAudio);
+
+    const republished = registry.sync('maya', 'screen', [createTrack('screen-video-2')]);
+    expect(republished).not.toBe(withAudio);
+    expect(republished?.getTracks().map((track) => track.id)).toEqual(['screen-video-2']);
   });
 
   it('separates kinds and participants', () => {

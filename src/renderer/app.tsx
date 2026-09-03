@@ -1,7 +1,10 @@
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { Bell, Search, Users } from 'lucide-react';
 import type { UpdateStatus } from '../shared/desktop-api';
 import { ConferenceController } from './application/conference-controller';
+import { emptyPresence, presenceSounds, type RoomPresence } from './application/room-presence';
+import { voiceChannels } from './domain/conference';
+import { RoomSoundPlayer } from './infrastructure/media/room-sound-player';
 import { CallControls } from './components/call-controls';
 import { ChannelSidebar } from './components/channel-sidebar';
 import { ParticipantList } from './components/participant-list';
@@ -16,6 +19,7 @@ import { LocalSettingsRepository } from './infrastructure/persistence/local-sett
 const settingsRepository = new LocalSettingsRepository();
 const controller = new ConferenceController(ConferenceGatewayFactory.create(), settingsRepository);
 const mediaDevicesService = new MediaDevicesService();
+const roomSoundPlayer = new RoomSoundPlayer();
 
 export function App() {
   const snapshot = useSyncExternalStore(
@@ -31,10 +35,22 @@ export function App() {
   const [devices, setDevices] = useState<AvailableMediaDevices>({ microphones: [], speakers: [] });
 
   const joined = snapshot.connectionState !== 'disconnected';
+  const activeChannel = voiceChannels.find((channel) => channel.id === settings.roomId);
   const broadcasters = useMemo(
     () => snapshot.participants.filter((participant) => participant.screenStream),
     [snapshot.participants],
   );
+
+  const presence = useRef<RoomPresence>(emptyPresence);
+  useEffect(() => {
+    const next: RoomPresence = {
+      connected: snapshot.connectionState === 'connected',
+      remoteIds: snapshot.participants.filter((participant) => !participant.isLocal).map((participant) => participant.id),
+    };
+    const sounds = presenceSounds(presence.current, next);
+    presence.current = next;
+    if (settings.roomSounds) sounds.forEach((sound) => roomSoundPlayer.play(sound));
+  }, [settings.roomSounds, snapshot.connectionState, snapshot.participants]);
 
   useEffect(() => {
     void mediaDevicesService.list().then(setDevices);
@@ -53,6 +69,12 @@ export function App() {
       setBusy(false);
     }
   }, []);
+
+  const handleChannelSelect = (channelId: string) => {
+    if (channelId === settings.roomId) return;
+    setSettings((current) => ({ ...current, roomId: channelId }));
+    void run(() => controller.switchRoom(channelId));
+  };
 
   const handleShareRequest = () => {
     if (snapshot.screenSharing) {
@@ -79,16 +101,24 @@ export function App() {
       <ServerRail />
       <ChannelSidebar
         connectionState={snapshot.connectionState}
-        participantCount={snapshot.participants.length}
+        channels={voiceChannels}
+        activeChannelId={settings.roomId}
+        participants={snapshot.participants}
         displayName={settings.displayName}
         microphoneEnabled={snapshot.microphoneEnabled}
         deafened={snapshot.deafened}
+        busy={busy}
+        onSelectChannel={handleChannelSelect}
         onOpenSettings={() => setSettingsOpen(true)}
       />
 
       <main className="room-main">
         <header className="room-header">
-          <div className="room-title"><span>#</span><strong>lounge</strong><i />A room for games, films, and unfinished stories.</div>
+          <div className="room-title">
+            <span>#</span>
+            <strong>{activeChannel?.name ?? settings.roomId}</strong>
+            <i />A room for games, films, and unfinished stories.
+          </div>
           <div className="header-actions">
             <button type="button" aria-label="Notifications"><Bell size={18} /></button>
             <button type="button" aria-label="Members"><Users size={19} /></button>

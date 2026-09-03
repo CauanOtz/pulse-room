@@ -16,8 +16,8 @@ export class ConferenceController {
   public async saveSettings(settings: UserSettings): Promise<void> {
     this.settingsRepository.save(settings);
     const snapshot = this.gateway.getSnapshot();
-    if (snapshot.connectionState === 'connected' && snapshot.microphoneEnabled) {
-      await this.gateway.setMicrophoneEnabled(true, this.microphoneOptions(settings));
+    if (snapshot.connectionState === 'connected') {
+      await this.gateway.applyMicrophoneOptions(this.microphoneOptions(settings));
     }
   }
 
@@ -25,6 +25,15 @@ export class ConferenceController {
     const settings = this.getSettings();
     await this.gateway.join({ roomId: settings.roomId, participantName: settings.displayName });
     await this.gateway.setMicrophoneEnabled(true, this.microphoneOptions(settings));
+  }
+
+  /** Moving between voice channels means leaving one room and joining another. */
+  public async switchRoom(roomId: string): Promise<void> {
+    const settings = { ...this.getSettings(), roomId };
+    this.settingsRepository.save(settings);
+    if (this.gateway.getSnapshot().connectionState === 'disconnected') return;
+    await this.gateway.leave();
+    await this.join();
   }
 
   public async toggleMicrophone(): Promise<void> {

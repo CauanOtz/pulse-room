@@ -34,6 +34,9 @@ export abstract class ObservableConference implements ConferenceGateway {
     enabled: boolean,
     options: import('../../domain/conference').MicrophoneOptions,
   ): Promise<void>;
+  public abstract applyMicrophoneOptions(
+    options: import('../../domain/conference').MicrophoneOptions,
+  ): Promise<void>;
   public abstract setDeafened(deafened: boolean): Promise<void>;
   public abstract startScreenShare(
     options: import('../../domain/conference').ScreenShareOptions,

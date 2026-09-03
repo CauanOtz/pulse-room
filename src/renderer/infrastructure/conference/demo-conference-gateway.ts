@@ -102,6 +102,14 @@ export class DemoConferenceGateway extends ObservableConference {
     });
   }
 
+  public async applyMicrophoneOptions(options: MicrophoneOptions): Promise<void> {
+    if (!this.microphone) {
+      await this.setMicrophoneEnabled(this.snapshot.microphoneEnabled, options);
+      return;
+    }
+    this.microphone.apply(options);
+  }
+
   private async releaseMicrophone(): Promise<void> {
     await this.microphone?.dispose();
     this.microphone = undefined;

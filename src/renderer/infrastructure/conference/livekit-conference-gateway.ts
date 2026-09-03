@@ -45,6 +45,10 @@ export class LiveKitConferenceGateway extends ObservableConference {
   private processedMicrophone?: ProcessedMicrophoneTrack;
   private readonly microphoneTrackFactory = new MicrophoneTrackFactory();
   private readonly streams = new ParticipantStreamRegistry();
+  // LiveKit reports the volume of the elements it attached itself, and this
+  // client renders its own, so playback levels are kept here.
+  private readonly volumes = new Map<string, number>();
+  private microphoneOptions?: MicrophoneOptions;
 
   public constructor(private readonly configuration: LiveKitGatewayConfiguration) {
     super();
@@ -98,6 +102,7 @@ export class LiveKitConferenceGateway extends ObservableConference {
       );
       if (publication.isMuted) await publication.unmute();
       this.microphonePublication = publication;
+      this.microphoneOptions = options;
       this.update({ microphoneEnabled: true, error: undefined });
     } catch (error) {
       // Reporting an open microphone that never published would leave the
@@ -114,6 +119,32 @@ export class LiveKitConferenceGateway extends ObservableConference {
     this.refreshParticipants();
   }
 
+  /**
+   * Gain and the noise gate live in the running graph, so changing them must
+   * not republish the track: the room would lose the speaker for a moment and
+   * listeners would be left with a stream whose track had been swapped.
+   */
+  public async applyMicrophoneOptions(options: MicrophoneOptions): Promise<void> {
+    if (this.needsRecapture(options)) {
+      await this.setMicrophoneEnabled(this.snapshot.microphoneEnabled, options);
+      return;
+    }
+
+    this.microphoneOptions = options;
+    this.processedMicrophone?.apply(options);
+  }
+
+  private needsRecapture(options: MicrophoneOptions): boolean {
+    const current = this.microphoneOptions;
+    if (!current || !this.microphonePublication) return true;
+    return (
+      current.deviceId !== options.deviceId ||
+      current.echoCancellation !== options.echoCancellation ||
+      current.noiseSuppression !== options.noiseSuppression ||
+      current.autoGainControl !== options.autoGainControl
+    );
+  }
+
   private async disableMicrophone(): Promise<void> {
     const publication = this.microphonePublication;
     this.microphonePublication = undefined;
@@ -122,6 +153,7 @@ export class LiveKitConferenceGateway extends ObservableConference {
     }
     await this.processedMicrophone?.dispose();
     this.processedMicrophone = undefined;
+    this.microphoneOptions = undefined;
   }
 
   public async setDeafened(deafened: boolean): Promise<void> {
@@ -203,9 +235,7 @@ export class LiveKitConferenceGateway extends ObservableConference {
   }
 
   public setParticipantVolume(participantId: string, volume: number): void {
-    const participant = this.room.remoteParticipants.get(participantId);
-    participant?.setVolume(volume / 100, Track.Source.Microphone);
-    participant?.setVolume(volume / 100, Track.Source.ScreenShareAudio);
+    this.volumes.set(participantId, Math.min(100, Math.max(0, volume)));
     this.refreshParticipants();
   }
 
@@ -231,6 +261,7 @@ export class LiveKitConferenceGateway extends ObservableConference {
       .on(RoomEvent.ParticipantConnected, () => this.refreshParticipants())
       .on(RoomEvent.ParticipantDisconnected, (participant: RemoteParticipant) => {
         this.streams.forget(participant.identity);
+        this.volumes.delete(participant.identity);
         this.refreshParticipants();
       })
       .on(RoomEvent.ActiveSpeakersChanged, () => this.refreshParticipants())
@@ -289,7 +320,7 @@ export class LiveKitConferenceGateway extends ObservableConference {
       isLocal: false,
       isMuted: !participant.isMicrophoneEnabled,
       isSpeaking: participant.isSpeaking,
-      volume: Math.round((participant.getVolume(Track.Source.Microphone) ?? 1) * 100),
+      volume: this.volumes.get(participant.identity) ?? 100,
       microphoneStream: this.streams.sync(participant.identity, 'microphone', microphoneTracks),
       screenStream: this.streams.sync(participant.identity, 'screen', screenTracks),
     };

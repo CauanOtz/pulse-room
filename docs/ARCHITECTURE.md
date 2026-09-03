@@ -33,7 +33,7 @@ Railway token server
 - **Strategy:** named screen quality presets encapsulate the resolution, frame rate, bitrate ceiling, and the encoder's content hint. The ceiling is not a target: a preset hinted for detail spends its budget keeping text sharp, while one hinted for motion can send far less than a lower preset does.
 - **Observer:** gateways publish immutable snapshots through subscriptions compatible with React's `useSyncExternalStore`.
 - **Service layer:** screen capture, microphone processing, token issuance, and updates each have a single runtime owner.
-- **Registry:** `ParticipantStreamRegistry` keeps one long-lived `MediaStream` per participant and kind, so snapshot rebuilds never hand a new stream to a media element.
+- **Registry:** `ParticipantStreamRegistry` keeps one `MediaStream` per participant and kind for as long as its tracks last, so snapshot rebuilds never hand a new stream to a media element, and a republished track always arrives as a new one.
 
 Patterns are applied only at volatile boundaries. Presentational components remain simple functions.
 
@@ -50,6 +50,13 @@ A microphone counts as enabled only once its track is published. If the saved in
 
 Screen audio is captured by Electron loopback and published separately as stereo Opus. It deliberately bypasses microphone processing to preserve music and game sound.
 
+## Playback levels
+
+Playback volume belongs to this client. LiveKit reports the volume of the audio
+elements it attached itself, and this client renders its own, so asking the SDK
+returns the level of a set of elements that does not exist. The gateway holds a
+level per participant instead, at full volume until somebody moves the slider.
+
 ## Stable playback
 
 Media elements restart whenever their `srcObject` is reassigned, which viewers
@@ -63,6 +70,9 @@ rules keep playback continuous:
 - Adaptive stream is disabled, because it pauses tracks whose elements were not
   attached through the LiveKit API, and screen shares publish a single quality
   layer so the sender never hops between resolutions.
+- Gain and the noise gate are applied to the running audio graph. Republishing
+  the microphone for a settings change would drop the speaker out of the room
+  for a moment and hand listeners a stream whose track had been replaced.
 
 ## The live stage
 

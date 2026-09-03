@@ -6,6 +6,8 @@ import noiseGateProcessorUrl from './noise-gate-processor.js?url&no-inline';
 export interface ProcessedMicrophoneTrack {
   track: MediaStreamTrack;
   processed: boolean;
+  /** Retunes the live graph, so a settings change never interrupts the call. */
+  apply(options: MicrophoneOptions): void;
   dispose(): Promise<void>;
 }
 
@@ -39,7 +41,7 @@ export class MicrophoneTrackFactory {
 
     highPass.type = 'highpass';
     highPass.frequency.value = 90;
-    gain.gain.value = Math.min(1.5, Math.max(0, options.gain));
+    gain.gain.value = this.boundedGain(options.gain);
     limiter.threshold.value = -3;
     limiter.knee.value = 3;
     limiter.ratio.value = 20;
@@ -59,15 +61,26 @@ export class MicrophoneTrackFactory {
       throw new Error('The audio engine did not produce a microphone track.');
     }
 
+    const apply = (next: MicrophoneOptions) => {
+      gain.gain.value = this.boundedGain(next.gain);
+      gate?.parameters.get('threshold')?.setValueAtTime(next.noiseGateThreshold, context.currentTime);
+      gate?.parameters.get('enabled')?.setValueAtTime(next.noiseSuppression ? 1 : 0, context.currentTime);
+    };
+
     return {
       track: processedTrack,
       processed: true,
+      apply,
       dispose: async () => {
         inputStream.getTracks().forEach((track) => track.stop());
         processedTrack.stop();
         if (context.state !== 'closed') await context.close();
       },
     };
+  }
+
+  private boundedGain(gain: number): number {
+    return Math.min(1.5, Math.max(0, gain));
   }
 
   /**
@@ -92,6 +105,7 @@ export class MicrophoneTrackFactory {
     return {
       track,
       processed: false,
+      apply: () => undefined,
       dispose: async () => {
         inputStream.getTracks().forEach((each) => each.stop());
       },

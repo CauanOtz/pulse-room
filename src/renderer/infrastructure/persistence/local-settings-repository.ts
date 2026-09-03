@@ -9,6 +9,7 @@ export const defaultSettings: UserSettings = {
   echoCancellation: true,
   autoGainControl: true,
   expandScreenLevels: false,
+  roomSounds: true,
   screenSharePreset: 'balanced',
 };
 

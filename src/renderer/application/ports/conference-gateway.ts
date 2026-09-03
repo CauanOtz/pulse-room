@@ -11,6 +11,7 @@ export interface ConferenceGateway {
   join(command: JoinRoomCommand): Promise<void>;
   leave(): Promise<void>;
   setMicrophoneEnabled(enabled: boolean, options: MicrophoneOptions): Promise<void>;
+  applyMicrophoneOptions(options: MicrophoneOptions): Promise<void>;
   setDeafened(deafened: boolean): Promise<void>;
   startScreenShare(options: ScreenShareOptions): Promise<void>;
   stopScreenShare(): Promise<void>;

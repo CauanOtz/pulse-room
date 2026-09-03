@@ -1,17 +1,23 @@
 import { ChevronDown, Hash, Headphones, Mic, Radio, Settings, Volume2 } from 'lucide-react';
-import type { ConnectionState } from '../domain/conference';
+import type { ConnectionState, Participant, VoiceChannel } from '../domain/conference';
 
 interface ChannelSidebarProps {
   connectionState: ConnectionState;
-  participantCount: number;
+  channels: VoiceChannel[];
+  activeChannelId: string;
+  participants: Participant[];
   displayName: string;
   microphoneEnabled: boolean;
   deafened: boolean;
+  busy: boolean;
+  onSelectChannel(channelId: string): void;
   onOpenSettings(): void;
 }
 
 export function ChannelSidebar(props: ChannelSidebarProps) {
   const isConnected = props.connectionState === 'connected' || props.connectionState === 'reconnecting';
+  const activeChannel = props.channels.find((channel) => channel.id === props.activeChannelId);
+
   return (
     <aside className="channel-sidebar">
       <button className="server-heading" type="button">
@@ -22,23 +28,39 @@ export function ChannelSidebar(props: ChannelSidebarProps) {
       <div className="channel-scroll">
         <section className="channel-group">
           <h2>Text channels</h2>
-          <button className="channel-row" type="button"><Hash size={17} /> general</button>
-          <button className="channel-row" type="button"><Hash size={17} /> clips-and-chaos</button>
+          <button className="channel-row" type="button" disabled><Hash size={17} /> general</button>
+          <button className="channel-row" type="button" disabled><Hash size={17} /> clips-and-chaos</button>
+          <p className="channel-note">Text chat is still to be built.</p>
         </section>
 
         <section className="channel-group">
           <h2>Voice channels</h2>
-          <button className="channel-row is-selected" type="button">
-            <Volume2 size={17} /> Lounge
-          </button>
-          {isConnected && (
-            <div className="voice-roster">
-              <span className="mini-avatar coral">MA</span><span>Maya</span>
-              <span className="mini-avatar blue">NO</span><span>Noah</span>
-              <span className="mini-avatar green">LE</span><span>Leo</span>
+          {props.channels.map((channel, index) => (
+            <div key={channel.id}>
+              <button
+                className={`channel-row${channel.id === props.activeChannelId ? ' is-selected' : ''}`}
+                type="button"
+                aria-current={channel.id === props.activeChannelId}
+                disabled={props.busy}
+                onClick={() => props.onSelectChannel(channel.id)}
+              >
+                {index === 0 ? <Volume2 size={17} /> : <Radio size={17} />} {channel.name}
+              </button>
+
+              {isConnected && channel.id === props.activeChannelId && props.participants.length > 0 && (
+                <div className="voice-roster">
+                  {props.participants.map((participant) => (
+                    <span className="roster-entry" key={participant.id}>
+                      <span className="mini-avatar" style={{ background: participant.accent }}>
+                        {participant.initials}
+                      </span>
+                      {participant.name}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
-          <button className="channel-row" type="button"><Radio size={17} /> Game room</button>
+          ))}
         </section>
       </div>
 
@@ -46,7 +68,7 @@ export function ChannelSidebar(props: ChannelSidebarProps) {
         <div className="connection-card">
           <div>
             <strong>{props.connectionState === 'reconnecting' ? 'Reconnecting' : 'Voice connected'}</strong>
-            <span>Lounge · {props.participantCount} people</span>
+            <span>{activeChannel?.name ?? props.activeChannelId} · {props.participants.length} people</span>
           </div>
           <div className="signal-bars" aria-label="Good connection"><i /><i /><i /></div>
         </div>
