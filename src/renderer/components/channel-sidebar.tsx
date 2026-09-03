@@ -1,6 +1,10 @@
-import { ChevronDown, Hash, Headphones, Mic, MicOff, Radio, Settings, Volume2, VolumeX } from 'lucide-react';
+import { useState } from 'react';
+import { ChevronDown, ChevronUp, Hash, Headphones, Mic, MicOff, Radio, Settings, Volume2, VolumeX } from 'lucide-react';
 import type { ConnectionState, Participant, VoiceChannel } from '../domain/conference';
 import { channelRoster, type ChannelOccupancy, type RosterEntry } from '../domain/roster';
+import type { AvailableMediaDevices } from '../infrastructure/media/media-devices-service';
+import { DeviceMenu } from './device-menu';
+import { VoicePanel } from './voice-panel';
 
 interface ChannelSidebarProps {
   connectionState: ConnectionState;
@@ -12,15 +16,24 @@ interface ChannelSidebarProps {
   deafened: boolean;
   joined: boolean;
   busy: boolean;
+  screenSharing: boolean;
+  devices: AvailableMediaDevices;
+  microphoneDeviceId?: string;
+  speakerDeviceId?: string;
   occupancy: ChannelOccupancy[];
   onSelectChannel(channelId: string): void;
   onToggleMicrophone(): void;
   onToggleDeafen(): void;
+  onSelectMicrophone(deviceId?: string): void;
+  onSelectSpeaker(deviceId?: string): void;
+  onLeave(): void;
+  onShare(): void;
   onOpenParticipant(entry: RosterEntry, position: { x: number; y: number }): void;
   onOpenSettings(): void;
 }
 
 export function ChannelSidebar(props: ChannelSidebarProps) {
+  const [openMenu, setOpenMenu] = useState<'microphone' | 'speaker'>();
   const isConnected = props.connectionState === 'connected' || props.connectionState === 'reconnecting';
   const activeChannel = props.channels.find((channel) => channel.id === props.activeChannelId);
   const rosterOf = (channelId: string) =>
@@ -67,13 +80,14 @@ export function ChannelSidebar(props: ChannelSidebarProps) {
       </div>
 
       {isConnected && (
-        <div className="connection-card">
-          <div>
-            <strong>{props.connectionState === 'reconnecting' ? 'Reconnecting' : 'Voice connected'}</strong>
-            <span>{activeChannel?.name ?? props.activeChannelId} · {props.participants.length} people</span>
-          </div>
-          <div className="signal-bars" aria-label="Good connection"><i /><i /><i /></div>
-        </div>
+        <VoicePanel
+          connectionState={props.connectionState}
+          channelName={`${activeChannel?.name ?? props.activeChannelId} · ${props.participants.length} people`}
+          screenSharing={props.screenSharing}
+          busy={props.busy}
+          onLeave={props.onLeave}
+          onShare={props.onShare}
+        />
       )}
 
       <div className="profile-strip">
@@ -82,26 +96,69 @@ export function ChannelSidebar(props: ChannelSidebarProps) {
           <strong>{props.displayName}</strong>
           <small>{props.joined ? 'In voice' : 'Ready'}</small>
         </span>
-        <button
-          type="button"
-          disabled={!props.joined || props.busy}
-          aria-label={props.microphoneEnabled ? 'Mute microphone' : 'Unmute microphone'}
-          onClick={props.onToggleMicrophone}
-        >
-          {props.joined && !props.microphoneEnabled ? <MicOff size={17} className="is-off" /> : <Mic size={17} />}
-        </button>
-        <button
-          type="button"
-          disabled={!props.joined || props.busy}
-          aria-label="Toggle deafen"
-          onClick={props.onToggleDeafen}
-        >
-          <Headphones size={17} className={props.deafened ? 'is-off' : ''} />
-        </button>
+        <span className="device-control">
+          <button
+            type="button"
+            disabled={!props.joined || props.busy}
+            aria-label={props.microphoneEnabled ? 'Mute microphone' : 'Unmute microphone'}
+            onClick={props.onToggleMicrophone}
+          >
+            {props.joined && !props.microphoneEnabled ? <MicOff size={17} className="is-off" /> : <Mic size={17} />}
+          </button>
+          <button
+            className="device-caret"
+            type="button"
+            aria-label="Choose microphone"
+            aria-expanded={openMenu === 'microphone'}
+            onClick={() => setOpenMenu(openMenu === 'microphone' ? undefined : 'microphone')}
+          >
+            {openMenu === 'microphone' ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+          </button>
+        </span>
+
+        <span className="device-control">
+          <button
+            type="button"
+            disabled={!props.joined || props.busy}
+            aria-label="Toggle deafen"
+            onClick={props.onToggleDeafen}
+          >
+            <Headphones size={17} className={props.deafened ? 'is-off' : ''} />
+          </button>
+          <button
+            className="device-caret"
+            type="button"
+            aria-label="Choose speakers"
+            aria-expanded={openMenu === 'speaker'}
+            onClick={() => setOpenMenu(openMenu === 'speaker' ? undefined : 'speaker')}
+          >
+            {openMenu === 'speaker' ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+          </button>
+        </span>
+
         <button type="button" aria-label="Open audio settings" onClick={props.onOpenSettings}>
           <Settings size={17} />
         </button>
       </div>
+
+      {openMenu === 'microphone' && (
+        <DeviceMenu
+          title="Microphone"
+          devices={props.devices.microphones}
+          selectedId={props.microphoneDeviceId}
+          onSelect={props.onSelectMicrophone}
+          onClose={() => setOpenMenu(undefined)}
+        />
+      )}
+      {openMenu === 'speaker' && (
+        <DeviceMenu
+          title="Speakers"
+          devices={props.devices.speakers}
+          selectedId={props.speakerDeviceId}
+          onSelect={props.onSelectSpeaker}
+          onClose={() => setOpenMenu(undefined)}
+        />
+      )}
     </aside>
   );
 }

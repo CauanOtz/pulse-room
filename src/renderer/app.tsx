@@ -147,9 +147,17 @@ export function App() {
         deafened={snapshot.deafened}
         joined={joined}
         busy={busy}
+        screenSharing={snapshot.screenSharing}
+        devices={devices}
+        microphoneDeviceId={settings.microphoneDeviceId}
+        speakerDeviceId={settings.speakerDeviceId}
         occupancy={occupancy}
         onToggleMicrophone={() => void run(() => controller.toggleMicrophone())}
         onToggleDeafen={() => void run(() => controller.toggleDeafen())}
+        onSelectMicrophone={(deviceId) => handleSettingsSaved({ ...settings, microphoneDeviceId: deviceId })}
+        onSelectSpeaker={(deviceId) => handleSettingsSaved({ ...settings, speakerDeviceId: deviceId })}
+        onLeave={() => void run(() => controller.gateway.leave())}
+        onShare={handleShareRequest}
         onSelectChannel={handleChannelSelect}
         onOpenParticipant={(entry, position) => setOpenParticipant({ id: entry.id, position })}
         onOpenSettings={() => setSettingsOpen(true)}

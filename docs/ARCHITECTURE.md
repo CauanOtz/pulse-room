@@ -111,10 +111,16 @@ one sound rather than one per person and one more for the microphone opening.
 ## Where the controls live
 
 Clicking a voice channel is the whole act of joining it, so there is no separate
-join step. Microphone and deafen sit with the person they belong to, in the
-profile strip of the sidebar, and the rest of the call controls ride inside the
-picture with the rest of the overlay, appearing on the first movement of the
-mouse and stepping aside again.
+join step. Everything that acts on the call then sits in the sidebar, under the
+channels: where you are and how to leave, a button to go live, and, beside the
+person they belong to, the microphone, the speakers, and the settings. Each of
+the two devices carries a caret that opens the short list of the ones attached,
+so changing a microphone never means opening a dialog.
+
+While a screen is live, the same share, settings, and leave actions also ride
+inside the picture with the rest of the overlay, appearing on the first movement
+of the mouse and stepping aside again. An empty channel floats nothing over
+itself, because the sidebar already carries those actions.
 
 ## The live stage
 

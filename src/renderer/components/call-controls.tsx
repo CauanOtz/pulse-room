@@ -20,7 +20,7 @@ export function CallControls(props: CallControlsProps) {
       >
         <MonitorUp size={19} />
       </button>
-      <button type="button" onClick={props.onOpenSettings} aria-label="Open settings" title="Audio settings">
+      <button type="button" onClick={props.onOpenSettings} aria-label="Open audio settings" title="Audio settings">
         <Settings2 size={19} />
       </button>
       <button className="leave-button" type="button" onClick={props.onLeave} aria-label="Leave call" title="Leave call" disabled={props.busy}>

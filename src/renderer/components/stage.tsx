@@ -179,7 +179,6 @@ export function Stage({ participants, joined, speakerDeviceId, expandLevels, chi
         <span><Headphones size={16} /> Separate volumes</span>
         <span><MonitorUp size={16} /> 1080p screen audio</span>
       </div>
-      <div className="live-overlay">{children}</div>
     </section>
   );
 }

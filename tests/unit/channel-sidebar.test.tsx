@@ -8,6 +8,9 @@ afterEach(cleanup);
 function renderSidebar(overrides: Partial<Parameters<typeof ChannelSidebar>[0]> = {}) {
   const onSelectChannel = vi.fn();
   const onOpenParticipant = vi.fn();
+  const onSelectMicrophone = vi.fn();
+  const onLeave = vi.fn();
+  const onShare = vi.fn();
   render(
     <ChannelSidebar
       connectionState="connected"
@@ -21,16 +24,22 @@ function renderSidebar(overrides: Partial<Parameters<typeof ChannelSidebar>[0]> 
       deafened={false}
       joined
       busy={false}
+      screenSharing={false}
+      devices={{ microphones: [{ id: 'usb-1', label: 'USB microphone' }], speakers: [] }}
       occupancy={[]}
       onSelectChannel={onSelectChannel}
       onOpenParticipant={onOpenParticipant}
       onToggleMicrophone={vi.fn()}
       onToggleDeafen={vi.fn()}
+      onSelectMicrophone={onSelectMicrophone}
+      onSelectSpeaker={vi.fn()}
+      onLeave={onLeave}
+      onShare={onShare}
       onOpenSettings={vi.fn()}
       {...overrides}
     />,
   );
-  return { onSelectChannel, onOpenParticipant };
+  return { onSelectChannel, onOpenParticipant, onSelectMicrophone, onLeave, onShare };
 }
 
 describe('ChannelSidebar', () => {
@@ -47,7 +56,7 @@ describe('ChannelSidebar', () => {
 
     expect(screen.getByRole('button', { name: 'Lounge' })).toHaveAttribute('aria-current', 'true');
     expect(screen.getByText('Lounge · 1 people')).toBeInTheDocument();
-    expect(screen.getByText('Lounge · 1 people').closest('aside')?.querySelector('.roster-entry')).toHaveTextContent('You');
+    expect(screen.getByRole('complementary').querySelector('.roster-entry')).toHaveTextContent('You');
   });
 
   it('holds still while a switch is in flight', () => {
@@ -79,5 +88,33 @@ describe('ChannelSidebar', () => {
       expect.objectContaining({ id: 'babi', name: 'babi' }),
       expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }),
     );
+  });
+
+  it('carries the voice controls beside the person they belong to', () => {
+    const { onLeave, onShare } = renderSidebar();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Share full screen' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Leave call' }));
+
+    expect(onShare).toHaveBeenCalledTimes(1);
+    expect(onLeave).toHaveBeenCalledTimes(1);
+  });
+
+  it('changes the microphone from the caret beside it', () => {
+    const { onSelectMicrophone } = renderSidebar();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Choose microphone' }));
+    fireEvent.click(screen.getByRole('menuitemradio', { name: 'USB microphone' }));
+
+    expect(onSelectMicrophone).toHaveBeenCalledWith('usb-1');
+  });
+
+  it('offers the system default as a way back', () => {
+    const { onSelectMicrophone } = renderSidebar({ microphoneDeviceId: 'usb-1' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Choose microphone' }));
+    fireEvent.click(screen.getByRole('menuitemradio', { name: 'System default' }));
+
+    expect(onSelectMicrophone).toHaveBeenCalledWith(undefined);
   });
 });

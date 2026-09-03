@@ -43,7 +43,7 @@ test('launches the secured desktop shell and completes the join flow', async () 
     await window.keyboard.press('Escape');
     await expect(popover).toBeHidden();
 
-    await window.getByRole('button', { name: 'Open settings' }).click();
+    await window.getByRole('button', { name: 'Open audio settings' }).click();
     await expect(window.getByRole('heading', { name: 'Voice and video' })).toBeVisible();
     await window.getByLabel('Microphone gain').fill('120');
     await window.getByRole('slider', { name: 'Noise gate' }).fill('70');
@@ -52,13 +52,12 @@ test('launches the secured desktop shell and completes the join flow', async () 
     await expect(window.getByText(`Pulse Room ${version} is current.`)).toBeVisible();
     await window.getByRole('button', { name: 'Save changes' }).click();
 
-    await window.locator('.stage').hover();
-    await window.getByRole('button', { name: 'Share full screen' }).click();
+    await window.locator('.voice-panel').getByRole('button', { name: 'Share full screen' }).click();
     const shareDialog = window.getByRole('dialog', { name: 'Share your full screen' });
     await expect(shareDialog).toBeVisible();
     await expect(window.getByText('System audio is included automatically on Windows.')).toBeVisible();
     await shareDialog.getByRole('button', { name: 'Share full screen' }).click();
-    await expect(window.getByRole('button', { name: 'Stop sharing' })).toBeVisible();
+    await expect(window.locator('.voice-panel').getByRole('button', { name: 'Stop sharing' })).toBeVisible();
     await expect(window.getByLabel('Shared screen')).toBeVisible();
     await expect(window.getByLabel('Shared screen')).toHaveClass(/is-expanded/);
     await window.screenshot({ path: 'test-results/pulse-room-stage.png', fullPage: true });
@@ -75,16 +74,16 @@ test('launches the secured desktop shell and completes the join flow', async () 
     await expect(window.getByRole('button', { name: 'Enter full screen' })).toBeVisible();
 
     await window.locator('.stage-live').hover();
-    await window.getByRole('button', { name: 'Stop sharing' }).click();
-    await expect(window.getByRole('button', { name: 'Share full screen' })).toBeVisible();
+    await window.locator('.call-dock').getByRole('button', { name: 'Stop sharing' }).click();
+    await expect(window.locator('.voice-panel').getByRole('button', { name: 'Share full screen' })).toBeVisible();
     await expect(window.getByRole('heading', { name: 'The room is yours' })).toBeVisible();
 
     // The sidebar moves the call between voice channels.
     await window.getByRole('button', { name: 'Game room' }).click();
-    await expect(window.locator('.connection-card')).toContainText('Game room');
+    await expect(window.locator('.voice-panel')).toContainText('Game room');
     await expect(window.getByRole('button', { name: 'Game room' })).toHaveAttribute('aria-current', 'true');
     await window.getByRole('button', { name: 'Lounge' }).click();
-    await expect(window.locator('.connection-card')).toContainText('Lounge');
+    await expect(window.locator('.voice-panel')).toContainText('Lounge');
 
     const bridgeVersion = await window.evaluate(() => window.desktop?.app.getVersion());
     expect(bridgeVersion).toBe(version);
