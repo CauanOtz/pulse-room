@@ -6,7 +6,8 @@ if (-not $env:JAVA_HOME -and (Test-Path "$toolCache\jdk")) {
     $env:JAVA_HOME = (Get-ChildItem "$toolCache\jdk" -Directory | Select-Object -First 1).FullName
 }
 if (-not $env:ANDROID_HOME -and (Test-Path "$toolCache\sdk")) { $env:ANDROID_HOME = "$toolCache\sdk" }
-if (-not $env:JAVA_HOME -or -not $env:ANDROID_HOME) { throw 'Install JDK 17 and Android SDK 36, then set JAVA_HOME and ANDROID_HOME.' }
+# Creating the signing identity needs a JDK only; the SDK is a build concern.
+if (-not $env:JAVA_HOME) { throw 'Install JDK 17 and set JAVA_HOME.' }
 $env:PATH = "$env:JAVA_HOME\bin;$env:PATH"
 $signingDirectory = Join-Path $env:LOCALAPPDATA 'PulseRoomSigning'
 $signingPasswordFile = Join-Path $signingDirectory 'password.xml'
@@ -16,7 +17,9 @@ if ($InitializeSigning) {
     if ((Test-Path $keyStore) -or (Test-Path $signingPasswordFile)) { throw 'Signing files already exist. Never replace a published signing identity.' }
     New-Item -ItemType Directory -Path $signingDirectory -Force | Out-Null
     $bytes = New-Object byte[] 32
-    [System.Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
+    # Create()/GetBytes works on Windows PowerShell as well as PowerShell 7.
+    $generator = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+    try { $generator.GetBytes($bytes) } finally { $generator.Dispose() }
     $password = [Convert]::ToBase64String($bytes)
     $credential = New-Object System.Management.Automation.PSCredential('pulse-room', (ConvertTo-SecureString $password -AsPlainText -Force))
     # Export-Clixml encrypts the password with the current Windows user's DPAPI key.
@@ -25,7 +28,9 @@ if ($InitializeSigning) {
     $env:PULSE_ANDROID_KEY_PASSWORD = $password
     & "$env:JAVA_HOME\bin\keytool.exe" -genkeypair -keystore $keyStore -storetype PKCS12 -alias pulse-room -keyalg RSA -keysize 3072 -validity 10000 -dname 'CN=Pulse Room Android' -storepass:env PULSE_ANDROID_STORE_PASSWORD -keypass:env PULSE_ANDROID_KEY_PASSWORD
     if ($LASTEXITCODE -ne 0) { throw 'Signing key generation failed. Preserve the signing directory for inspection.' }
+    if (-not ($Release -or $ConnectedTests)) { Write-Output "Signing identity ready: $keyStore"; return }
 }
+if (-not $env:ANDROID_HOME) { throw 'Install Android SDK 36 and set ANDROID_HOME.' }
 try {
     if ($Release -and -not $env:PULSE_ANDROID_KEYSTORE) {
         if (-not (Test-Path $keyStore) -or -not (Test-Path $signingPasswordFile)) { throw 'Initialize signing once with -InitializeSigning -Release, or provide the PULSE_ANDROID_* signing variables.' }
