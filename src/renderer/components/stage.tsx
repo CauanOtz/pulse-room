@@ -167,8 +167,6 @@ export function Stage({ participants, joined, speakerDeviceId, expandLevels, chi
 
   return (
     <section className="stage stage-empty" ref={stageRef}>
-      <div className="ambient-ring ring-one" />
-      <div className="ambient-ring ring-two" />
       <div className="stage-symbol"><Radio size={31} /></div>
       <h1>{joined ? 'The room is yours' : 'Come as you are'}</h1>
       <p>

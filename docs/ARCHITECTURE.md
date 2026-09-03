@@ -131,6 +131,14 @@ Screen capture travels as limited-range video. A decoder that renders it as full
 range turns black into grey, so an optional filter maps the limited range back
 onto the full one for viewers who see that.
 
+## Visual density
+
+The interface follows one scale rather than a set of one-off values: rows are
+28 to 32 pixels tall, radii are 4 pixels for anything inside a panel and 8 for
+the panels themselves, and a shadow appears only on something that floats above
+the page. Call controls are round and carry an icon alone, because a label under
+every icon is what made the old dock twice the height it needed.
+
 ## Security decisions
 
 - Renderer Node integration is disabled.

@@ -16,15 +16,15 @@ export function CallControls(props: CallControlsProps) {
         type="button"
         onClick={props.onShare}
         aria-label={props.screenSharing ? 'Stop sharing' : 'Share full screen'}
+        title={props.screenSharing ? 'Stop sharing' : 'Share full screen'}
       >
-        <MonitorUp size={20} /><span>{props.screenSharing ? 'Stop share' : 'Share screen'}</span>
+        <MonitorUp size={19} />
       </button>
-      <button type="button" onClick={props.onOpenSettings} aria-label="Open settings">
-        <Settings2 size={20} /><span>Audio</span>
+      <button type="button" onClick={props.onOpenSettings} aria-label="Open settings" title="Audio settings">
+        <Settings2 size={19} />
       </button>
-      <span className="dock-rule" />
-      <button className="leave-button" type="button" onClick={props.onLeave} aria-label="Leave call" disabled={props.busy}>
-        <PhoneOff size={20} /><span>Leave</span>
+      <button className="leave-button" type="button" onClick={props.onLeave} aria-label="Leave call" title="Leave call" disabled={props.busy}>
+        <PhoneOff size={19} />
       </button>
     </div>
   );

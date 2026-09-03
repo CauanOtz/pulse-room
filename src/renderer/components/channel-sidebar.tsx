@@ -51,9 +51,9 @@ export function ChannelSidebar(props: ChannelSidebarProps) {
           {props.channels.map((channel, index) => (
             <div key={channel.id}>
               <button
-                className={`channel-row${channel.id === props.activeChannelId ? ' is-selected' : ''}`}
+                className={`channel-row${isConnected && channel.id === props.activeChannelId ? ' is-selected' : ''}`}
                 type="button"
-                aria-current={channel.id === props.activeChannelId}
+                aria-current={isConnected && channel.id === props.activeChannelId}
                 disabled={props.busy}
                 onClick={() => props.onSelectChannel(channel.id)}
               >
@@ -88,7 +88,7 @@ export function ChannelSidebar(props: ChannelSidebarProps) {
           aria-label={props.microphoneEnabled ? 'Mute microphone' : 'Unmute microphone'}
           onClick={props.onToggleMicrophone}
         >
-          {props.microphoneEnabled ? <Mic size={17} /> : <MicOff size={17} className="is-off" />}
+          {props.joined && !props.microphoneEnabled ? <MicOff size={17} className="is-off" /> : <Mic size={17} />}
         </button>
         <button
           type="button"

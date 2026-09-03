@@ -182,13 +182,6 @@ export function App() {
             )}
           </Stage>
           {snapshot.error && <div className="error-banner" role="alert">{snapshot.error}</div>}
-          {broadcasters.length > 0 && (
-            <span className="share-caption">
-              {broadcasters.length === 1
-                ? `${broadcasters[0].name} is sharing full-screen audio`
-                : `${broadcasters.length} screens are live · pick one on the stage`}
-            </span>
-          )}
         </div>
       </main>
 
