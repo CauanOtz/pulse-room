@@ -18,6 +18,11 @@ Pulse Room is a Windows desktop voice room built for small groups that want to s
 - Voice channels in the sidebar that join on a click and show who is in each one, arrival and departure cues, and a demo adapter that runs without cloud credentials.
 - A small Fastify token service suitable for Railway.
 - SemVer application versions, NSIS installer generation, and automatic updates from GitHub Releases.
+- Individual accounts, encrypted desktop sessions, password recovery codes and session revocation.
+- Private servers with expiring, limited-use invitations; owner, administrator and member roles.
+- Text and voice channel creation, editing and deletion, private channel membership, speaking/sharing/posting permissions.
+- Persistent text chat with history pagination and author/administrator deletion.
+- Server-scoped presence, authenticated voice tokens and continuous live permission enforcement.
 
 ## Local development
 
@@ -25,6 +30,7 @@ Requirements:
 
 - Windows 10 version 2004 or newer.
 - Node.js 24.
+- PostgreSQL for accounts, permissions and message persistence.
 - A LiveKit Cloud project or self-hosted LiveKit deployment for real multi-user calls.
 
 Install and run the desktop app in demo mode:
@@ -34,22 +40,25 @@ npm install
 npm run dev
 ```
 
-Demo mode exercises the interface and local screen capture. Real calls are enabled when `VITE_API_URL` and `VITE_ROOM_ACCESS_CODE` are present during the renderer build.
+Demo mode exercises the interface and local screen capture. Set `VITE_API_URL` to enable the account-based application. The shared room access code is no longer used or accepted.
 
 ## Real calls
 
 1. Copy `.env.example` to `.env.local`.
-2. Set the LiveKit URL, API key, API secret, and a private room access code on Railway.
+2. Add PostgreSQL and set `DATABASE_URL` plus the LiveKit URL, API key and API secret on Railway. Use the private database network. Migrations run transactionally at startup; the service refuses to start without a database.
 3. Deploy this repository to Railway. `railway.json` builds and starts only the token service.
 4. Set these values before building the desktop app:
 
 ```powershell
 $env:VITE_API_URL = 'https://your-api.up.railway.app'
-$env:VITE_ROOM_ACCESS_CODE = 'your-private-access-code'
 npm run package:windows
 ```
 
 Never include `LIVEKIT_API_SECRET` in the desktop build. It belongs only on Railway.
+
+Each person creates their own account and saves their recovery code. Create separate servers for friends and family, then share each server's invitation only with its intended members. There is no public server directory. Server owners/admins manage invites and channels from the server heading; only the owner can assign administrators, transfer ownership or delete the server.
+
+See [docs/COMMUNITIES.md](docs/COMMUNITIES.md) for deployment, permissions, backups and migration limitations. **Old anonymous desktop clients cannot join after deploying the account-based backend. Coordinate the backend rollout with the new installer.**
 
 To use a self-hosted server without deleting the LiveKit Cloud configuration,
 set `SELF_HOSTED_LIVEKIT_URL`, `SELF_HOSTED_LIVEKIT_API_KEY`, and

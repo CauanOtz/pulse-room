@@ -15,6 +15,10 @@ export type UpdateStatus =
   | { state: 'error'; message: string };
 
 export interface DesktopApi {
+  session: {
+    read(): Promise<string | null>;
+    save(token: string | null): Promise<boolean>;
+  };
   app: {
     getVersion(): Promise<string>;
     getPlatform(): Promise<NodeJS.Platform>;

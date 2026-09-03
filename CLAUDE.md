@@ -19,8 +19,9 @@ server deployed on Railway.
   and publishes the GitHub Release with `latest.yml` for automatic updates.
 - Installer file names must not contain spaces. GitHub rewrites spaces in
   release asset names to dots, which breaks the update feed URL.
-- Repository configuration the release build needs: variable `VITE_API_URL`
-  and secret `VITE_ROOM_ACCESS_CODE`.
+- Repository configuration the release build needs: variable `VITE_API_URL`.
+  Individual account sessions replace the old `VITE_ROOM_ACCESS_CODE` secret.
+  The backend requires PostgreSQL through its private `DATABASE_URL`.
 
 ## Checks
 

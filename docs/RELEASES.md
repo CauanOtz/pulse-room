@@ -4,7 +4,7 @@
 
 1. Push the project to a private or public GitHub repository.
 2. Enable GitHub Actions with permission to create releases.
-3. Build the client with `VITE_API_URL` and `VITE_ROOM_ACCESS_CODE` configured as repository variables or injected into the workflow.
+3. Build the client with `VITE_API_URL` configured as a repository variable. Account sessions replace the old bundled `VITE_ROOM_ACCESS_CODE` secret. The backend also requires PostgreSQL (`DATABASE_URL`).
 4. For public distribution, add a Windows code-signing certificate. Unsigned installers work but Windows SmartScreen may warn users.
 
 ## Hardware checklist

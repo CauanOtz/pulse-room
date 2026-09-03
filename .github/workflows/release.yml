@@ -56,7 +56,6 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         env:
           VITE_API_URL: ${{ vars.VITE_API_URL }}
-          VITE_ROOM_ACCESS_CODE: ${{ secrets.VITE_ROOM_ACCESS_CODE }}
         run: npm run package:windows
 
       - name: Publish GitHub release files

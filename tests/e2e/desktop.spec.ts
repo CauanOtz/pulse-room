@@ -26,7 +26,9 @@ test('launches the secured desktop shell and completes the join flow', async () 
     // Clicking a voice channel is the whole act of joining it.
     await window.getByRole('button', { name: 'Lounge' }).click();
     await expect(window.locator('.tile-grid .participant-tile')).toHaveCount(4);
-    await expect(window.locator('.voice-panel').getByRole('button', { name: 'Share full screen' })).toBeVisible();
+    await expect(
+      window.locator('.voice-panel').getByRole('button', { name: 'Share full screen' }),
+    ).toBeVisible();
     // Proof that this build carries no room credentials: only the demo roster
     // is present, so the test can never walk into a real call.
     await expect(window.locator('.voice-roster')).toContainText('Maya');
@@ -78,12 +80,17 @@ test('launches the secured desktop shell and completes the join flow', async () 
     await window.locator('.stage-live').hover();
     await window.locator('.call-dock').getByRole('button', { name: 'Stream options' }).click();
     const streamMenu = window.getByRole('menu', { name: 'Stream options' });
-    await expect(streamMenu.getByRole('menuitemradio', { name: /1080p . 30 fps/ })).toHaveAttribute('aria-checked', 'true');
+    await expect(streamMenu.getByRole('menuitemradio', { name: /1080p . 30 fps/ })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
     await window.keyboard.press('Escape');
 
     await window.locator('.stage-live').hover();
     await window.locator('.call-dock').getByRole('button', { name: 'Stop sharing' }).click();
-    await expect(window.locator('.voice-panel').getByRole('button', { name: 'Share full screen' })).toBeVisible();
+    await expect(
+      window.locator('.voice-panel').getByRole('button', { name: 'Share full screen' }),
+    ).toBeVisible();
     await expect(window.locator('.tile-grid .participant-tile')).toHaveCount(4);
 
     // The sidebar moves the call between voice channels.
@@ -95,6 +102,7 @@ test('launches the secured desktop shell and completes the join flow', async () 
 
     const bridgeVersion = await window.evaluate(() => window.desktop?.app.getVersion());
     expect(bridgeVersion).toBe(version);
+    expect(problems).toEqual([]);
   } finally {
     problems.forEach((problem) => console.log('Renderer problem:', problem));
     await application.close();

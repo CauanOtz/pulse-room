@@ -2,10 +2,14 @@ import path from 'node:path';
 import { app, BrowserWindow, ipcMain, session } from 'electron';
 import { ScreenCaptureService } from './application/screen-capture-service';
 import { UpdateService } from './application/update-service';
+import { SessionVault } from './application/session-vault';
 
 // Screen sharing needs media and display capture; the live stage needs the
 // HTML fullscreen permission that Electron asks for separately.
 const allowedPermissions = new Set(['media', 'display-capture', 'fullscreen']);
+if (process.env.NODE_ENV === 'test' && process.env.PULSE_TEST_USER_DATA) {
+  app.setPath('userData', process.env.PULSE_TEST_USER_DATA);
+}
 
 let mainWindow: BrowserWindow | null = null;
 const screenCaptureService = new ScreenCaptureService();
@@ -30,6 +34,7 @@ function createMainWindow(): BrowserWindow {
 
   window.once('ready-to-show', () => window.show());
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  window.webContents.on('will-navigate', (event) => event.preventDefault());
 
   const developmentUrl = process.env.VITE_DEV_SERVER_URL;
   if (developmentUrl) {
@@ -42,6 +47,15 @@ function createMainWindow(): BrowserWindow {
 }
 
 function registerIpcHandlers(): void {
+  const vault = new SessionVault();
+  ipcMain.handle('session:read', (event) => {
+    if (event.sender !== mainWindow?.webContents) throw new Error('Invalid sender');
+    return vault.read();
+  });
+  ipcMain.handle('session:save', (event, token: string | null) => {
+    if (event.sender !== mainWindow?.webContents) throw new Error('Invalid sender');
+    return vault.save(token);
+  });
   ipcMain.handle('app:get-version', () => app.getVersion());
   ipcMain.handle('app:get-platform', () => process.platform);
   ipcMain.handle('capture:list-screens', () => screenCaptureService.listScreens());

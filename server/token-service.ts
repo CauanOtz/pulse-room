@@ -1,10 +1,11 @@
-import { randomUUID } from 'node:crypto';
 import { AccessToken } from 'livekit-server-sdk';
 import { selectLiveKitConnection, type ServerConfiguration } from './config.js';
 
 export interface RoomTokenRequest {
   roomId: string;
   participantName: string;
+  identity: string;
+  sources: number[];
 }
 
 export interface RoomTokenResponse {
@@ -17,37 +18,24 @@ export class TokenService {
 
   public async issueRoomToken(request: RoomTokenRequest): Promise<RoomTokenResponse> {
     const connection = selectLiveKitConnection(this.configuration);
-    const identity = `${this.slugify(request.participantName)}-${randomUUID().slice(0, 8)}`;
-    const token = new AccessToken(
-      connection.apiKey,
-      connection.apiSecret,
-      {
-        identity,
-        name: request.participantName,
-        ttl: '6h',
-      },
-    );
+    const token = new AccessToken(connection.apiKey, connection.apiSecret, {
+      identity: request.identity,
+      name: request.participantName,
+      ttl: '60s',
+    });
 
     token.addGrant({
       room: request.roomId,
       roomJoin: true,
-      canPublish: true,
+      canPublish: request.sources.length > 0,
+      canPublishSources: request.sources,
       canSubscribe: true,
-      canPublishData: true,
+      canPublishData: false,
     });
 
     return {
       serverUrl: connection.url,
       token: await token.toJwt(),
     };
-  }
-
-  private slugify(value: string): string {
-    return value
-      .normalize('NFKD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '') || 'friend';
   }
 }

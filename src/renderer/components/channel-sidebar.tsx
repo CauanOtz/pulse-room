@@ -1,12 +1,29 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, Hash, Headphones, Mic, MicOff, Radio, Settings, Volume2, VolumeX } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronUp,
+  Hash,
+  Headphones,
+  Mic,
+  MicOff,
+  Radio,
+  Settings,
+  Volume2,
+  VolumeX,
+} from 'lucide-react';
 import type { ConnectionState, Participant, VoiceChannel } from '../domain/conference';
 import { channelRoster, type ChannelOccupancy, type RosterEntry } from '../domain/roster';
 import type { AvailableMediaDevices } from '../infrastructure/media/media-devices-service';
 import { DeviceMenu } from './device-menu';
 import { VoicePanel } from './voice-panel';
+import type { CommunityChannel } from '../../shared/community';
 
 interface ChannelSidebarProps {
+  serverName?: string;
+  textChannels?: CommunityChannel[];
+  selectedTextId?: string;
+  onSelectText?(id: string): void;
+  onManage?(): void;
   connectionState: ConnectionState;
   channels: VoiceChannel[];
   activeChannelId: string;
@@ -37,26 +54,47 @@ export function ChannelSidebar(props: ChannelSidebarProps) {
   const isConnected = props.connectionState === 'connected' || props.connectionState === 'reconnecting';
   const activeChannel = props.channels.find((channel) => channel.id === props.activeChannelId);
   const rosterOf = (channelId: string) =>
-    channelRoster(
-      channelId,
-      isConnected ? props.activeChannelId : '',
-      props.participants,
-      props.occupancy,
-    );
+    channelRoster(channelId, isConnected ? props.activeChannelId : '', props.participants, props.occupancy);
 
   return (
     <aside className="channel-sidebar">
-      <button className="server-heading" type="button">
-        <span>After hours</span>
+      <button
+        className="server-heading"
+        type="button"
+        onClick={props.onManage}
+        aria-label={props.serverName ? 'Server settings and members' : undefined}
+      >
+        <span>{props.serverName ?? 'After hours'}</span>
         <ChevronDown size={17} />
       </button>
 
       <div className="channel-scroll">
         <section className="channel-group">
           <h2>Text channels</h2>
-          <button className="channel-row" type="button" disabled><Hash size={17} /> general</button>
-          <button className="channel-row" type="button" disabled><Hash size={17} /> clips-and-chaos</button>
-          <p className="channel-note">Text chat is still to be built.</p>
+          {props.textChannels ? (
+            props.textChannels.map((channel) => (
+              <button
+                key={channel.id}
+                className={`channel-row${props.selectedTextId === channel.id ? ' is-selected' : ''}`}
+                type="button"
+                onClick={() => props.onSelectText?.(channel.id)}
+              >
+                <Hash size={17} />
+                {channel.name}
+                {channel.private && <small>Private</small>}
+              </button>
+            ))
+          ) : (
+            <>
+              <button className="channel-row" type="button" disabled>
+                <Hash size={17} /> general
+              </button>
+              <button className="channel-row" type="button" disabled>
+                <Hash size={17} /> clips-and-chaos
+              </button>
+              <p className="channel-note">Text chat is still to be built.</p>
+            </>
+          )}
         </section>
 
         <section className="channel-group">
@@ -103,7 +141,11 @@ export function ChannelSidebar(props: ChannelSidebarProps) {
             aria-label={props.microphoneEnabled ? 'Mute microphone' : 'Unmute microphone'}
             onClick={props.onToggleMicrophone}
           >
-            {props.joined && !props.microphoneEnabled ? <MicOff size={17} className="is-off" /> : <Mic size={17} />}
+            {props.joined && !props.microphoneEnabled ? (
+              <MicOff size={17} className="is-off" />
+            ) : (
+              <Mic size={17} />
+            )}
           </button>
           <button
             className="device-caret"
@@ -186,7 +228,9 @@ function ChannelRoster({
             onOpenParticipant(entry, { x: event.clientX, y: event.clientY });
           }}
         >
-          <span className="mini-avatar" style={{ background: entry.accent }}>{entry.initials}</span>
+          <span className="mini-avatar" style={{ background: entry.accent }}>
+            {entry.initials}
+          </span>
           <span className="roster-name">{entry.name}</span>
           {entry.isMuted && <MicOff size={13} className="roster-flag" />}
           {entry.locallyMuted && <VolumeX size={13} className="roster-flag" />}

@@ -2,6 +2,10 @@ import { contextBridge, ipcRenderer } from 'electron';
 import type { DesktopApi, UpdateStatus } from '../shared/desktop-api';
 
 const desktopApi: DesktopApi = {
+  session: {
+    read: () => ipcRenderer.invoke('session:read'),
+    save: (token) => ipcRenderer.invoke('session:save', token),
+  },
   app: {
     getVersion: () => ipcRenderer.invoke('app:get-version'),
     getPlatform: () => ipcRenderer.invoke('app:get-platform'),

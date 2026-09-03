@@ -50,6 +50,8 @@ export class LiveKitConferenceGateway extends ObservableConference {
   private readonly volumes = new Map<string, number>();
   private readonly locallyMuted = new Set<string>();
   private microphoneOptions?: MicrophoneOptions;
+  private generation = 0;
+  private joinAbort?: AbortController;
 
   public constructor(private readonly configuration: LiveKitGatewayConfiguration) {
     super();
@@ -57,11 +59,19 @@ export class LiveKitConferenceGateway extends ObservableConference {
   }
 
   public async join(command: JoinRoomCommand): Promise<void> {
+    const generation = ++this.generation;
+    this.joinAbort?.abort();
+    this.joinAbort = new AbortController();
     this.update({ connectionState: 'connecting', error: undefined });
 
     try {
-      const credentials = await this.requestToken(command);
+      const credentials = await this.requestToken(command, this.joinAbort.signal);
+      if (generation !== this.generation) throw new Error('Call was cancelled.');
       await this.room.connect(credentials.serverUrl, credentials.token);
+      if (generation !== this.generation) {
+        await this.room.disconnect();
+        throw new Error('Call was cancelled.');
+      }
       this.refreshParticipants();
       this.update({ connectionState: 'connected' });
     } catch (error) {
@@ -74,6 +84,8 @@ export class LiveKitConferenceGateway extends ObservableConference {
   }
 
   public async leave(): Promise<void> {
+    this.generation++;
+    this.joinAbort?.abort();
     await this.stopScreenShare();
     await this.disableMicrophone();
     await this.room.disconnect();
@@ -82,7 +94,21 @@ export class LiveKitConferenceGateway extends ObservableConference {
   }
 
   public async setMicrophoneEnabled(enabled: boolean, options: MicrophoneOptions): Promise<void> {
+    const generation = this.generation;
     await this.disableMicrophone();
+
+    const permissions = this.room.localParticipant.permissions;
+    if (
+      enabled &&
+      permissions &&
+      (!permissions.canPublish ||
+        (permissions.canPublishSources.length > 0 &&
+          !permissions.canPublishSources.includes(Track.sourceToProto(Track.Source.Microphone))))
+    ) {
+      this.update({ microphoneEnabled: false });
+      this.refreshParticipants();
+      return;
+    }
 
     if (!enabled) {
       this.update({ microphoneEnabled: false });
@@ -91,7 +117,12 @@ export class LiveKitConferenceGateway extends ObservableConference {
     }
 
     try {
-      this.processedMicrophone = await this.microphoneTrackFactory.create(options);
+      const processed = await this.microphoneTrackFactory.create(options);
+      if (generation !== this.generation) {
+        await processed.dispose();
+        return;
+      }
+      this.processedMicrophone = processed;
       const publication = await this.room.localParticipant.publishTrack(
         new LocalAudioTrack(this.processedMicrophone.track),
         {
@@ -168,10 +199,14 @@ export class LiveKitConferenceGateway extends ObservableConference {
   }
 
   public async startScreenShare(options: ScreenShareOptions): Promise<void> {
+    const generation = this.generation;
+    let stream: MediaStream | undefined;
     try {
-      const stream = await navigator.mediaDevices.getDisplayMedia(
-        createDisplayMediaOptions(options),
-      );
+      stream = await navigator.mediaDevices.getDisplayMedia(createDisplayMediaOptions(options));
+      if (generation !== this.generation) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
 
       const videoTrack = stream.getVideoTracks()[0];
       const audioTrack = stream.getAudioTracks()[0];
@@ -200,6 +235,11 @@ export class LiveKitConferenceGateway extends ObservableConference {
         },
       );
       this.screenPublications.push(videoPublication);
+      if (generation !== this.generation) {
+        await this.stopScreenShare();
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
 
       if (audioTrack) {
         const audioPublication = await this.room.localParticipant.publishTrack(
@@ -213,10 +253,17 @@ export class LiveKitConferenceGateway extends ObservableConference {
         );
         this.screenPublications.push(audioPublication);
       }
+      if (generation !== this.generation) {
+        await this.stopScreenShare();
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
 
       this.update({ screenSharing: true, error: undefined });
       this.refreshParticipants();
     } catch (error) {
+      stream?.getTracks().forEach((track) => track.stop());
+      await this.stopScreenShare().catch(() => {});
       this.update({ error: error instanceof Error ? error.message : 'Screen sharing could not start.' });
       throw error;
     }
@@ -246,18 +293,23 @@ export class LiveKitConferenceGateway extends ObservableConference {
     this.refreshParticipants();
   }
 
-  private async requestToken(command: JoinRoomCommand): Promise<TokenResponse> {
-    const response = await fetch(`${this.configuration.apiUrl}/api/rooms/${encodeURIComponent(command.roomId)}/token`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        authorization: `Bearer ${this.configuration.accessCode}`,
+  private async requestToken(command: JoinRoomCommand, signal?: AbortSignal): Promise<TokenResponse> {
+    const response = await fetch(
+      `${this.configuration.apiUrl}/api/rooms/${encodeURIComponent(command.roomId)}/token`,
+      {
+        method: 'POST',
+        signal,
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${this.configuration.accessCode}`,
+        },
+        body: JSON.stringify({ participantName: command.participantName }),
       },
-      body: JSON.stringify({ participantName: command.participantName }),
-    });
+    );
 
     if (!response.ok) {
-      throw new Error(response.status === 401 ? 'The room access code is not valid.' : 'The call server is unavailable.');
+      const body = (await response.json().catch(() => ({}))) as { error?: string };
+      throw new Error(body.error ?? 'The call server is unavailable.');
     }
 
     return response.json() as Promise<TokenResponse>;
@@ -313,7 +365,10 @@ export class LiveKitConferenceGateway extends ObservableConference {
     participant.trackPublications.forEach((publication) => {
       const mediaTrack = publication.track?.mediaStreamTrack;
       if (!mediaTrack) return;
-      if (publication.source === Track.Source.ScreenShare || publication.source === Track.Source.ScreenShareAudio) {
+      if (
+        publication.source === Track.Source.ScreenShare ||
+        publication.source === Track.Source.ScreenShareAudio
+      ) {
         screenTracks.push(mediaTrack);
       } else if (publication.source === Track.Source.Microphone) {
         microphoneTracks.push(mediaTrack);

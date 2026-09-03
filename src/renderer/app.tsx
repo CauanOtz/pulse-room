@@ -14,16 +14,53 @@ import { SettingsDialog } from './components/settings-dialog';
 import { SourcePicker } from './components/source-picker';
 import { Stage } from './components/stage';
 import { ConferenceGatewayFactory } from './infrastructure/conference/conference-gateway-factory';
-import { MediaDevicesService, type AvailableMediaDevices } from './infrastructure/media/media-devices-service';
+import {
+  MediaDevicesService,
+  type AvailableMediaDevices,
+} from './infrastructure/media/media-devices-service';
 import { LocalSettingsRepository } from './infrastructure/persistence/local-settings-repository';
+import type { WorkspaceBindings } from './community-root';
+import { canManage } from '../shared/community';
+import { TextChat } from './components/text-chat';
 
-const settingsRepository = new LocalSettingsRepository();
-const controller = new ConferenceController(ConferenceGatewayFactory.create(), settingsRepository);
 const mediaDevicesService = new MediaDevicesService();
 const roomSoundPlayer = new RoomSoundPlayer();
-const presenceClient = ConferenceGatewayFactory.createPresenceClient();
 
-export function App() {
+export function App({ workspace }: { workspace?: WorkspaceBindings }) {
+  const controller = useMemo(() => {
+    const repository = new LocalSettingsRepository(window.localStorage, workspace?.user.id);
+    if (workspace) {
+      const saved = repository.load();
+      repository.save({
+        ...saved,
+        displayName: workspace.user.displayName,
+        roomId:
+          workspace.detail.channels.find((c) => c.type === 'voice' && c.id === saved.roomId)?.id ??
+          workspace.detail.channels.find((c) => c.type === 'voice')?.id ??
+          '',
+      });
+    }
+    return new ConferenceController(
+      ConferenceGatewayFactory.create(
+        workspace
+          ? {
+              apiUrl: workspace.api.url,
+              accessCode: workspace.api.token,
+            }
+          : undefined,
+      ),
+      repository,
+    );
+  }, [workspace?.api, workspace?.user.id, workspace?.detail.server.id]);
+  useEffect(
+    () => () => {
+      void controller.gateway.leave();
+    },
+    [controller],
+  );
+  const channels = workspace ? workspace.detail.channels.filter((c) => c.type === 'voice') : voiceChannels;
+  const [viewId, setViewId] = useState(workspace?.detail.channels.find((c) => c.type === 'text')?.id ?? '');
+  const textChannel = workspace?.detail.channels.find((c) => c.type === 'text' && c.id === viewId);
   const snapshot = useSyncExternalStore(
     controller.gateway.subscribe.bind(controller.gateway),
     controller.gateway.getSnapshot.bind(controller.gateway),
@@ -36,10 +73,34 @@ export function App() {
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus>({ state: 'idle' });
   const [devices, setDevices] = useState<AvailableMediaDevices>({ microphones: [], speakers: [] });
   const [occupancy, setOccupancy] = useState<ChannelOccupancy[]>([]);
-  const [openParticipant, setOpenParticipant] = useState<{ id: string; position: { x: number; y: number } }>();
+  const [openParticipant, setOpenParticipant] = useState<{
+    id: string;
+    position: { x: number; y: number };
+  }>();
 
   const joined = snapshot.connectionState !== 'disconnected';
-  const activeChannel = voiceChannels.find((channel) => channel.id === settings.roomId);
+  const activeChannel = channels.find((channel) => channel.id === settings.roomId);
+  const currentVoice = workspace?.detail.channels.find((c) => c.id === settings.roomId);
+  const manager = canManage(workspace?.detail.server.role);
+  const canSpeak = !workspace || manager || Boolean(currentVoice?.allowSpeak);
+  const canShare = !workspace || manager || Boolean(currentVoice?.allowShare);
+  useEffect(() => {
+    if (!workspace || !joined) return;
+    if (!currentVoice) {
+      void controller.gateway.leave();
+      return;
+    }
+    if (!canSpeak && snapshot.microphoneEnabled) void controller.toggleMicrophone();
+    if (!canShare && snapshot.screenSharing) void controller.gateway.stopScreenShare();
+  }, [
+    currentVoice,
+    canSpeak,
+    canShare,
+    joined,
+    snapshot.microphoneEnabled,
+    snapshot.screenSharing,
+    controller,
+  ]);
   const broadcasters = useMemo(
     () => snapshot.participants.filter((participant) => participant.screenStream),
     [snapshot.participants],
@@ -58,20 +119,30 @@ export function App() {
     const sounds = presenceSounds(presence.current, next);
     presence.current = next;
     if (settings.roomSounds) sounds.forEach((sound) => roomSoundPlayer.play(sound));
-  }, [broadcasters, settings.roomSounds, snapshot.connectionState, snapshot.microphoneEnabled, snapshot.participants]);
+  }, [
+    broadcasters,
+    settings.roomSounds,
+    snapshot.connectionState,
+    snapshot.microphoneEnabled,
+    snapshot.participants,
+  ]);
 
   // Rooms this client did not join can only be seen through the service.
   useEffect(() => {
-    if (!presenceClient.available) return undefined;
+    if (!workspace) return undefined;
     let active = true;
-    const read = () => void presenceClient.read().then((rooms) => active && setOccupancy(rooms));
+    const read = () =>
+      void workspace.api
+        .request<{ rooms: ChannelOccupancy[] }>(`/api/presence?serverId=${workspace.detail.server.id}`)
+        .then(({ rooms }) => active && setOccupancy(rooms))
+        .catch(() => active && setOccupancy([]));
     read();
     const timer = setInterval(read, 3_000);
     return () => {
       active = false;
       clearInterval(timer);
     };
-  }, [snapshot.connectionState]);
+  }, [snapshot.connectionState, workspace?.api, workspace?.detail.server.id]);
 
   useEffect(() => {
     void mediaDevicesService.list().then(setDevices);
@@ -109,12 +180,14 @@ export function App() {
   }, [openParticipant?.id, snapshot.participants]);
 
   const handleChannelSelect = (channelId: string) => {
+    setViewId(channelId);
     if (channelId === settings.roomId && joined) return;
     setSettings((current) => ({ ...current, roomId: channelId }));
     void run(() => controller.enterRoom(channelId));
   };
 
   const handleShareRequest = () => {
+    if (!canShare) return;
     if (snapshot.screenSharing) {
       void run(() => controller.toggleScreenShare());
     } else {
@@ -128,6 +201,7 @@ export function App() {
   };
 
   const handleSettingsSaved = (nextSettings: typeof settings) => {
+    if (workspace) nextSettings = { ...nextSettings, displayName: workspace.user.displayName };
     setSettings(nextSettings);
     setSettingsOpen(false);
     void run(() => controller.saveSettings(nextSettings));
@@ -136,10 +210,21 @@ export function App() {
   return (
     <div className="app-shell">
       <VideoLevelFilter />
-      <ServerRail />
+      <ServerRail
+        servers={workspace?.servers}
+        activeId={workspace?.detail.server.id}
+        onSelect={workspace?.onSelectServer}
+        onAdd={workspace?.onAddServer}
+        onAccount={workspace?.onAccount}
+      />
       <ChannelSidebar
         connectionState={snapshot.connectionState}
-        channels={voiceChannels}
+        channels={channels}
+        serverName={workspace?.detail.server.name}
+        textChannels={workspace?.detail.channels.filter((c) => c.type === 'text')}
+        selectedTextId={textChannel?.id}
+        onSelectText={setViewId}
+        onManage={workspace?.onManage}
         activeChannelId={settings.roomId}
         participants={snapshot.participants}
         displayName={settings.displayName}
@@ -152,7 +237,7 @@ export function App() {
         microphoneDeviceId={settings.microphoneDeviceId}
         speakerDeviceId={settings.speakerDeviceId}
         occupancy={occupancy}
-        onToggleMicrophone={() => void run(() => controller.toggleMicrophone())}
+        onToggleMicrophone={() => canSpeak && void run(() => controller.toggleMicrophone())}
         onToggleDeafen={() => void run(() => controller.toggleDeafen())}
         onSelectMicrophone={(deviceId) => handleSettingsSaved({ ...settings, microphoneDeviceId: deviceId })}
         onSelectSpeaker={(deviceId) => handleSettingsSaved({ ...settings, speakerDeviceId: deviceId })}
@@ -167,38 +252,64 @@ export function App() {
         <header className="room-header">
           <div className="room-title">
             <span>#</span>
-            <strong>{activeChannel?.name ?? settings.roomId}</strong>
-            <i />A room for games, films, and unfinished stories.
+            <strong>{textChannel?.name ?? activeChannel?.name ?? 'Choose a channel'}</strong>
+            <i />
+            {workspace ? workspace.detail.server.name : 'A room for games, films, and unfinished stories.'}
+            {joined && textChannel && (
+              <button onClick={() => setViewId(settings.roomId)}>Return to call</button>
+            )}
           </div>
         </header>
 
         <div className="room-content">
-          <Stage
-            participants={snapshot.participants}
-            joined={joined}
-            speakerDeviceId={settings.speakerDeviceId}
-            expandLevels={settings.expandScreenLevels}
-          >
-            {joined && (
-              <CallControls
-                microphoneEnabled={snapshot.microphoneEnabled}
-                deafened={snapshot.deafened}
-                screenSharing={snapshot.screenSharing}
-                quality={settings.screenSharePreset}
-                busy={busy}
-                onToggleMicrophone={() => void run(() => controller.toggleMicrophone())}
-                onToggleDeafen={() => void run(() => controller.toggleDeafen())}
-                onShare={handleShareRequest}
-                onSelectQuality={(preset) => {
-                  setSettings((current) => ({ ...current, screenSharePreset: preset }));
-                  void run(() => controller.setScreenQuality(preset));
-                }}
-                onOpenSettings={() => setSettingsOpen(true)}
-                onLeave={() => void run(() => controller.gateway.leave())}
-              />
-            )}
-          </Stage>
-          {snapshot.error && <div className="error-banner" role="alert">{snapshot.error}</div>}
+          {textChannel && workspace ? (
+            <TextChat
+              key={textChannel.id}
+              api={workspace.api}
+              user={workspace.user}
+              channel={textChannel}
+              manager={manager}
+            />
+          ) : (
+            <Stage
+              participants={snapshot.participants}
+              joined={joined}
+              speakerDeviceId={settings.speakerDeviceId}
+              expandLevels={settings.expandScreenLevels}
+            >
+              {joined && (
+                <CallControls
+                  microphoneEnabled={snapshot.microphoneEnabled}
+                  deafened={snapshot.deafened}
+                  screenSharing={snapshot.screenSharing}
+                  quality={settings.screenSharePreset}
+                  busy={busy}
+                  onToggleMicrophone={() => canSpeak && void run(() => controller.toggleMicrophone())}
+                  onToggleDeafen={() => void run(() => controller.toggleDeafen())}
+                  onShare={handleShareRequest}
+                  onSelectQuality={(preset) => {
+                    setSettings((current) => ({ ...current, screenSharePreset: preset }));
+                    void run(() => controller.setScreenQuality(preset));
+                  }}
+                  onOpenSettings={() => setSettingsOpen(true)}
+                  onLeave={() => void run(() => controller.gateway.leave())}
+                />
+              )}
+            </Stage>
+          )}
+          {joined && !canSpeak && (
+            <p className="permission-note">
+              You can listen in this channel. Speaking is restricted by its permissions.
+            </p>
+          )}
+          {joined && !canShare && (
+            <p className="permission-note">Screen sharing is restricted in this channel.</p>
+          )}
+          {snapshot.error && (
+            <div className="error-banner" role="alert">
+              {snapshot.error}
+            </div>
+          )}
         </div>
       </main>
 
@@ -214,8 +325,13 @@ export function App() {
         />
       )}
 
-      <SourcePicker open={sourcePickerOpen} onClose={() => setSourcePickerOpen(false)} onSelect={handleSourceSelected} />
+      <SourcePicker
+        open={sourcePickerOpen}
+        onClose={() => setSourcePickerOpen(false)}
+        onSelect={handleSourceSelected}
+      />
       <SettingsDialog
+        managedAccount={Boolean(workspace)}
         open={settingsOpen}
         initialSettings={settings}
         devices={devices}

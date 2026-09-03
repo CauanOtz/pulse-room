@@ -16,10 +16,18 @@ export const defaultSettings: UserSettings = {
 export class LocalSettingsRepository implements SettingsRepository {
   private static readonly storageKey = 'pulse-room:settings:v1';
 
-  public constructor(private readonly storage: Storage = window.localStorage) {}
+  public constructor(
+    private readonly storage: Storage = window.localStorage,
+    private readonly accountId?: string,
+  ) {}
+  private get key(): string {
+    return this.accountId
+      ? `${LocalSettingsRepository.storageKey}:${this.accountId}`
+      : LocalSettingsRepository.storageKey;
+  }
 
   public load(): UserSettings {
-    const value = this.storage.getItem(LocalSettingsRepository.storageKey);
+    const value = this.storage.getItem(this.key);
     if (!value) return defaultSettings;
 
     try {
@@ -30,6 +38,6 @@ export class LocalSettingsRepository implements SettingsRepository {
   }
 
   public save(settings: UserSettings): void {
-    this.storage.setItem(LocalSettingsRepository.storageKey, JSON.stringify(settings));
+    this.storage.setItem(this.key, JSON.stringify(settings));
   }
 }

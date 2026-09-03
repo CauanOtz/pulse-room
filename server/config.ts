@@ -9,7 +9,8 @@ const configurationSchema = z
   .object({
     PORT: z.coerce.number().int().positive().default(3001),
     HOST: z.string().default('0.0.0.0'),
-    APP_INVITE_SECRET: z.string().min(8),
+    APP_INVITE_SECRET: z.string().optional(),
+    DATABASE_URL: z.string().min(1).optional(),
     LIVEKIT_URL: secureLiveKitUrl,
     LIVEKIT_API_KEY: z.string().min(1),
     LIVEKIT_API_SECRET: z.string().min(1),
@@ -40,9 +41,7 @@ export interface LiveKitConnectionConfiguration {
   apiSecret: string;
 }
 
-export function selectLiveKitConnection(
-  configuration: ServerConfiguration,
-): LiveKitConnectionConfiguration {
+export function selectLiveKitConnection(configuration: ServerConfiguration): LiveKitConnectionConfiguration {
   if (
     configuration.SELF_HOSTED_LIVEKIT_URL &&
     configuration.SELF_HOSTED_LIVEKIT_API_KEY &&
