@@ -12,8 +12,18 @@ export class ConferenceController {
     return this.settingsRepository.load();
   }
 
-  public saveSettings(settings: UserSettings): void {
+  public async saveSettings(settings: UserSettings): Promise<void> {
     this.settingsRepository.save(settings);
+    const snapshot = this.gateway.getSnapshot();
+    if (snapshot.connectionState === 'connected' && snapshot.microphoneEnabled) {
+      await this.gateway.setMicrophoneEnabled(true, {
+        deviceId: settings.microphoneDeviceId,
+        gain: settings.microphoneGain / 100,
+        echoCancellation: settings.echoCancellation,
+        noiseSuppression: settings.noiseSuppression,
+        autoGainControl: settings.autoGainControl,
+      });
+    }
   }
 
   public async join(): Promise<void> {

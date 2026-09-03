@@ -62,4 +62,30 @@ describe('ConferenceController', () => {
       maxBitrate: 7_000_000,
     }));
   });
+
+  it('rebuilds the live microphone pipeline when audio settings change', async () => {
+    const gateway = createGateway();
+    const connectedSnapshot: ConferenceSnapshot = {
+      connectionState: 'connected',
+      participants: [],
+      microphoneEnabled: true,
+      deafened: false,
+      screenSharing: false,
+    };
+    vi.mocked(gateway.getSnapshot).mockReturnValue(connectedSnapshot);
+    const settingsRepository: SettingsRepository = {
+      load: () => defaultSettings,
+      save: vi.fn(),
+    };
+    const controller = new ConferenceController(gateway, settingsRepository);
+    const settings = { ...defaultSettings, microphoneGain: 125, noiseSuppression: false };
+
+    await controller.saveSettings(settings);
+
+    expect(settingsRepository.save).toHaveBeenCalledWith(settings);
+    expect(gateway.setMicrophoneEnabled).toHaveBeenCalledWith(true, expect.objectContaining({
+      gain: 1.25,
+      noiseSuppression: false,
+    }));
+  });
 });

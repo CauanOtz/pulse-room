@@ -68,9 +68,9 @@ export function App() {
   };
 
   const handleSettingsSaved = (nextSettings: typeof settings) => {
-    controller.saveSettings(nextSettings);
     setSettings(nextSettings);
     setSettingsOpen(false);
+    void run(() => controller.saveSettings(nextSettings));
   };
 
   return (
