@@ -16,4 +16,5 @@ export interface ConferenceGateway {
   startScreenShare(options: ScreenShareOptions): Promise<void>;
   stopScreenShare(): Promise<void>;
   setParticipantVolume(participantId: string, volume: number): void;
+  setParticipantMuted(participantId: string, muted: boolean): void;
 }

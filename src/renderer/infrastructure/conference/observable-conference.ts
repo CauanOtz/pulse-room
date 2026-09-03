@@ -43,4 +43,5 @@ export abstract class ObservableConference implements ConferenceGateway {
   ): Promise<void>;
   public abstract stopScreenShare(): Promise<void>;
   public abstract setParticipantVolume(participantId: string, volume: number): void;
+  public abstract setParticipantMuted(participantId: string, muted: boolean): void;
 }

@@ -9,6 +9,7 @@ export interface Participant {
   isMuted: boolean;
   isSpeaking: boolean;
   volume: number;
+  locallyMuted: boolean;
   microphoneStream?: MediaStream;
   screenStream?: MediaStream;
 }

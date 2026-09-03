@@ -24,6 +24,7 @@ function createGateway(): ConferenceGateway {
     startScreenShare: vi.fn(async () => undefined),
     stopScreenShare: vi.fn(async () => undefined),
     setParticipantVolume: vi.fn(),
+    setParticipantMuted: vi.fn(),
   };
 }
 

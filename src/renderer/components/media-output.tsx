@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { audioPlayback, type PlaybackHandle } from '../infrastructure/media/audio-playback-engine';
 
 interface MediaOutputProps {
   stream?: MediaStream;
@@ -20,6 +21,8 @@ export function MediaOutput({
   label = 'Shared screen',
 }: MediaOutputProps) {
   const elementRef = useRef<HTMLVideoElement & HTMLAudioElement>(null);
+  const playbackRef = useRef<PlaybackHandle>(undefined);
+  const [boosted, setBoosted] = useState(false);
 
   // Each concern gets its own effect: reassigning srcObject restarts playback,
   // so a volume change must never touch the stream.
@@ -32,13 +35,29 @@ export function MediaOutput({
   }, [stream]);
 
   useEffect(() => {
-    const element = elementRef.current;
-    if (!element) return;
-    element.volume = Math.min(1, Math.max(0, volume / 100));
-  }, [volume]);
+    if (!stream || muted) return undefined;
+
+    const handle = audioPlayback.attach(stream);
+    playbackRef.current = handle;
+    setBoosted(Boolean(handle));
+
+    return () => {
+      handle?.dispose();
+      playbackRef.current = undefined;
+      setBoosted(false);
+    };
+  }, [muted, stream]);
 
   useEffect(() => {
     const element = elementRef.current;
+    playbackRef.current?.setVolume(volume);
+    // The element keeps the picture; sound it can only attenuate, never boost.
+    if (element && !playbackRef.current) element.volume = Math.min(1, Math.max(0, volume / 100));
+  }, [boosted, volume]);
+
+  useEffect(() => {
+    const element = elementRef.current;
+    void audioPlayback.useOutputDevice(speakerDeviceId);
     if (!element || !speakerDeviceId || !('setSinkId' in element)) return;
     void element.setSinkId(speakerDeviceId).catch(() => undefined);
   }, [speakerDeviceId]);
@@ -50,11 +69,11 @@ export function MediaOutput({
         className={className}
         autoPlay
         playsInline
-        muted={muted}
+        muted={muted || boosted}
         aria-label={label}
       />
     );
   }
 
-  return <audio ref={elementRef} autoPlay muted={muted} />;
+  return <audio ref={elementRef} autoPlay muted={muted || boosted} />;
 }

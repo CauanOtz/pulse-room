@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { Bell, Search, Users } from 'lucide-react';
 import type { UpdateStatus } from '../shared/desktop-api';
 import { ConferenceController } from './application/conference-controller';
 import { emptyPresence, presenceSounds, type RoomPresence } from './application/room-presence';
 import { voiceChannels } from './domain/conference';
+import type { ChannelOccupancy, RosterEntry } from './domain/roster';
 import { RoomSoundPlayer } from './infrastructure/media/room-sound-player';
 import { CallControls } from './components/call-controls';
 import { ChannelSidebar } from './components/channel-sidebar';
-import { ParticipantList } from './components/participant-list';
+import { ParticipantPopover } from './components/participant-popover';
+import { RoomAudio } from './components/room-audio';
 import { ServerRail } from './components/server-rail';
 import { SettingsDialog } from './components/settings-dialog';
 import { SourcePicker } from './components/source-picker';
@@ -20,6 +21,7 @@ const settingsRepository = new LocalSettingsRepository();
 const controller = new ConferenceController(ConferenceGatewayFactory.create(), settingsRepository);
 const mediaDevicesService = new MediaDevicesService();
 const roomSoundPlayer = new RoomSoundPlayer();
+const presenceClient = ConferenceGatewayFactory.createPresenceClient();
 
 export function App() {
   const snapshot = useSyncExternalStore(
@@ -33,6 +35,8 @@ export function App() {
   const [version, setVersion] = useState(__APP_VERSION__);
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus>({ state: 'idle' });
   const [devices, setDevices] = useState<AvailableMediaDevices>({ microphones: [], speakers: [] });
+  const [occupancy, setOccupancy] = useState<ChannelOccupancy[]>([]);
+  const [openParticipant, setOpenParticipant] = useState<{ id: string; position: { x: number; y: number } }>();
 
   const joined = snapshot.connectionState !== 'disconnected';
   const activeChannel = voiceChannels.find((channel) => channel.id === settings.roomId);
@@ -52,6 +56,19 @@ export function App() {
     if (settings.roomSounds) sounds.forEach((sound) => roomSoundPlayer.play(sound));
   }, [settings.roomSounds, snapshot.connectionState, snapshot.participants]);
 
+  // Rooms this client did not join can only be seen through the service.
+  useEffect(() => {
+    if (!presenceClient.available) return undefined;
+    let active = true;
+    const read = () => void presenceClient.read().then((rooms) => active && setOccupancy(rooms));
+    read();
+    const timer = setInterval(read, 5_000);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, [snapshot.connectionState]);
+
   useEffect(() => {
     void mediaDevicesService.list().then(setDevices);
     if (!window.desktop) return;
@@ -69,6 +86,23 @@ export function App() {
       setBusy(false);
     }
   }, []);
+
+  const popoverEntry: RosterEntry | undefined = useMemo(() => {
+    const participant = snapshot.participants.find((each) => each.id === openParticipant?.id);
+    if (!participant) return undefined;
+    return {
+      id: participant.id,
+      name: participant.name,
+      initials: participant.initials,
+      accent: participant.accent,
+      isLocal: participant.isLocal,
+      isMuted: participant.isMuted,
+      isSpeaking: participant.isSpeaking,
+      volume: participant.volume,
+      locallyMuted: participant.locallyMuted,
+      detailed: true,
+    };
+  }, [openParticipant?.id, snapshot.participants]);
 
   const handleChannelSelect = (channelId: string) => {
     if (channelId === settings.roomId) return;
@@ -108,7 +142,9 @@ export function App() {
         microphoneEnabled={snapshot.microphoneEnabled}
         deafened={snapshot.deafened}
         busy={busy}
+        occupancy={occupancy}
         onSelectChannel={handleChannelSelect}
+        onOpenParticipant={(entry, position) => setOpenParticipant({ id: entry.id, position })}
         onOpenSettings={() => setSettingsOpen(true)}
       />
 
@@ -118,11 +154,6 @@ export function App() {
             <span>#</span>
             <strong>{activeChannel?.name ?? settings.roomId}</strong>
             <i />A room for games, films, and unfinished stories.
-          </div>
-          <div className="header-actions">
-            <button type="button" aria-label="Notifications"><Bell size={18} /></button>
-            <button type="button" aria-label="Members"><Users size={19} /></button>
-            <label className="search-box"><Search size={15} /><input aria-label="Search" placeholder="Search" /></label>
           </div>
         </header>
 
@@ -157,11 +188,17 @@ export function App() {
         </div>
       </main>
 
-      <ParticipantList
-        participants={snapshot.participants}
-        speakerDeviceId={settings.speakerDeviceId}
-        onVolumeChange={(participantId, volume) => controller.gateway.setParticipantVolume(participantId, volume)}
-      />
+      <RoomAudio participants={snapshot.participants} speakerDeviceId={settings.speakerDeviceId} />
+
+      {popoverEntry && openParticipant && (
+        <ParticipantPopover
+          entry={popoverEntry}
+          position={openParticipant.position}
+          onVolumeChange={(volume) => controller.gateway.setParticipantVolume(popoverEntry.id, volume)}
+          onMutedChange={(muted) => controller.gateway.setParticipantMuted(popoverEntry.id, muted)}
+          onClose={() => setOpenParticipant(undefined)}
+        />
+      )}
 
       <SourcePicker open={sourcePickerOpen} onClose={() => setSourcePickerOpen(false)} onSelect={handleSourceSelected} />
       <SettingsDialog

@@ -22,7 +22,9 @@ export function Stage({ participants, joined, speakerDeviceId, expandLevels }: S
   // Screen audio carries games and music, so it needs its own level, apart from
   // the voice volume of the person sharing.
   const [screenVolumes, setScreenVolumes] = useState<Record<string, number>>({});
-  const screenVolume = active ? screenVolumes[active.id] ?? 100 : 100;
+  // Screen audio arrives at the level the sender's machine was playing it, so
+  // half volume leaves room to push a quiet stream well past its own level.
+  const screenVolume = active ? screenVolumes[active.id] ?? 50 : 50;
   // The controls sit over the picture, so they step aside while nobody reaches
   // for them, the way a video player does.
   const [controlsVisible, setControlsVisible] = useState(true);
@@ -113,7 +115,7 @@ export function Stage({ participants, joined, speakerDeviceId, expandLevels }: S
                   aria-label={`${active.name} screen volume`}
                   type="range"
                   min="0"
-                  max="100"
+                  max="200"
                   value={screenVolume}
                   onChange={(event) =>
                     setScreenVolumes((volumes) => ({ ...volumes, [active.id]: Number(event.target.value) }))

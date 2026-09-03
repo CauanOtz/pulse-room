@@ -1,0 +1,59 @@
+import { RoomServiceClient } from 'livekit-server-sdk';
+import type { ServerConfiguration } from './config.js';
+
+export interface RoomOccupant {
+  identity: string;
+  name: string;
+}
+
+export interface RoomOccupancy {
+  roomId: string;
+  occupants: RoomOccupant[];
+}
+
+export interface PresenceSource {
+  read(): Promise<RoomOccupancy[]>;
+}
+
+/**
+ * Reads who is sitting in every voice room.
+ *
+ * A client only ever sees the room it joined, so the answer has to come from
+ * the service side. Answers are cached briefly because every open application
+ * asks for this on a timer, and the rooms change far more slowly than that.
+ */
+export class LiveKitPresenceSource implements PresenceSource {
+  private readonly client: RoomServiceClient;
+  private cached?: { at: number; rooms: RoomOccupancy[] };
+
+  public constructor(
+    configuration: ServerConfiguration,
+    private readonly cacheMilliseconds = 3_000,
+    private readonly now: () => number = Date.now,
+  ) {
+    this.client = new RoomServiceClient(
+      configuration.LIVEKIT_URL.replace(/^wss:/, 'https:'),
+      configuration.LIVEKIT_API_KEY,
+      configuration.LIVEKIT_API_SECRET,
+    );
+  }
+
+  public async read(): Promise<RoomOccupancy[]> {
+    const cached = this.cached;
+    if (cached && this.now() - cached.at < this.cacheMilliseconds) return cached.rooms;
+
+    const rooms = await this.client.listRooms();
+    const occupancy = await Promise.all(
+      rooms.map(async (room) => ({
+        roomId: room.name,
+        occupants: (await this.client.listParticipants(room.name)).map((participant) => ({
+          identity: participant.identity,
+          name: participant.name || participant.identity,
+        })),
+      })),
+    );
+
+    this.cached = { at: this.now(), rooms: occupancy };
+    return occupancy;
+  }
+}

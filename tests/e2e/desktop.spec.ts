@@ -28,7 +28,18 @@ test('launches the secured desktop shell and completes the join flow', async () 
     await expect(window.getByRole('button', { name: 'Share full screen' })).toBeVisible();
     // Proof that this build carries no room credentials: only the demo roster
     // is present, so the test can never walk into a real call.
-    await expect(window.locator('.participant-panel')).toContainText('Maya');
+    await expect(window.locator('.voice-roster')).toContainText('Maya');
+
+    // Audio options live on the person, reached with a right click.
+    await window.getByRole('button', { name: 'Audio options for Maya' }).click({ button: 'right' });
+    const popover = window.getByRole('dialog', { name: 'Maya audio' });
+    await expect(popover).toBeVisible();
+    await popover.getByRole('slider', { name: 'Maya volume' }).fill('160');
+    await expect(popover).toContainText('160%');
+    await popover.getByRole('button', { name: 'Mute for me' }).click();
+    await expect(popover.getByRole('button', { name: 'Unmute for me' })).toBeVisible();
+    await window.keyboard.press('Escape');
+    await expect(popover).toBeHidden();
 
     await window.getByRole('button', { name: 'Open settings' }).click();
     await expect(window.getByRole('heading', { name: 'Voice and video' })).toBeVisible();

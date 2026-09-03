@@ -14,6 +14,7 @@ React renderer
           │
           ▼
   ConferenceGateway          application port
+  PresenceClient             who is in the channels this client did not join
       ├── DemoConferenceGateway
       └── LiveKitConferenceGateway
               │
@@ -22,6 +23,7 @@ React renderer
 
 Railway token server
   TokenService               issues short-lived, room-scoped credentials
+  PresenceSource             reports the roster of every room, briefly cached
 ```
 
 ## Patterns
@@ -55,7 +57,19 @@ Screen audio is captured by Electron loopback and published separately as stereo
 Playback volume belongs to this client. LiveKit reports the volume of the audio
 elements it attached itself, and this client renders its own, so asking the SDK
 returns the level of a set of elements that does not exist. The gateway holds a
-level per participant instead, at full volume until somebody moves the slider.
+level per participant instead, at full volume until somebody moves the slider,
+along with a local mute that silences one person for this listener only.
+
+A media element cannot be turned up past the level of its own recording, and
+both a quiet friend and a quiet game often need more than that. All incoming
+sound therefore plays through one shared Web Audio graph, whose gain node allows
+up to 200%, with the element kept muted and attached so the track keeps
+flowing. Where that graph cannot be built, playback falls back to the element
+and its 100% ceiling. Screen audio starts at half, leaving room to push up.
+
+People are reached where they are listed: a right click on someone in the
+sidebar opens their volume and local mute, and the roster shows a ring while
+they speak and a mark when they are muted.
 
 ## Stable playback
 
@@ -73,6 +87,14 @@ rules keep playback continuous:
 - Gain and the noise gate are applied to the running audio graph. Republishing
   the microphone for a settings change would drop the speaker out of the room
   for a moment and hand listeners a stream whose track had been replaced.
+
+## Seeing the other channels
+
+A LiveKit client only ever sees the room it joined, so a friend waiting in
+another voice channel would be invisible. The service answers `/api/presence`
+behind the same access code, listing the rooms and who is in them, and the
+application asks every few seconds. The channel this client joined is still
+described from the live call, which knows far more than a roster does.
 
 ## The live stage
 

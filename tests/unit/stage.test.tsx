@@ -11,6 +11,7 @@ function createParticipant(overrides: Partial<Participant> & Pick<Participant, '
     isMuted: false,
     isSpeaking: false,
     volume: 100,
+    locallyMuted: false,
     ...overrides,
   };
 }
@@ -79,11 +80,14 @@ describe('Stage', () => {
 
     render(<Stage participants={participants} joined />);
     const video = document.querySelector('video');
-    expect(video?.volume).toBe(1);
+    // Screen audio starts at half, leaving room to push a quiet stream higher.
+    expect(video?.volume).toBeCloseTo(0.5);
 
     fireEvent.change(screen.getByLabelText('Maya screen volume'), { target: { value: '30' } });
-
     expect(video?.volume).toBeCloseTo(0.3);
+
+    fireEvent.change(screen.getByLabelText('Maya screen volume'), { target: { value: '180' } });
+    expect(screen.getByText('180%')).toBeInTheDocument();
   });
 
   it('offers no screen volume for your own preview, which plays muted', () => {

@@ -18,6 +18,7 @@ const demoFriends: Participant[] = [
     isMuted: false,
     isSpeaking: true,
     volume: 80,
+    locallyMuted: false,
   },
   {
     id: 'noah',
@@ -28,6 +29,7 @@ const demoFriends: Participant[] = [
     isMuted: false,
     isSpeaking: false,
     volume: 72,
+    locallyMuted: false,
   },
   {
     id: 'leo',
@@ -38,6 +40,7 @@ const demoFriends: Participant[] = [
     isMuted: true,
     isSpeaking: false,
     volume: 100,
+    locallyMuted: false,
   },
 ];
 
@@ -61,6 +64,7 @@ export class DemoConferenceGateway extends ObservableConference {
           isMuted: !this.microphone,
           isSpeaking: false,
           volume: 100,
+          locallyMuted: false,
         },
         ...demoFriends,
       ],
@@ -163,6 +167,14 @@ export class DemoConferenceGateway extends ObservableConference {
     this.update({
       participants: this.snapshot.participants.map((participant) =>
         participant.id === participantId ? { ...participant, volume } : participant,
+      ),
+    });
+  }
+
+  public setParticipantMuted(participantId: string, muted: boolean): void {
+    this.update({
+      participants: this.snapshot.participants.map((participant) =>
+        participant.id === participantId ? { ...participant, locallyMuted: muted } : participant,
       ),
     });
   }

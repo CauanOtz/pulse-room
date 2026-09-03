@@ -3,6 +3,7 @@ import rateLimit from '@fastify/rate-limit';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { ServerConfiguration } from './config.js';
+import { LiveKitPresenceSource, type PresenceSource } from './presence-service.js';
 import { TokenService } from './token-service.js';
 
 const tokenBodySchema = z.object({
@@ -13,7 +14,10 @@ const roomParametersSchema = z.object({
   roomId: z.string().trim().min(1).max(64).regex(/^[a-zA-Z0-9_-]+$/),
 });
 
-export async function createServer(configuration: ServerConfiguration): Promise<FastifyInstance> {
+export async function createServer(
+  configuration: ServerConfiguration,
+  presenceSource: PresenceSource = new LiveKitPresenceSource(configuration),
+): Promise<FastifyInstance> {
   const server = Fastify({ logger: true });
   const tokenService = new TokenService(configuration);
 
@@ -24,9 +28,26 @@ export async function createServer(configuration: ServerConfiguration): Promise<
 
   server.get('/health', async () => ({ status: 'ok', service: 'pulse-room-token-server' }));
 
+  const isAuthorized = (authorization?: string) =>
+    authorization === `Bearer ${configuration.APP_INVITE_SECRET}`;
+
+  // A member of the room may see who is sitting in the other voice channels,
+  // which no client can discover on its own.
+  server.get('/api/presence', async (request, reply) => {
+    if (!isAuthorized(request.headers.authorization)) {
+      return reply.code(401).send({ error: 'unauthorized' });
+    }
+
+    try {
+      return { rooms: await presenceSource.read() };
+    } catch (error) {
+      request.log.error(error, 'presence lookup failed');
+      return reply.code(502).send({ error: 'presence_unavailable' });
+    }
+  });
+
   server.post('/api/rooms/:roomId/token', async (request, reply) => {
-    const authorization = request.headers.authorization;
-    if (authorization !== `Bearer ${configuration.APP_INVITE_SECRET}`) {
+    if (!isAuthorized(request.headers.authorization)) {
       return reply.code(401).send({ error: 'unauthorized' });
     }
 

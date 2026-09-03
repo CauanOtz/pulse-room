@@ -48,6 +48,7 @@ export class LiveKitConferenceGateway extends ObservableConference {
   // LiveKit reports the volume of the elements it attached itself, and this
   // client renders its own, so playback levels are kept here.
   private readonly volumes = new Map<string, number>();
+  private readonly locallyMuted = new Set<string>();
   private microphoneOptions?: MicrophoneOptions;
 
   public constructor(private readonly configuration: LiveKitGatewayConfiguration) {
@@ -235,7 +236,13 @@ export class LiveKitConferenceGateway extends ObservableConference {
   }
 
   public setParticipantVolume(participantId: string, volume: number): void {
-    this.volumes.set(participantId, Math.min(100, Math.max(0, volume)));
+    this.volumes.set(participantId, Math.min(200, Math.max(0, volume)));
+    this.refreshParticipants();
+  }
+
+  public setParticipantMuted(participantId: string, muted: boolean): void {
+    if (muted) this.locallyMuted.add(participantId);
+    else this.locallyMuted.delete(participantId);
     this.refreshParticipants();
   }
 
@@ -262,6 +269,7 @@ export class LiveKitConferenceGateway extends ObservableConference {
       .on(RoomEvent.ParticipantDisconnected, (participant: RemoteParticipant) => {
         this.streams.forget(participant.identity);
         this.volumes.delete(participant.identity);
+        this.locallyMuted.delete(participant.identity);
         this.refreshParticipants();
       })
       .on(RoomEvent.ActiveSpeakersChanged, () => this.refreshParticipants())
@@ -289,6 +297,7 @@ export class LiveKitConferenceGateway extends ObservableConference {
       isMuted: !this.microphonePublication,
       isSpeaking: this.room.localParticipant.isSpeaking,
       volume: 100,
+      locallyMuted: false,
       screenStream: this.createLocalScreenStream(),
     };
 
@@ -321,6 +330,7 @@ export class LiveKitConferenceGateway extends ObservableConference {
       isMuted: !participant.isMicrophoneEnabled,
       isSpeaking: participant.isSpeaking,
       volume: this.volumes.get(participant.identity) ?? 100,
+      locallyMuted: this.locallyMuted.has(participant.identity),
       microphoneStream: this.streams.sync(participant.identity, 'microphone', microphoneTracks),
       screenStream: this.streams.sync(participant.identity, 'screen', screenTracks),
     };
