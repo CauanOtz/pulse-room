@@ -23,7 +23,8 @@ test('launches the secured desktop shell and completes the join flow', async () 
     await window.evaluate(() => localStorage.removeItem('pulse-room:settings:v1'));
     await expect(window).toHaveTitle('Pulse Room');
     await expect(window.getByRole('heading', { name: 'Come as you are' })).toBeVisible();
-    await window.getByRole('button', { name: 'Join voice' }).click();
+    // Clicking a voice channel is the whole act of joining it.
+    await window.getByRole('button', { name: 'Lounge' }).click();
     await expect(window.getByRole('heading', { name: 'The room is yours' })).toBeVisible();
     await expect(window.getByRole('button', { name: 'Share full screen' })).toBeVisible();
     // Proof that this build carries no room credentials: only the demo roster
@@ -50,6 +51,7 @@ test('launches the secured desktop shell and completes the join flow', async () 
     await expect(window.getByText(`Pulse Room ${version} is current.`)).toBeVisible();
     await window.getByRole('button', { name: 'Save changes' }).click();
 
+    await window.locator('.stage').hover();
     await window.getByRole('button', { name: 'Share full screen' }).click();
     const shareDialog = window.getByRole('dialog', { name: 'Share your full screen' });
     await expect(shareDialog).toBeVisible();
@@ -71,6 +73,7 @@ test('launches the secured desktop shell and completes the join flow', async () 
     await window.getByRole('button', { name: 'Exit full screen' }).click();
     await expect(window.getByRole('button', { name: 'Enter full screen' })).toBeVisible();
 
+    await window.locator('.stage-live').hover();
     await window.getByRole('button', { name: 'Stop sharing' }).click();
     await expect(window.getByRole('button', { name: 'Share full screen' })).toBeVisible();
     await expect(window.getByRole('heading', { name: 'The room is yours' })).toBeVisible();

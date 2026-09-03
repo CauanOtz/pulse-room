@@ -21,19 +21,23 @@ export class ConferenceController {
     }
   }
 
-  public async join(): Promise<void> {
+  public async join(roomId?: string): Promise<void> {
     const settings = this.getSettings();
-    await this.gateway.join({ roomId: settings.roomId, participantName: settings.displayName });
+    await this.gateway.join({
+      roomId: roomId ?? settings.roomId,
+      participantName: settings.displayName,
+    });
     await this.gateway.setMicrophoneEnabled(true, this.microphoneOptions(settings));
   }
 
-  /** Moving between voice channels means leaving one room and joining another. */
-  public async switchRoom(roomId: string): Promise<void> {
+  /** Clicking a voice channel is the whole act of joining it. */
+  public async enterRoom(roomId: string): Promise<void> {
     const settings = { ...this.getSettings(), roomId };
     this.settingsRepository.save(settings);
-    if (this.gateway.getSnapshot().connectionState === 'disconnected') return;
-    await this.gateway.leave();
-    await this.join();
+    if (this.gateway.getSnapshot().connectionState !== 'disconnected') {
+      await this.gateway.leave();
+    }
+    await this.join(roomId);
   }
 
   public async toggleMicrophone(): Promise<void> {

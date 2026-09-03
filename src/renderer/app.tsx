@@ -62,7 +62,7 @@ export function App() {
     let active = true;
     const read = () => void presenceClient.read().then((rooms) => active && setOccupancy(rooms));
     read();
-    const timer = setInterval(read, 5_000);
+    const timer = setInterval(read, 3_000);
     return () => {
       active = false;
       clearInterval(timer);
@@ -105,9 +105,9 @@ export function App() {
   }, [openParticipant?.id, snapshot.participants]);
 
   const handleChannelSelect = (channelId: string) => {
-    if (channelId === settings.roomId) return;
+    if (channelId === settings.roomId && joined) return;
     setSettings((current) => ({ ...current, roomId: channelId }));
-    void run(() => controller.switchRoom(channelId));
+    void run(() => controller.enterRoom(channelId));
   };
 
   const handleShareRequest = () => {
@@ -141,8 +141,11 @@ export function App() {
         displayName={settings.displayName}
         microphoneEnabled={snapshot.microphoneEnabled}
         deafened={snapshot.deafened}
+        joined={joined}
         busy={busy}
         occupancy={occupancy}
+        onToggleMicrophone={() => void run(() => controller.toggleMicrophone())}
+        onToggleDeafen={() => void run(() => controller.toggleDeafen())}
         onSelectChannel={handleChannelSelect}
         onOpenParticipant={(entry, position) => setOpenParticipant({ id: entry.id, position })}
         onOpenSettings={() => setSettingsOpen(true)}
@@ -163,21 +166,18 @@ export function App() {
             joined={joined}
             speakerDeviceId={settings.speakerDeviceId}
             expandLevels={settings.expandScreenLevels}
-          />
+          >
+            {joined && (
+              <CallControls
+                screenSharing={snapshot.screenSharing}
+                busy={busy}
+                onLeave={() => void run(() => controller.gateway.leave())}
+                onShare={handleShareRequest}
+                onOpenSettings={() => setSettingsOpen(true)}
+              />
+            )}
+          </Stage>
           {snapshot.error && <div className="error-banner" role="alert">{snapshot.error}</div>}
-          <CallControls
-            joined={joined}
-            microphoneEnabled={snapshot.microphoneEnabled}
-            deafened={snapshot.deafened}
-            screenSharing={snapshot.screenSharing}
-            busy={busy}
-            onJoin={() => void run(() => controller.join())}
-            onLeave={() => void run(() => controller.gateway.leave())}
-            onToggleMicrophone={() => void run(() => controller.toggleMicrophone())}
-            onToggleDeafen={() => void run(() => controller.toggleDeafen())}
-            onShare={handleShareRequest}
-            onOpenSettings={() => setSettingsOpen(true)}
-          />
           {broadcasters.length > 0 && (
             <span className="share-caption">
               {broadcasters.length === 1

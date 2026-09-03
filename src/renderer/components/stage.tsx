@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Headphones, Maximize2, Minimize2, MonitorUp, Radio, ShieldCheck, Volume2 } from 'lucide-react';
 import type { Participant } from '../domain/conference';
 import { MediaOutput } from './media-output';
@@ -8,9 +8,11 @@ interface StageProps {
   joined: boolean;
   speakerDeviceId?: string;
   expandLevels?: boolean;
+  /** The call controls, which ride along with the fading overlay. */
+  children?: ReactNode;
 }
 
-export function Stage({ participants, joined, speakerDeviceId, expandLevels }: StageProps) {
+export function Stage({ participants, joined, speakerDeviceId, expandLevels, children }: StageProps) {
   const broadcasts = participants.filter((participant) => participant.screenStream);
   const [preferredId, setPreferredId] = useState<string>();
   // Showing your own monitor on the monitor being captured feeds the capture
@@ -90,23 +92,6 @@ export function Stage({ participants, joined, speakerDeviceId, expandLevels }: S
             <span className="live-pulse" /> Live from {active.isLocal ? 'your screen' : active.name}
           </div>
 
-          {broadcasts.length > 1 && (
-            <div className="live-switcher" role="tablist" aria-label="Live screens">
-              {broadcasts.map((broadcast) => (
-                <button
-                  key={broadcast.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={broadcast.id === active.id}
-                  className={broadcast.id === active.id ? 'is-active' : ''}
-                  onClick={() => setPreferredId(broadcast.id)}
-                >
-                  {broadcast.isLocal ? 'Your screen' : broadcast.name}
-                </button>
-              ))}
-            </div>
-          )}
-
           <div className="live-tools">
             {!active.isLocal && (
               <label className="live-volume">
@@ -148,6 +133,34 @@ export function Stage({ participants, joined, speakerDeviceId, expandLevels }: S
             volume={screenVolume}
           />
         </div>
+
+        <div className={`live-overlay${controlsVisible ? '' : ' is-hidden'}`}>
+          {broadcasts.length > 1 && (
+            <div className="live-tiles" role="tablist" aria-label="Live screens">
+              {broadcasts.map((broadcast) => (
+                <button
+                  className={`live-tile${broadcast.id === active.id ? ' is-active' : ''}`}
+                  key={broadcast.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={broadcast.id === active.id}
+                  aria-label={broadcast.isLocal ? 'Your screen' : broadcast.name}
+                  onClick={() => setPreferredId(broadcast.id)}
+                >
+                  <MediaOutput
+                    stream={broadcast.screenStream}
+                    muted
+                    video
+                    className="tile-video"
+                    label={`${broadcast.isLocal ? 'Your' : broadcast.name} screen preview`}
+                  />
+                  <span>{broadcast.isLocal ? 'Your screen' : broadcast.name}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          {children}
+        </div>
       </section>
     );
   }
@@ -161,13 +174,14 @@ export function Stage({ participants, joined, speakerDeviceId, expandLevels }: S
       <p>
         {joined
           ? 'Share your entire monitor with game sound, music, and desktop audio in one stream.'
-          : 'A quiet place for loud nights. Join voice when you are ready.'}
+          : 'A quiet place for loud nights. Pick a voice channel on the left to join.'}
       </p>
       <div className="stage-facts">
         <span><ShieldCheck size={16} /> Noise suppression</span>
         <span><Headphones size={16} /> Separate volumes</span>
         <span><MonitorUp size={16} /> 1080p screen audio</span>
       </div>
+      <div className="live-overlay">{children}</div>
     </section>
   );
 }

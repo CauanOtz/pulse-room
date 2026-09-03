@@ -129,7 +129,7 @@ describe('microphone options', () => {
   });
 });
 
-describe('switching voice channels', () => {
+describe('entering voice channels', () => {
   it('rejoins in the new room when a call is already running', async () => {
     const gateway = createGateway();
     vi.mocked(gateway.getSnapshot).mockReturnValue({
@@ -142,22 +142,22 @@ describe('switching voice channels', () => {
     const save = vi.fn();
     const controller = new ConferenceController(gateway, { load: () => defaultSettings, save });
 
-    await controller.switchRoom('game-room');
+    await controller.enterRoom('game-room');
 
     expect(save).toHaveBeenCalledWith(expect.objectContaining({ roomId: 'game-room' }));
     expect(gateway.leave).toHaveBeenCalledTimes(1);
     expect(gateway.join).toHaveBeenCalledTimes(1);
   });
 
-  it('only remembers the choice when no call is running', async () => {
+  it('joins straight away when no call is running', async () => {
     const gateway = createGateway();
     const save = vi.fn();
     const controller = new ConferenceController(gateway, { load: () => defaultSettings, save });
 
-    await controller.switchRoom('game-room');
+    await controller.enterRoom('game-room');
 
     expect(save).toHaveBeenCalledWith(expect.objectContaining({ roomId: 'game-room' }));
     expect(gateway.leave).not.toHaveBeenCalled();
-    expect(gateway.join).not.toHaveBeenCalled();
+    expect(gateway.join).toHaveBeenCalledWith(expect.objectContaining({ roomId: 'game-room' }));
   });
 });

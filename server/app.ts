@@ -24,7 +24,9 @@ export async function createServer(
   await server.register(cors, {
     origin: true,
   });
-  await server.register(rateLimit, { max: 30, timeWindow: '1 minute' });
+  // Every open application polls presence on a timer, and a household shares
+  // one address, so the ceiling has to sit well above that.
+  await server.register(rateLimit, { max: 200, timeWindow: '1 minute' });
 
   server.get('/health', async () => ({ status: 'ok', service: 'pulse-room-token-server' }));
 

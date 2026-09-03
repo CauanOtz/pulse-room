@@ -44,7 +44,7 @@ test('runs the microphone through the noise gate when joining', async () => {
 
     // Joining opens the microphone, so the room hears you without a second click.
     const you = window.locator('.roster-entry', { hasText: 'You' }).first();
-    await window.getByRole('button', { name: 'Join voice' }).click();
+    await window.getByRole('button', { name: 'Lounge' }).click();
     await expect(window.getByRole('button', { name: 'Mute microphone' })).toBeVisible();
     await expect(you.locator('.roster-flag')).toHaveCount(0);
 

@@ -10,9 +10,12 @@ interface ChannelSidebarProps {
   displayName: string;
   microphoneEnabled: boolean;
   deafened: boolean;
+  joined: boolean;
   busy: boolean;
   occupancy: ChannelOccupancy[];
   onSelectChannel(channelId: string): void;
+  onToggleMicrophone(): void;
+  onToggleDeafen(): void;
   onOpenParticipant(entry: RosterEntry, position: { x: number; y: number }): void;
   onOpenSettings(): void;
 }
@@ -75,9 +78,26 @@ export function ChannelSidebar(props: ChannelSidebarProps) {
 
       <div className="profile-strip">
         <span className="profile-avatar">{props.displayName.slice(0, 2).toUpperCase()}</span>
-        <span className="profile-copy"><strong>{props.displayName}</strong><small>Ready</small></span>
-        <Mic size={17} className={props.microphoneEnabled ? '' : 'is-off'} />
-        <Headphones size={17} className={props.deafened ? 'is-off' : ''} />
+        <span className="profile-copy">
+          <strong>{props.displayName}</strong>
+          <small>{props.joined ? 'In voice' : 'Ready'}</small>
+        </span>
+        <button
+          type="button"
+          disabled={!props.joined || props.busy}
+          aria-label={props.microphoneEnabled ? 'Mute microphone' : 'Unmute microphone'}
+          onClick={props.onToggleMicrophone}
+        >
+          {props.microphoneEnabled ? <Mic size={17} /> : <MicOff size={17} className="is-off" />}
+        </button>
+        <button
+          type="button"
+          disabled={!props.joined || props.busy}
+          aria-label="Toggle deafen"
+          onClick={props.onToggleDeafen}
+        >
+          <Headphones size={17} className={props.deafened ? 'is-off' : ''} />
+        </button>
         <button type="button" aria-label="Open audio settings" onClick={props.onOpenSettings}>
           <Settings size={17} />
         </button>

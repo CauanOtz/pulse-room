@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it } from 'vitest';
 import { createServer } from '../../server/app';
+import { LiveKitPresenceSource } from '../../server/presence-service';
 import type { ServerConfiguration } from '../../server/config';
 
 const configuration: ServerConfiguration = {
@@ -101,5 +102,46 @@ describe('presence', () => {
     });
 
     expect(response.statusCode).toBe(502);
+  });
+});
+
+describe('LiveKitPresenceSource', () => {
+  it('keeps the other rooms when one disappears between the two calls', async () => {
+    const source = new LiveKitPresenceSource(
+      configuration,
+      {
+        listRooms: async () => [{ name: 'lounge' }, { name: 'game-room' }],
+        listParticipants: async (room: string) => {
+          if (room === 'lounge') throw new Error('requested room does not exist');
+          return [{ identity: 'babi-1', name: 'babi' }];
+        },
+      },
+      0,
+    );
+
+    expect(await source.read()).toEqual([
+      { roomId: 'lounge', occupants: [] },
+      { roomId: 'game-room', occupants: [{ identity: 'babi-1', name: 'babi' }] },
+    ]);
+  });
+
+  it('answers repeated questions from the cache', async () => {
+    let listings = 0;
+    const source = new LiveKitPresenceSource(
+      configuration,
+      {
+        listRooms: async () => {
+          listings += 1;
+          return [{ name: 'lounge' }];
+        },
+        listParticipants: async () => [{ identity: 'you-1', name: 'You' }],
+      },
+      60_000,
+    );
+
+    await source.read();
+    await source.read();
+
+    expect(listings).toBe(1);
   });
 });

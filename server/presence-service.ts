@@ -15,6 +15,12 @@ export interface PresenceSource {
   read(): Promise<RoomOccupancy[]>;
 }
 
+/** The slice of the LiveKit admin API this needs, so it can be substituted. */
+export interface RoomAdminClient {
+  listRooms(): Promise<{ name: string }[]>;
+  listParticipants(room: string): Promise<{ identity: string; name: string }[]>;
+}
+
 /**
  * Reads who is sitting in every voice room.
  *
@@ -23,19 +29,22 @@ export interface PresenceSource {
  * asks for this on a timer, and the rooms change far more slowly than that.
  */
 export class LiveKitPresenceSource implements PresenceSource {
-  private readonly client: RoomServiceClient;
+  private readonly client: RoomAdminClient;
   private cached?: { at: number; rooms: RoomOccupancy[] };
 
   public constructor(
     configuration: ServerConfiguration,
-    private readonly cacheMilliseconds = 3_000,
+    client?: RoomAdminClient,
+    private readonly cacheMilliseconds = 2_000,
     private readonly now: () => number = Date.now,
   ) {
-    this.client = new RoomServiceClient(
-      configuration.LIVEKIT_URL.replace(/^wss:/, 'https:'),
-      configuration.LIVEKIT_API_KEY,
-      configuration.LIVEKIT_API_SECRET,
-    );
+    this.client =
+      client ??
+      new RoomServiceClient(
+        configuration.LIVEKIT_URL.replace(/^wss:/, 'https:'),
+        configuration.LIVEKIT_API_KEY,
+        configuration.LIVEKIT_API_SECRET,
+      );
   }
 
   public async read(): Promise<RoomOccupancy[]> {
@@ -44,13 +53,22 @@ export class LiveKitPresenceSource implements PresenceSource {
 
     const rooms = await this.client.listRooms();
     const occupancy = await Promise.all(
-      rooms.map(async (room) => ({
-        roomId: room.name,
-        occupants: (await this.client.listParticipants(room.name)).map((participant) => ({
-          identity: participant.identity,
-          name: participant.name || participant.identity,
-        })),
-      })),
+      rooms.map(async (room) => {
+        try {
+          const participants = await this.client.listParticipants(room.name);
+          return {
+            roomId: room.name,
+            occupants: participants.map((participant) => ({
+              identity: participant.identity,
+              name: participant.name || participant.identity,
+            })),
+          };
+        } catch {
+          // An empty room is torn down moments after the last person leaves,
+          // and one room disappearing must not blank out all the others.
+          return { roomId: room.name, occupants: [] };
+        }
+      }),
     );
 
     this.cached = { at: this.now(), rooms: occupancy };

@@ -19,10 +19,13 @@ function renderSidebar(overrides: Partial<Parameters<typeof ChannelSidebar>[0]> 
       displayName="You"
       microphoneEnabled
       deafened={false}
+      joined
       busy={false}
       occupancy={[]}
       onSelectChannel={onSelectChannel}
       onOpenParticipant={onOpenParticipant}
+      onToggleMicrophone={vi.fn()}
+      onToggleDeafen={vi.fn()}
       onOpenSettings={vi.fn()}
       {...overrides}
     />,

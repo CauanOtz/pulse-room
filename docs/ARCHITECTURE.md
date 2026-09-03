@@ -96,11 +96,25 @@ behind the same access code, listing the rooms and who is in them, and the
 application asks every few seconds. The channel this client joined is still
 described from the live call, which knows far more than a roster does.
 
+An empty room is torn down moments after the last person leaves, so asking who
+is inside a room that was listed a moment earlier can answer that the room does
+not exist. Each room is therefore read on its own: one that vanishes reports an
+empty roster instead of failing the whole request.
+
+## Where the controls live
+
+Clicking a voice channel is the whole act of joining it, so there is no separate
+join step. Microphone and deafen sit with the person they belong to, in the
+profile strip of the sidebar, and the rest of the call controls ride inside the
+picture with the rest of the overlay, appearing on the first movement of the
+mouse and stepping aside again.
+
 ## The live stage
 
 Every participant may publish a screen at the same time. The stage lists each
 live screen and the viewer chooses which one to watch, in normal size or full
-screen. Only the selected screen plays, so its audio is the only screen audio in
+screen, choosing between them from thumbnails of the live pictures rather than
+a list of names. Only the selected screen plays, so its audio is the only screen audio in
 the room, and it carries its own volume, separate from the voice level of the
 person sharing. A remote screen wins the default selection, because previewing
 your own monitor on the monitor being captured feeds the capture back into
