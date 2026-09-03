@@ -15,8 +15,6 @@ jobs:
     runs-on: windows-latest
     env:
       UPDATE_BASE_URL: https://github.com/${{ github.repository }}/releases/latest/download
-      VITE_API_URL: ${{ vars.VITE_API_URL }}
-      VITE_ROOM_ACCESS_CODE: ${{ secrets.VITE_ROOM_ACCESS_CODE }}
 
     steps:
       - name: Check out source
@@ -40,6 +38,9 @@ jobs:
             throw "Tag ${{ github.ref_name }} does not match package version v$packageVersion"
           }
 
+      # Deliberately without room credentials: the end-to-end run must never
+      # join the real room, where it would appear as a stranger to everyone in
+      # the call and publish the runner's own screen.
       - name: Run complete verification
         run: npm run verify
 
@@ -53,6 +54,9 @@ jobs:
 
       - name: Build Windows installer
         if: startsWith(github.ref, 'refs/tags/')
+        env:
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
+          VITE_ROOM_ACCESS_CODE: ${{ secrets.VITE_ROOM_ACCESS_CODE }}
         run: npm run package:windows
 
       - name: Publish GitHub release files

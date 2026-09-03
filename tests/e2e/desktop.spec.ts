@@ -26,6 +26,9 @@ test('launches the secured desktop shell and completes the join flow', async () 
     await window.getByRole('button', { name: 'Join voice' }).click();
     await expect(window.getByRole('heading', { name: 'The room is yours' })).toBeVisible();
     await expect(window.getByRole('button', { name: 'Share full screen' })).toBeVisible();
+    // Proof that this build carries no room credentials: only the demo roster
+    // is present, so the test can never walk into a real call.
+    await expect(window.locator('.participant-panel')).toContainText('Maya');
 
     await window.getByRole('button', { name: 'Open settings' }).click();
     await expect(window.getByRole('heading', { name: 'Voice and video' })).toBeVisible();
