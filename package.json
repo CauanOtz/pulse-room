@@ -1,0 +1,90 @@
+{
+  "name": "pulse-room",
+  "productName": "Pulse Room",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A focused desktop voice room with full-screen system audio sharing.",
+  "author": "Pulse Room contributors",
+  "main": "dist-electron/main/index.js",
+  "scripts": {
+    "dev": "concurrently -k \"vite\" \"tsc -p tsconfig.electron.json --watch --preserveWatchOutput\" \"wait-on tcp:5173 file:dist-electron/main/index.js && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .\"",
+    "dev:server": "tsx watch server/index.ts",
+    "build": "npm run typecheck && npm run build:renderer && npm run build:electron && npm run build:server",
+    "build:renderer": "vite build",
+    "build:electron": "tsc -p tsconfig.electron.json",
+    "build:server": "tsc -p tsconfig.server.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "npm run build && playwright test",
+    "verify": "npm run typecheck && npm run test && npm run test:e2e",
+    "package:windows": "npm run build && electron-builder --win nsis",
+    "release:windows": "npm run build && electron-builder --win nsis --publish always"
+  },
+  "dependencies": {
+    "@fastify/cors": "^11.1.0",
+    "@fastify/rate-limit": "^10.3.0",
+    "@fontsource-variable/manrope": "^5.2.7",
+    "electron-updater": "^6.8.9",
+    "fastify": "^5.6.2",
+    "livekit-client": "^2.22.2",
+    "livekit-server-sdk": "^2.15.0",
+    "lucide-react": "^0.544.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "zod": "^4.1.5"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "@testing-library/jest-dom": "^6.8.0",
+    "@testing-library/react": "^16.3.0",
+    "@types/node": "^24.3.0",
+    "@types/react": "^19.1.12",
+    "@types/react-dom": "^19.1.9",
+    "@vitejs/plugin-react": "^5.0.2",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.0.0",
+    "electron": "^44.1.1",
+    "electron-builder": "^26.0.12",
+    "jsdom": "^26.1.0",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2",
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11",
+    "wait-on": "^8.0.4"
+  },
+  "build": {
+    "appId": "com.pulseroom.desktop",
+    "productName": "Pulse Room",
+    "asar": true,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "artifactName": "${productName}-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "${env.UPDATE_BASE_URL}"
+      }
+    ]
+  }
+}
