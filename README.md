@@ -17,6 +17,7 @@ Pulse Room is a Windows desktop voice room built for small groups that want to s
 - Per-participant volume and local mute from a right click in the sidebar, boosted up to 200%, plus a live microphone meter and selectable input/output devices.
 - Voice channels in the sidebar that join on a click and show who is in each one, arrival and departure cues, and a demo adapter that runs without cloud credentials.
 - A small Fastify token service suitable for Railway.
+- Calls that survive the window: closing it leaves Pulse Room in the Windows tray.
 - SemVer application versions, NSIS installer generation, and automatic updates from GitHub Releases.
 - Individual accounts, encrypted desktop sessions, password recovery codes and session revocation.
 - Private servers with expiring, limited-use invitations; owner, administrator and member roles.

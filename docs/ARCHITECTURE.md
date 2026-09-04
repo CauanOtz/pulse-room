@@ -154,6 +154,18 @@ the panels themselves, and a shadow appears only on something that floats above
 the page. Call controls are round and carry an icon alone, because a label under
 every icon is what made the old dock twice the height it needed.
 
+## Staying in the room
+
+A call outlives the window it was started from. On Windows, closing the window
+hides it into the tray and the room stays connected; only the tray menu, or an
+update, actually quits. A second launch reveals the window already running
+rather than starting a rival instance.
+
+On Android the call belongs to a foreground service, so the room survives the
+screen turning off or another application coming forward. What the phone drops
+in the background is the picture of a screen share, never its sound: a phone in
+a pocket is still in the conversation.
+
 ## Security decisions
 
 - Renderer Node integration is disabled.

@@ -135,14 +135,16 @@ class CallController(private val context: Context, private val api: PulseApi) {
                 val isStreamAudio = remote.source == Track.Source.SCREEN_SHARE_AUDIO
                 val chosen = selected?.ownerId == identity
                 val subscribe = when (remote.source) {
-                    Track.Source.MICROPHONE -> true
-                    Track.Source.SCREEN_SHARE -> visible && remote.sid == selected?.id
-                    Track.Source.SCREEN_SHARE_AUDIO -> visible && chosen
+                    Track.Source.MICROPHONE -> AudioPolicy.subscribes(RemoteSource.VOICE, true, visible)
+                    Track.Source.SCREEN_SHARE ->
+                        AudioPolicy.subscribes(RemoteSource.SCREEN_VIDEO, remote.sid == selected?.id, visible)
+                    Track.Source.SCREEN_SHARE_AUDIO ->
+                        AudioPolicy.subscribes(RemoteSource.SCREEN_AUDIO, chosen, visible)
                     else -> false
                 }
                 if (remote.isDesired != subscribe) remote.setSubscribed(subscribe)
                 if (!isVideo) (remote.track as? RemoteAudioTrack)?.setVolume(AudioPolicy.receivedGain(
-                    snapshot.deafened, isStreamAudio, chosen && visible,
+                    snapshot.deafened, isStreamAudio, chosen,
                     if (isStreamAudio) snapshot.streamVolume else snapshot.voiceVolumes[identity] ?: 100f,
                 ))
             }

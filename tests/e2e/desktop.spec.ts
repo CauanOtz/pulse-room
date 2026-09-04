@@ -115,6 +115,17 @@ test('launches the secured desktop shell and completes the join flow', async () 
     await window.getByRole('button', { name: 'Lounge' }).click();
     await expect(window.locator('.voice-panel')).toContainText('Lounge');
 
+    // Closing the window must not end a call: the application waits in the tray.
+    await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].close());
+    const survived = await application.evaluate(({ BrowserWindow }) => ({
+      windows: BrowserWindow.getAllWindows().length,
+      visible: BrowserWindow.getAllWindows()[0]?.isVisible(),
+    }));
+    expect(survived).toEqual({ windows: 1, visible: false });
+
+    await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].show());
+    await expect(window.locator('.app-shell')).toBeVisible();
+
     const bridgeVersion = await window.evaluate(() => window.desktop?.app.getVersion());
     expect(bridgeVersion).toBe(version);
     expect(problems).toEqual([]);

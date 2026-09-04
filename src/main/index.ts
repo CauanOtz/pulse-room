@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { app, BrowserWindow, ipcMain, session } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, nativeImage, session, Tray } from 'electron';
 import { ScreenCaptureService } from './application/screen-capture-service';
 import { UpdateService } from './application/update-service';
 import { SessionVault } from './application/session-vault';
@@ -12,6 +12,10 @@ if (process.env.NODE_ENV === 'test' && process.env.PULSE_TEST_USER_DATA) {
 }
 
 let mainWindow: BrowserWindow | null = null;
+let tray: Tray | null = null;
+// Closing the window would end a call the room is still in, so the application
+// steps into the tray instead and only leaves when it is asked to.
+let quitting = false;
 const screenCaptureService = new ScreenCaptureService();
 const updateService = new UpdateService(() => mainWindow);
 
@@ -33,6 +37,12 @@ function createMainWindow(): BrowserWindow {
   });
 
   window.once('ready-to-show', () => window.show());
+  window.on('close', (event) => {
+    if (quitting) return;
+    event.preventDefault();
+    window.hide();
+    announceTray();
+  });
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   window.webContents.on('will-navigate', (event) => event.preventDefault());
 
@@ -44,6 +54,47 @@ function createMainWindow(): BrowserWindow {
   }
 
   return window;
+}
+
+// Somebody who closes the window and hears nothing more would think the call
+// died, so the first time it happens the tray says where it went.
+let trayAnnounced = false;
+function announceTray(): void {
+  if (trayAnnounced || !tray) return;
+  trayAnnounced = true;
+  if (process.platform !== 'win32') return;
+  tray.displayBalloon({
+    title: 'Pulse Room is still here',
+    content: 'The call keeps running. Open it again from the tray, or quit from its menu.',
+    iconType: 'info',
+  });
+}
+
+function revealWindow(): void {
+  const window = mainWindow ?? (mainWindow = createMainWindow());
+  if (window.isMinimized()) window.restore();
+  window.show();
+  window.focus();
+}
+
+function createTray(): void {
+  const icon = nativeImage.createFromPath(path.join(__dirname, '../../assets/tray.png'));
+  tray = new Tray(icon.isEmpty() ? nativeImage.createEmpty() : icon);
+  tray.setToolTip('Pulse Room');
+  tray.setContextMenu(
+    Menu.buildFromTemplate([
+      { label: 'Open Pulse Room', click: revealWindow },
+      { type: 'separator' },
+      {
+        label: 'Quit Pulse Room',
+        click: () => {
+          quitting = true;
+          app.quit();
+        },
+      },
+    ]),
+  );
+  tray.on('click', revealWindow);
 }
 
 function registerIpcHandlers(): void {
@@ -66,10 +117,21 @@ function registerIpcHandlers(): void {
   ipcMain.handle('updates:install', () => updateService.install());
 }
 
+// A second launch belongs to the window already in the tray.
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+}
+
+app.on('second-instance', () => revealWindow());
+app.on('before-quit', () => {
+  quitting = true;
+});
+
 app.whenReady().then(() => {
   screenCaptureService.install(session.defaultSession);
   registerIpcHandlers();
   mainWindow = createMainWindow();
+  createTray();
 
   session.defaultSession.setPermissionCheckHandler((_webContents, permission) =>
     allowedPermissions.has(permission),
@@ -90,5 +152,6 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
+  // Reached only once the window is really gone, which means a deliberate quit.
+  if (process.platform !== 'darwin' && quitting) app.quit();
 });
