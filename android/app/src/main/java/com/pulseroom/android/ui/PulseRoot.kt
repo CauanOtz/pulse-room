@@ -143,6 +143,8 @@ import com.pulseroom.android.data.*
                 Text("Noise suppression", Modifier.weight(1f))
                 Switch(call.noiseSuppression, model.calls::setNoiseSuppression, enabled = call.canSpeak && !call.muted)
             }
+            Text("Your microphone", style = MaterialTheme.typography.titleMedium)
+            Text(microphoneReport(call), style = MaterialTheme.typography.bodySmall)
             Text("Echo cancellation and automatic microphone level are enabled. A headset gives the best call and stream sound.", style = MaterialTheme.typography.bodySmall)
         } }, confirmButton = { TextButton(onClick = { audioSettings = false }) { Text("Done") } })
 }
@@ -226,7 +228,13 @@ import com.pulseroom.android.data.*
                 IconButton(onSettings) { Icon(Icons.Default.Tune, "Audio settings") }
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                FilledTonalIconButton(onClick = model.calls::toggleMute, enabled = call.canSpeak && call.status == "Connected") { Icon(if (call.muted) Icons.Default.MicOff else Icons.Default.Mic, if (call.muted) "Unmute" else "Mute") }
+                if (call.canSpeak) {
+                    FilledTonalIconButton(onClick = model.calls::toggleMute, enabled = call.status == "Connected") { Icon(if (call.muted) Icons.Default.MicOff else Icons.Default.Mic, if (call.muted) "Unmute" else "Mute") }
+                } else {
+                    // A button that does nothing reads as a broken microphone.
+                    AssistChip(onClick = onSettings, label = { Text("Listen only") },
+                        leadingIcon = { Icon(Icons.Default.MicOff, null, Modifier.size(18.dp)) })
+                }
                 FilledTonalIconButton(onClick = model.calls::toggleDeafen) { Icon(if (call.deafened) Icons.Default.HeadsetOff else Icons.Default.Headphones, if (call.deafened) "Undeafen" else "Deafen") }
                 Button(onClick = { model.calls.leave() }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
                     Icon(Icons.Default.CallEnd, null); Text("Leave", Modifier.padding(start = 8.dp))
@@ -234,4 +242,17 @@ import com.pulseroom.android.data.*
             }
         }
     }
+}
+
+/**
+ * Says whether the room is actually hearing this phone. Android can hand an
+ * application a microphone that only ever delivers silence, and without this the
+ * only symptom is friends saying they cannot hear you.
+ */
+internal fun microphoneReport(call: CallState): String = when {
+    !call.canSpeak -> "This channel is listen only: an administrator can allow speaking in the channel settings."
+    call.status != "Connected" -> "Waiting for the call to connect."
+    call.muted -> "Muted. Tap the microphone in the call bar to speak."
+    call.heardSinceUnmute -> "Working: the room has heard you since you unmuted."
+    else -> "Say something. If this line does not change, Android is giving Pulse Room no sound. Check the microphone permission for Pulse Room, and on Xiaomi also Autostart and battery restrictions."
 }

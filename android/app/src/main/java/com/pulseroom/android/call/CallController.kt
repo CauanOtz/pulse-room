@@ -31,7 +31,8 @@ data class CallState(
     val channelId: String? = null, val channelName: String = "", val status: String = "Disconnected",
     val room: Room? = null, val members: List<VoiceMember> = emptyList(), val shares: List<ScreenShare> = emptyList(),
     val selectedShare: String? = null, val muted: Boolean = true, val deafened: Boolean = false,
-    val canSpeak: Boolean = false, val streamVolume: Float = 50f, val voiceVolumes: Map<String, Float> = emptyMap(),
+    val canSpeak: Boolean = false, val heardSinceUnmute: Boolean = false,
+    val streamVolume: Float = 50f, val voiceVolumes: Map<String, Float> = emptyMap(),
     val routes: List<String> = emptyList(), val route: String? = null,
     val noiseSuppression: Boolean = true, val error: String? = null,
 )
@@ -112,6 +113,7 @@ class CallController(private val context: Context, private val api: PulseApi) {
         val selected = snapshot.selectedShare?.takeIf { id -> shares.any { it.id == id } } ?: shares.firstOrNull()?.id
         val local = activeRoom.localParticipant
         val allMembers = listOf(local) + participants
+        val muted = local.getTrackPublication(Track.Source.MICROPHONE)?.let { it.muted } ?: true
         mutable.value = snapshot.copy(
             shares = shares, selectedShare = selected,
             members = allMembers.map { participant ->
@@ -119,7 +121,11 @@ class CallController(private val context: Context, private val api: PulseApi) {
                 VoiceMember(participant.identity?.value.orEmpty(), participant.name ?: "You",
                     publication == null || publication.muted, participant.isSpeaking, participant === local)
             },
-            muted = local.getTrackPublication(Track.Source.MICROPHONE)?.let { it.muted } ?: true,
+            muted = muted,
+            // The room reports who it hears. A microphone the system feeds with
+            // silence never appears there, which is the only way to tell the
+            // difference between a quiet person and a dead input.
+            heardSinceUnmute = !muted && (snapshot.heardSinceUnmute || local.isSpeaking),
         )
         applySubscriptions()
     }
