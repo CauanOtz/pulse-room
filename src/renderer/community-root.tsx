@@ -12,6 +12,8 @@ import { AccountDialog, AddServerDialog, ChannelDialog, ServerDialog } from './c
 import { Modal } from './components/modal';
 import { ServerRail } from './components/server-rail';
 import { ApiError, CommunityClient } from './infrastructure/community-client';
+import { ImageCache } from './infrastructure/image-cache';
+import { ImagesProvider } from './components/avatar';
 
 export interface WorkspaceBindings {
   api: CommunityClient;
@@ -25,6 +27,7 @@ export interface WorkspaceBindings {
 }
 export function CommunityRoot({ apiUrl }: { apiUrl: string }) {
   const api = useMemo(() => new CommunityClient(apiUrl.replace(/\/$/, '')), [apiUrl]);
+  const images = useMemo(() => new ImageCache(api), [api]);
   const [user, setUser] = useState<Account>();
   const [restoring, setRestoring] = useState(true);
   const [recovery, setRecovery] = useState('');
@@ -165,7 +168,7 @@ export function CommunityRoot({ apiUrl }: { apiUrl: string }) {
     );
   if (!user) return <AccountScreen api={api} onAuthenticated={(session) => void authenticated(session)} />;
   return (
-    <>
+    <ImagesProvider images={images}>
       {detail ? (
         <App
           key={detail.server.id}
@@ -259,12 +262,16 @@ export function CommunityRoot({ apiUrl }: { apiUrl: string }) {
           api={api}
           user={user}
           onClose={() => setDialog(undefined)}
+          onProfileChanged={async () => {
+            setUser(await api.request<{ user: Account }>('/api/auth/me').then((result) => result.user));
+            await refresh();
+          }}
           onLogout={async () => {
             await api.request('/api/auth/logout', 'POST');
             clearSession();
           }}
         />
       )}
-    </>
+    </ImagesProvider>
   );
 }

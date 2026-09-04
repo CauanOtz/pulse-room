@@ -3,11 +3,14 @@ export interface Account {
   id: string;
   username: string;
   displayName: string;
+  /** Content address of the picture, fetched from /api/images. */
+  avatarId?: string | null;
 }
 export interface Community {
   id: string;
   name: string;
   role: MemberRole;
+  iconId?: string | null;
 }
 export interface CommunityMember extends Account {
   role: MemberRole;

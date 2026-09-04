@@ -8,6 +8,7 @@ import { TokenService } from './token-service.js';
 import { PostgresDatabase, migrate, type Database } from './database.js';
 import { AccountService, type AuthenticatedAccount } from './account-service.js';
 import { CommunityService } from './community-service.js';
+import { ImageService, imageLimits } from './image-service.js';
 import { HttpError } from './security.js';
 import {
   publishSources,
@@ -49,6 +50,7 @@ export async function createServer(
   await migrate(db);
   const accounts = new AccountService(db);
   const communities = new CommunityService(db);
+  const images = new ImageService(db);
   const tokens = new TokenService(configuration);
   const voice = new VoiceAccessService(db, communities, configuration, voiceClient);
   const server = Fastify({
@@ -60,6 +62,13 @@ export async function createServer(
         },
     trustProxy: (_address, hop) => hop < 1,
   });
+  // Pictures arrive as raw bytes. No multipart parser, no file names, no
+  // temporary files: fewer moving parts is the whole security argument.
+  server.addContentTypeParser(
+    ['image/png', 'image/webp'],
+    { parseAs: 'buffer', bodyLimit: imageLimits.bytes },
+    (_request, body, done) => done(null, body),
+  );
   const authenticated = new WeakMap<FastifyRequest, AuthenticatedAccount>();
   const actor = (request: FastifyRequest) => authenticated.get(request)!;
   const id = (request: FastifyRequest, key: string) =>
@@ -253,6 +262,62 @@ export async function createServer(
       sources: publishSources(channel, role),
     });
   });
+  const uploadLimit = {
+    bodyLimit: imageLimits.bytes,
+    config: { rateLimit: { max: 12, timeWindow: '10 minutes' } },
+  };
+  const uploaded = (request: FastifyRequest): Buffer => {
+    if (!Buffer.isBuffer(request.body)) throw new HttpError(415, 'Send a PNG or WebP image.');
+    return request.body;
+  };
+
+  server.post('/api/account/avatar', uploadLimit, async (request) => {
+    const imageId = await images.store(uploaded(request));
+    await accounts.setAvatar(actor(request).id, imageId, images);
+    return { avatarId: imageId };
+  });
+
+  server.delete('/api/account/avatar', async (request) => {
+    await accounts.setAvatar(actor(request).id, null, images);
+    return { avatarId: null };
+  });
+
+  server.post('/api/servers/:serverId/icon', uploadLimit, async (request) => {
+    const serverId = id(request, 'serverId');
+    // Stored first, then attached: attaching is the step that checks the role,
+    // and a picture that never attaches is collected rather than left behind.
+    const imageId = await images.store(uploaded(request));
+    try {
+      await communities.setIcon(actor(request).id, serverId, imageId, images);
+    } catch (error) {
+      await images.collect(imageId);
+      throw error;
+    }
+    return { iconId: imageId };
+  });
+
+  server.delete('/api/servers/:serverId/icon', async (request) => {
+    await communities.setIcon(actor(request).id, id(request, 'serverId'), null, images);
+    return { iconId: null };
+  });
+
+  server.get('/api/images/:imageId', async (request, reply) => {
+    const imageId = z
+      .string()
+      .regex(/^[0-9a-f]{64}$/)
+      .parse((request.params as Record<string, string>).imageId);
+    const image = await images.read(actor(request).id, imageId);
+    return reply
+      .header('Content-Type', image.mime)
+      .header('Content-Disposition', 'inline')
+      .header('X-Content-Type-Options', 'nosniff')
+      .header('Content-Security-Policy', "default-src 'none'; sandbox")
+      .header('Cross-Origin-Resource-Policy', 'same-origin')
+      // The address is the hash of the content, so it can never mean anything else.
+      .header('Cache-Control', 'private, max-age=31536000, immutable')
+      .send(image.bytes);
+  });
+
   server.get('/api/presence', async (request) => {
     const { serverId } = z.object({ serverId: z.uuid() }).parse(request.query);
     const { channels } = await communities.detail(actor(request).id, serverId);

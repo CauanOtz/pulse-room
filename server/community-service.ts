@@ -23,7 +23,7 @@ export class CommunityService {
   async list(userId: string): Promise<Community[]> {
     return (
       await this.db.query<Community>(
-        `SELECT c.id,c.name,m.role FROM communities c
+        `SELECT c.id,c.name,c.icon_id AS "iconId",m.role FROM communities c
       JOIN memberships m ON m.server_id=c.id WHERE m.account_id=$1 ORDER BY c.created_at,c.id`,
         [userId],
       )
@@ -76,9 +76,10 @@ export class CommunityService {
     const role = await this.role(userId, serverId);
     const {
       rows: [server],
-    } = await this.db.query<{ id: string; name: string }>('SELECT id,name FROM communities WHERE id=$1', [
-      serverId,
-    ]);
+    } = await this.db.query<{ id: string; name: string; iconId: string | null }>(
+      'SELECT id,name,icon_id AS "iconId" FROM communities WHERE id=$1',
+      [serverId],
+    );
     const { rows: channels } = await this.db.query<CommunityChannel>(
       `SELECT ${channelColumns} FROM channels c
       WHERE c.server_id=$1 AND (NOT c.private OR $3 OR EXISTS(
@@ -96,7 +97,7 @@ export class CommunityService {
           ).rows.map((x) => x.id)
         : [];
     const { rows: members } = await this.db.query<CommunityMember>(
-      `SELECT a.id,a.username,a.display_name AS "displayName",m.role
+      `SELECT a.id,a.username,a.display_name AS "displayName",a.avatar_id AS "avatarId",m.role
       FROM accounts a JOIN memberships m ON a.id=m.account_id WHERE m.server_id=$1 ORDER BY a.username`,
       [serverId],
     );
@@ -137,6 +138,26 @@ export class CommunityService {
   }
   private requireManager(role: MemberRole): void {
     if (!canManage(role)) throw new HttpError(403, 'Only the owner and administrators can do that.');
+  }
+
+  /** Only a manager changes the icon, and the replaced one is dropped. */
+  async setIcon(
+    userId: string,
+    serverId: string,
+    imageId: string | null,
+    images: { collect(id: string | null | undefined, db?: Database): Promise<void> },
+  ): Promise<void> {
+    await this.mutate(userId, serverId, async (db, role) => {
+      this.requireManager(role);
+      const {
+        rows: [current],
+      } = await db.query<{ iconId: string | null }>(
+        'SELECT icon_id AS "iconId" FROM communities WHERE id=$1',
+        [serverId],
+      );
+      await db.query('UPDATE communities SET icon_id=$2 WHERE id=$1', [serverId, imageId]);
+      if (current?.iconId && current.iconId !== imageId) await images.collect(current.iconId, db);
+    });
   }
 
   async rename(userId: string, serverId: string, name: string): Promise<void> {

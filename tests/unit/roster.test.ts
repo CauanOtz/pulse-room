@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { accentFor, channelRoster, initialsOf } from '../../src/renderer/domain/roster';
+import { accentFor, accountOf, channelRoster, initialsOf } from '../../src/renderer/domain/roster';
 import type { Participant } from '../../src/renderer/domain/conference';
 
 const you: Participant = {
@@ -39,5 +39,20 @@ describe('channelRoster', () => {
     expect(initialsOf('Merge lounge Microphone')).toBe('ML');
     expect(initialsOf('babi')).toBe('B');
     expect(accentFor('babi-77')).toBe(accentFor('babi-77'));
+  });
+
+  it('carries the picture of the account behind a voice identity', () => {
+    const avatars = new Map([['account-1', 'picture-hash']]);
+    const speaker = { ...you, id: 'account-1:session-9' };
+
+    const roster = channelRoster('lounge', 'lounge', [speaker], occupancy, avatars);
+
+    expect(accountOf('account-1:session-9')).toBe('account-1');
+    expect(roster[0].avatarId).toBe('picture-hash');
+  });
+
+  it('leaves people without a picture undecorated', () => {
+    const roster = channelRoster('game-room', 'lounge', [you], occupancy, new Map());
+    expect(roster[0].avatarId).toBeUndefined();
   });
 });

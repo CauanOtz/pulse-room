@@ -9,6 +9,7 @@ import { CommunityService } from '../../server/community-service';
 import { VoiceAccessService, voiceRoomName } from '../../server/voice-access-service';
 import { AccountService } from '../../server/account-service';
 import type { AccountSession, Community, CommunityDetail } from '../../src/shared/community';
+import { png, svg } from '../helpers/images';
 
 const config: ServerConfiguration = {
   PORT: 3001,
@@ -441,5 +442,115 @@ describe('LiveKit configuration and presence cache', () => {
     ]);
     await source.read();
     expect(listings).toBe(1);
+  });
+});
+
+describe('profile pictures', () => {
+  // Its own people and room: the picture rules must not be read through the
+  // side effects of unrelated tests.
+  let photographer: AccountSession, roommate: AccountSession, outsider: AccountSession;
+  let gallery: Community;
+
+  beforeAll(async () => {
+    photographer = await createAccount('Photographer');
+    roommate = await createAccount('Roommate');
+    outsider = await createAccount('Outsider');
+    gallery = (await request('POST', '/api/servers', photographer, { name: 'Gallery' })).json();
+    const { code } = (
+      await request('POST', `/api/servers/${gallery.id}/invites`, photographer, { maxUses: 1, hours: 24 })
+    ).json();
+    expect((await request('POST', '/api/invites/join', roommate, { code })).statusCode).toBe(200);
+  }, 30_000);
+
+  const upload = (url: string, session: AccountSession, bytes: Buffer, type = 'image/png') =>
+    app.inject({
+      method: 'POST',
+      url,
+      payload: bytes,
+      headers: {
+        authorization: `Bearer ${session.token}`,
+        'content-type': type,
+        'x-forwarded-for': `10.9.${Math.floor(requestId / 200)}.${(++requestId % 200) + 1}`,
+      },
+    });
+
+  it('refuses an upload from nobody', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/account/avatar',
+      payload: png(64),
+      headers: { 'content-type': 'image/png', 'x-forwarded-for': '10.9.250.1' },
+    });
+    expect(response.statusCode).toBe(401);
+  });
+
+  it('refuses a document dressed as a picture', async () => {
+    const response = await upload('/api/account/avatar', photographer, svg);
+    expect(response.statusCode).toBe(415);
+    expect(response.json().error).not.toContain('svg');
+  });
+
+  it('refuses a body that is not an image at all', async () => {
+    const response = await upload('/api/account/avatar', photographer, Buffer.from('{}'), 'application/json');
+    expect(response.statusCode).toBe(415);
+  });
+
+  it('keeps a picture to the people who share a room with its owner', async () => {
+    const { avatarId } = (await upload('/api/account/avatar', photographer, png(96))).json();
+    expect(avatarId).toMatch(/^[0-9a-f]{64}$/);
+
+    expect((await request('GET', `/api/images/${avatarId}`, photographer)).statusCode).toBe(200);
+    expect((await request('GET', `/api/images/${avatarId}`, roommate)).statusCode).toBe(200);
+    expect((await request('GET', `/api/images/${avatarId}`, outsider)).statusCode).toBe(404);
+    expect((await request('GET', `/api/images/${avatarId}`)).statusCode).toBe(401);
+  });
+
+  it('serves a picture as an inert image the client may cache forever', async () => {
+    const { avatarId } = (await upload('/api/account/avatar', roommate, png(64, 1, 2, 3))).json();
+    const response = await request('GET', `/api/images/${avatarId}`, roommate);
+
+    expect(response.headers['content-type']).toBe('image/png');
+    expect(response.headers['x-content-type-options']).toBe('nosniff');
+    expect(response.headers['content-security-policy']).toContain("default-src 'none'");
+    expect(response.headers['cache-control']).toBe('private, max-age=31536000, immutable');
+    expect(response.rawPayload.subarray(0, 8)).toEqual(png(64).subarray(0, 8));
+  });
+
+  it('forgets a replaced picture, so nothing lingers behind its address', async () => {
+    const first = (await upload('/api/account/avatar', outsider, png(48, 9, 9, 9))).json().avatarId;
+    const second = (await upload('/api/account/avatar', outsider, png(48, 4, 4, 4))).json().avatarId;
+    expect(second).not.toBe(first);
+
+    expect((await request('GET', `/api/images/${first}`, outsider)).statusCode).toBe(404);
+    expect((await request('GET', `/api/images/${second}`, outsider)).statusCode).toBe(200);
+  });
+
+  it('stores one copy of the same picture', async () => {
+    const once = (await upload('/api/account/avatar', photographer, png(80, 5, 6, 7))).json().avatarId;
+    const twice = (await upload('/api/account/avatar', photographer, png(80, 5, 6, 7))).json().avatarId;
+    expect(twice).toBe(once);
+  });
+
+  it('lets only a manager change the icon of a room, and keeps nothing from the attempt', async () => {
+    const denied = await upload(`/api/servers/${gallery.id}/icon`, roommate, png(64, 2, 2, 2));
+    expect(denied.statusCode).toBe(403);
+
+    const allowed = await upload(`/api/servers/${gallery.id}/icon`, photographer, png(64, 2, 2, 2));
+    expect(allowed.statusCode).toBe(200);
+    const { iconId } = allowed.json();
+    // The refused attempt carried the same picture: it must exist now because
+    // the manager stored it, not because the member's attempt left it behind.
+    expect((await request('GET', `/api/images/${iconId}`, roommate)).statusCode).toBe(200);
+    expect((await request('GET', `/api/images/${iconId}`, outsider)).statusCode).toBe(404);
+    const { servers } = (await request('GET', '/api/servers', roommate)).json() as {
+      servers: Community[];
+    };
+    expect(servers.find((community) => community.id === gallery.id)?.iconId).toBe(iconId);
+  });
+
+  it('refuses an address that is not one of ours', async () => {
+    expect((await request('GET', `/api/images/${'0'.repeat(64)}`, photographer)).statusCode).toBe(404);
+    expect((await request('GET', '/api/images/short', photographer)).statusCode).toBe(400);
+    expect((await request('GET', `/api/images/${'0'.repeat(63)}Z`, photographer)).statusCode).toBe(400);
   });
 });

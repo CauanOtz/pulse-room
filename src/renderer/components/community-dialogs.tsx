@@ -10,6 +10,8 @@ import {
 } from '../../shared/community';
 import type { CommunityClient } from '../infrastructure/community-client';
 import { Modal } from './modal';
+import { Avatar } from './avatar';
+import { PictureField } from './picture-field';
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Request failed. Please try again.';
@@ -476,6 +478,21 @@ export function ServerDialog({
         </>
       )}
       {tab === 'settings' && (
+        <>
+          <PictureField
+            name={detail.server.name}
+            imageId={detail.server.iconId}
+            label="Server picture"
+            canEdit={manager}
+            onChoose={async (image) => {
+              await api.upload(`${base}/icon`, image);
+              await onChanged();
+            }}
+            onRemove={async () => {
+              await api.request(`${base}/icon`, 'DELETE');
+              await onChanged();
+            }}
+          />
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -490,6 +507,7 @@ export function ServerDialog({
             Rename server
           </button>
         </form>
+        </>
       )}
       {error && (
         <p className="form-error" role="alert">
@@ -533,11 +551,13 @@ export function AccountDialog({
   user,
   onClose,
   onLogout,
+  onProfileChanged,
 }: {
   api: CommunityClient;
   user: Account;
   onClose(): void;
   onLogout(): Promise<void>;
+  onProfileChanged(): Promise<void>;
 }) {
   const [currentPassword, setCurrent] = useState('');
   const [password, setPassword] = useState('');
@@ -546,15 +566,27 @@ export function AccountDialog({
   return (
     <Modal title="Your account" onClose={onClose}>
       <div className="account-identity">
-        <span className="account-avatar" aria-hidden="true">
-          {user.displayName.slice(0, 2).toUpperCase()}
-        </span>
+        <Avatar name={user.displayName} imageId={user.avatarId} className="account-avatar" />
         <div>
           <strong>{user.displayName}</strong>
           <span>@{user.username}</span>
         </div>
         <span className="account-badge">Signed in</span>
       </div>
+      <PictureField
+        name={user.displayName}
+        imageId={user.avatarId}
+        label="Profile picture"
+        canEdit
+        onChoose={async (image) => {
+          await api.upload('/api/account/avatar', image);
+          await onProfileChanged();
+        }}
+        onRemove={async () => {
+          await api.request('/api/account/avatar', 'DELETE');
+          await onProfileChanged();
+        }}
+      />
       <section className="account-security">
         <div className="section-heading">
           <LockKeyhole size={18} aria-hidden="true" />

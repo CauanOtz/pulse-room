@@ -1,3 +1,4 @@
+import { Avatar } from './avatar';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Account, ChatMessage, CommunityChannel } from '../../shared/community';
 import type { CommunityClient } from '../infrastructure/community-client';
@@ -7,11 +8,13 @@ export function TextChat({
   channel,
   user,
   manager,
+  avatars,
 }: {
   api: CommunityClient;
   channel: CommunityChannel;
   user: Account;
   manager: boolean;
+  avatars?: ReadonlyMap<string, string | null | undefined>;
 }) {
   const [latest, setLatest] = useState<ChatMessage[]>([]);
   const [history, setHistory] = useState<ChatMessage[]>([]);
@@ -107,7 +110,11 @@ export function TextChat({
         )}
         {messages.map((message) => (
           <article className="chat-message" key={message.id}>
-            <span className="profile-avatar">{message.authorName.slice(0, 2).toUpperCase()}</span>
+            <Avatar
+              className="profile-avatar"
+              name={message.authorName}
+              imageId={avatars?.get(message.authorId)}
+            />
             <div>
               <header>
                 <strong>{message.authorName}</strong>

@@ -839,7 +839,7 @@ input[type='range']::-webkit-slider-thumb {
 .roster-entry.is-speaking {
   color: var(--ink);
 }
-.mini-avatar {
+.picture-field { display: flex; align-items: center; gap: 14px; padding: 14px; border: 1px solid var(--line); border-radius: 13px; background: #0d141e; }.picture-preview { display: grid; place-items: center; width: 68px; height: 68px; flex: none; border-radius: 20px; background: #1b2636; color: #cbd6ea; font-size: 20px; font-weight: 700; }.picture-actions { display: flex; flex-direction: column; gap: 8px; min-width: 0; }.picture-actions > div { display: flex; gap: 8px; flex-wrap: wrap; }.picture-actions small { color: var(--dim); font-size: 10px; }.picture-actions .secondary-button { display: inline-flex; align-items: center; gap: 6px; }.picture-input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }.server-picture { display: grid; place-items: center; width: 100%; height: 100%; border-radius: inherit; background: transparent; }.avatar { position: relative; overflow: hidden; }.avatar.has-picture { background: #0d141e !important; color: transparent; }.avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }.mini-avatar {
   display: grid;
   place-items: center;
   width: 20px;

@@ -104,5 +104,20 @@ export async function migrate(database: Database): Promise<void> {
       CREATE INDEX IF NOT EXISTS messages_channel_idx ON messages(channel_id, created_at DESC, id DESC);
       INSERT INTO schema_migrations(version) VALUES(1) ON CONFLICT DO NOTHING;
     `);
+    // Pictures are addressed by the hash of their content, so a stored picture
+    // can never change under an address somebody already cached.
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS images (
+        id text PRIMARY KEY CHECK (id ~ '^[0-9a-f]{64}$'),
+        mime text NOT NULL CHECK (mime IN ('image/png','image/webp')),
+        width integer NOT NULL CHECK (width BETWEEN 16 AND 1024),
+        height integer NOT NULL CHECK (height BETWEEN 16 AND 1024),
+        bytes bytea NOT NULL CHECK (octet_length(bytes) BETWEEN 32 AND 262144),
+        created_at timestamptz NOT NULL DEFAULT now()
+      );
+      ALTER TABLE accounts ADD COLUMN IF NOT EXISTS avatar_id text REFERENCES images(id) ON DELETE SET NULL;
+      ALTER TABLE communities ADD COLUMN IF NOT EXISTS icon_id text REFERENCES images(id) ON DELETE SET NULL;
+      INSERT INTO schema_migrations(version) VALUES(2) ON CONFLICT DO NOTHING;
+    `);
   });
 }

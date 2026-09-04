@@ -9,11 +9,19 @@ interface StageProps {
   joined: boolean;
   speakerDeviceId?: string;
   expandLevels?: boolean;
+  avatars?: ReadonlyMap<string, string | null | undefined>;
   /** The call controls, which ride along with the fading overlay. */
   children?: ReactNode;
 }
 
-export function Stage({ participants, joined, speakerDeviceId, expandLevels, children }: StageProps) {
+export function Stage({
+  participants,
+  joined,
+  speakerDeviceId,
+  expandLevels,
+  avatars,
+  children,
+}: StageProps) {
   const broadcasts = participants.filter((participant) => participant.screenStream);
   // Undefined follows the room; null is a viewer who stepped back to the grid.
   const [focusRequest, setFocusRequest] = useState<string | null>();
@@ -103,7 +111,9 @@ export function Stage({ participants, joined, speakerDeviceId, expandLevels, chi
   if (!active?.screenStream) {
     return (
       <section className="stage stage-room" ref={stageRef}>
-        <ParticipantTiles participants={participants} layout="grid" onFocus={focus} />
+        <ParticipantTiles
+          avatars={avatars}
+          participants={participants} layout="grid" onFocus={focus} />
         <div className="live-overlay">{children}</div>
       </section>
     );
@@ -174,6 +184,7 @@ export function Stage({ participants, joined, speakerDeviceId, expandLevels, chi
         onMouseMove={holdControls}
       >
         <ParticipantTiles
+          avatars={avatars}
           participants={participants}
           focusedId={active.id}
           layout="strip"

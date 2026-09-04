@@ -5,6 +5,7 @@ import os from 'node:os';
 import { createServer as createViteServer } from 'vite';
 import { createServer } from '../../server/app';
 import { TestDatabase } from '../helpers/database';
+import { png } from '../helpers/images';
 import type { AccountSession } from '../../src/shared/community';
 
 async function expectContainedDialog(window: Page) {
@@ -145,6 +146,14 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
     const changeBounds = await changeButton.boundingBox();
     const signOutBounds = await window.getByRole('button', { name: 'Sign out', exact: true }).boundingBox();
     expect(signOutBounds!.y - (changeBounds!.y + changeBounds!.height)).toBeGreaterThanOrEqual(20);
+    // A picture picked here is squared and re-encoded in the client, stored by
+    // the service, and drawn back from its own address.
+    await window
+      .locator('.picture-input')
+      .setInputFiles({ name: 'me.png', mimeType: 'image/png', buffer: png(320) });
+    await expect(window.locator('.picture-preview img')).toBeVisible();
+    await expect(window.getByRole('button', { name: 'Remove' })).toBeVisible();
+
     await window.screenshot({ path: 'test-results/community-account.png' });
     await application.evaluate(({ BrowserWindow }) =>
       BrowserWindow.getAllWindows()[0].setContentSize(1080, 680),

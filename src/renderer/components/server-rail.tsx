@@ -1,7 +1,16 @@
 import { Compass, Plus, UserRound } from 'lucide-react';
 import type { Community } from '../../shared/community';
+import { Avatar } from './avatar';
 
-const demoServers = [
+interface RailItem {
+  id: string;
+  label: string;
+  mark: string;
+  iconId?: string | null;
+  active?: boolean;
+}
+
+const demoServers: RailItem[] = [
   { id: 'home', label: 'Pulse Room', mark: 'P', active: true },
   { id: 'after-hours', label: 'After hours', mark: 'AH' },
   { id: 'squad', label: 'Night squad', mark: 'NS' },
@@ -20,11 +29,12 @@ export function ServerRail({
   onAdd?(): void;
   onAccount?(): void;
 }) {
-  const items =
+  const items: RailItem[] =
     servers?.map((s) => ({
       id: s.id,
       label: s.name,
       mark: s.name.slice(0, 2).toUpperCase(),
+      iconId: s.iconId,
       active: s.id === activeId,
     })) ?? demoServers.slice(1);
   return (
@@ -43,7 +53,7 @@ export function ServerRail({
           aria-current={server.active}
           onClick={() => onSelect?.(server.id)}
         >
-          {server.mark}
+          <Avatar className="server-picture" name={server.label} initials={server.mark} imageId={server.iconId} />
         </button>
       ))}
       <button className="server-button server-action" type="button" aria-label="Add server" onClick={onAdd}>

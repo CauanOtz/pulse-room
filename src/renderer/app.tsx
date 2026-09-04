@@ -27,6 +27,11 @@ const mediaDevicesService = new MediaDevicesService();
 const roomSoundPlayer = new RoomSoundPlayer();
 
 export function App({ workspace }: { workspace?: WorkspaceBindings }) {
+  // One picture per account, looked up by everything that draws a person.
+  const avatars = useMemo(
+    () => new Map((workspace?.detail.members ?? []).map((member) => [member.id, member.avatarId])),
+    [workspace?.detail.members],
+  );
   const controller = useMemo(() => {
     const repository = new LocalSettingsRepository(window.localStorage, workspace?.user.id);
     if (workspace) {
@@ -227,6 +232,7 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
         onManage={workspace?.onManage}
         activeChannelId={settings.roomId}
         participants={snapshot.participants}
+        avatars={avatars}
         displayName={settings.displayName}
         microphoneEnabled={snapshot.microphoneEnabled}
         deafened={snapshot.deafened}
@@ -271,9 +277,11 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
               user={workspace.user}
               channel={textChannel}
               manager={manager}
+              avatars={avatars}
             />
           ) : (
             <Stage
+              avatars={avatars}
               participants={snapshot.participants}
               joined={joined}
               speakerDeviceId={settings.speakerDeviceId}

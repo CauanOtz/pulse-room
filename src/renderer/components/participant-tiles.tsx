@@ -1,11 +1,14 @@
 import { MicOff, MonitorUp } from 'lucide-react';
 import type { Participant } from '../domain/conference';
+import { accountOf } from '../domain/roster';
+import { Avatar } from './avatar';
 import { MediaOutput } from './media-output';
 
 interface ParticipantTilesProps {
   participants: Participant[];
   focusedId?: string;
   layout: 'grid' | 'strip';
+  avatars?: ReadonlyMap<string, string | null | undefined>;
   onFocus(participant: Participant): void;
 }
 
@@ -13,7 +16,7 @@ interface ParticipantTilesProps {
  * Everybody in the channel, as tiles. A person shows their avatar; a person
  * sharing shows the picture itself, so the room is one glance.
  */
-export function ParticipantTiles({ participants, focusedId, layout, onFocus }: ParticipantTilesProps) {
+export function ParticipantTiles({ participants, focusedId, layout, avatars, onFocus }: ParticipantTilesProps) {
   return (
     <div className={layout === 'grid' ? 'tile-grid' : 'tile-strip'}>
       {participants.map((participant) => {
@@ -41,9 +44,13 @@ export function ParticipantTiles({ participants, focusedId, layout, onFocus }: P
                 label={`${participant.name} screen preview`}
               />
             ) : (
-              <span className="tile-avatar" style={{ background: participant.accent }}>
-                {participant.initials}
-              </span>
+              <Avatar
+                className="tile-avatar"
+                name={participant.name}
+                initials={participant.initials}
+                imageId={avatars?.get(accountOf(participant.id))}
+                accent={participant.accent}
+              />
             )}
 
             {live && <span className="tile-live">Live</span>}

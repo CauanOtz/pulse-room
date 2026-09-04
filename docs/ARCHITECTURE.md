@@ -166,6 +166,37 @@ screen turning off or another application coming forward. What the phone drops
 in the background is the picture of a screen share, never its sound: a phone in
 a pocket is still in the conversation.
 
+## Pictures
+
+A profile picture and a room icon are small enough that a bucket would be more
+machinery than they justify: a square avatar re-encoded to 256 pixels weighs
+tens of kilobytes, so the whole household fits in a megabyte. They live in
+PostgreSQL, inside the backup that already exists. Message attachments would be
+a different order of magnitude and belong in object storage; nothing here
+prevents that later.
+
+Every picture is addressed by the SHA-256 of its own bytes. The same picture is
+therefore stored once, an address can never come to mean something else, and a
+client may cache it forever without an invalidation rule.
+
+The rules that keep it safe:
+
+- Clients crop and re-encode before uploading, so no image decoder ever runs on
+  the service, and the re-encode drops the metadata a camera writes.
+- Uploads arrive as raw bytes, not as a form: no multipart parser, no file
+  names, no temporary files.
+- What a file claims about itself is ignored. Only PNG and WebP are accepted,
+  recognised from their own signatures, with the dimensions read from the header
+  so a small file cannot claim to be an enormous canvas. SVG is refused: it is a
+  document that can carry script.
+- A picture is served with its stored type, `nosniff`, a content policy that
+  permits nothing, and an inline disposition.
+- Reading one requires a session, and the reader must be its owner, share a
+  community with its owner, or belong to the room it decorates. An unguessable
+  address is not on its own an access rule.
+- Replacing or removing a picture drops the previous one once nothing points at
+  it, so nothing lingers behind an address somebody once knew.
+
 ## Security decisions
 
 - Renderer Node integration is disabled.

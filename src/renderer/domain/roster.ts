@@ -10,9 +10,13 @@ export interface RosterEntry {
   isSpeaking: boolean;
   volume: number;
   locallyMuted: boolean;
+  avatarId?: string | null;
   /** False for people in a channel this client has not joined. */
   detailed: boolean;
 }
+
+/** A voice identity is the account it belongs to, then its session. */
+export const accountOf = (identity: string): string => identity.split(':')[0];
 
 export interface ChannelOccupancy {
   roomId: string;
@@ -47,6 +51,7 @@ export function channelRoster(
   activeChannelId: string,
   participants: Participant[],
   occupancy: ChannelOccupancy[],
+  avatars: ReadonlyMap<string, string | null | undefined> = new Map(),
 ): RosterEntry[] {
   if (channelId === activeChannelId) {
     return participants.map((participant) => ({
@@ -59,6 +64,7 @@ export function channelRoster(
       isSpeaking: participant.isSpeaking,
       volume: participant.volume,
       locallyMuted: participant.locallyMuted,
+      avatarId: avatars.get(accountOf(participant.id)),
       detailed: true,
     }));
   }
@@ -74,6 +80,7 @@ export function channelRoster(
     isSpeaking: false,
     volume: 100,
     locallyMuted: false,
+    avatarId: avatars.get(accountOf(occupant.identity)),
     detailed: false,
   }));
 }

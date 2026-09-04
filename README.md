@@ -14,6 +14,7 @@ Pulse Room is a Windows desktop voice room built for small groups that want to s
 - The room drawn as participant tiles, with live screens among them, each with its own audio level and full screen.
 - Stream quality changed mid-broadcast from the caret beside the share button.
 - A voice panel in the sidebar carrying go live, disconnect, mute, deafen, device pickers, and settings.
+- Profile pictures and server icons, cropped in the client and served only to the people who share a room.
 - Per-participant volume and local mute from a right click in the sidebar, boosted up to 200%, plus a live microphone meter and selectable input/output devices.
 - Voice channels in the sidebar that join on a click and show who is in each one, arrival and departure cues, and a demo adapter that runs without cloud credentials.
 - A small Fastify token service suitable for Railway.

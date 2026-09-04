@@ -3,6 +3,11 @@ import type { Account, AccountSession } from '../src/shared/community.js';
 import type { Database } from './database.js';
 import { digest, HttpError, opaqueToken, PasswordHasher } from './security.js';
 
+/** Only the part of the image store an account needs, to keep the two apart. */
+export interface ImageOwner {
+  collect(id: string | null | undefined, db?: Database): Promise<void>;
+}
+
 export interface AuthenticatedAccount extends Account {
   sessionId: string;
 }
@@ -12,7 +17,8 @@ export class AccountService {
 
   async register(username: string, displayName: string, password: string): Promise<AccountSession> {
     const recoveryCode = opaqueToken();
-    const user = { id: randomUUID(), username: username.toLowerCase(), displayName };
+    // Every path that returns an account describes it the same way.
+    const user = { id: randomUUID(), username: username.toLowerCase(), displayName, avatarId: null };
     const hash = await this.passwords.hash(password);
     try {
       await this.db.query(
@@ -31,7 +37,8 @@ export class AccountService {
     const {
       rows: [row],
     } = await this.db.query<Account & { passwordHash: string }>(
-      'SELECT id, username, display_name AS "displayName", password_hash AS "passwordHash" FROM accounts WHERE username=$1',
+      `SELECT id, username, display_name AS "displayName", avatar_id AS "avatarId",
+              password_hash AS "passwordHash" FROM accounts WHERE username=$1`,
       [username.toLowerCase()],
     );
     if (!(await this.passwords.verify(password, row?.passwordHash)) || !row)
@@ -46,7 +53,10 @@ export class AccountService {
         [row.id],
       );
       if (current.passwordHash !== row.passwordHash) throw new HttpError(401, 'Please sign in again.');
-      return this.createSession({ id: row.id, username: row.username, displayName: row.displayName }, db);
+      return this.createSession(
+        { id: row.id, username: row.username, displayName: row.displayName, avatarId: row.avatarId },
+        db,
+      );
     });
   }
 
@@ -56,7 +66,7 @@ export class AccountService {
       rows: [account],
     } = await this.db.query<AuthenticatedAccount>(
       `
-      SELECT a.id, a.username, a.display_name AS "displayName", s.id AS "sessionId"
+      SELECT a.id, a.username, a.display_name AS "displayName", a.avatar_id AS "avatarId", s.id AS "sessionId"
       FROM sessions s JOIN accounts a ON a.id=s.account_id
       WHERE s.token_hash=$1 AND s.expires_at > now()`,
       [digest(token)],
@@ -102,6 +112,20 @@ export class AccountService {
       );
       if (!result.rows.length) throw new HttpError(409, 'Password changed. Please sign in again.');
       await db.query('DELETE FROM sessions WHERE account_id=$1 AND id<>$2', [user.id, user.sessionId]);
+    });
+  }
+
+  /** Swaps the picture and drops the previous one once nothing points at it. */
+  async setAvatar(userId: string, imageId: string | null, images: ImageOwner): Promise<void> {
+    await this.db.transaction(async (db) => {
+      const {
+        rows: [current],
+      } = await db.query<{ avatarId: string | null }>(
+        'SELECT avatar_id AS "avatarId" FROM accounts WHERE id=$1 FOR UPDATE',
+        [userId],
+      );
+      await db.query('UPDATE accounts SET avatar_id=$2 WHERE id=$1', [userId, imageId]);
+      if (current?.avatarId && current.avatarId !== imageId) await images.collect(current.avatarId, db);
     });
   }
 
