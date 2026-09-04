@@ -51,6 +51,13 @@ test('launches the secured desktop shell and completes the join flow', async () 
     await window.keyboard.press('Escape');
     await expect(popover).toBeHidden();
 
+    // The quality list reads as a list: a name and what it costs, per line.
+    await window.getByRole('button', { name: 'Stream options' }).click();
+    const quality = window.getByRole('menu', { name: 'Stream options' });
+    await expect(quality.getByRole('menuitemradio', { name: '1080p · 30 fps' })).toBeVisible();
+    await window.screenshot({ path: 'test-results/pulse-room-stream-menu.png' });
+    await window.keyboard.press('Escape');
+
     // Icon-only controls say what they are, without the operating system's tip.
     await window.locator('.profile-strip').getByRole('button', { name: 'Your profile' }).hover();
     // The call is running by now, so the status says so.
@@ -83,7 +90,7 @@ test('launches the secured desktop shell and completes the join flow', async () 
     ).toBe(true);
     await window.getByLabel('Microphone gain').fill('120');
     await window.getByRole('slider', { name: 'Noise gate' }).fill('70');
-    await window.getByRole('checkbox', { name: /Expand screen levels/ }).check();
+    await window.getByRole('switch', { name: /Expand screen levels/ }).click();
     await window.getByRole('button', { name: 'Check now' }).click();
     await expect(window.getByText(`Pulse Room ${version} is current.`)).toBeVisible();
     await window.screenshot({ path: 'test-results/pulse-room-settings-quality.png' });

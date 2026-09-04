@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { RefreshCw, X } from 'lucide-react';
 import { noiseGateThresholdDb } from '../domain/conference';
 import { MicrophoneMeter } from './microphone-meter';
+import { Switch } from './ui/switch';
+import { cn } from './ui/utils';
 import type { UserSettings } from '../application/ports/settings-repository';
 import type { AvailableMediaDevices } from '../infrastructure/media/media-devices-service';
 import type { UpdateStatus } from '../../shared/desktop-api';
@@ -39,14 +41,19 @@ export function SettingsDialog(props: SettingsDialogProps) {
         onMouseDown={(event) => event.stopPropagation()}
       >
         <header className="flex flex-none items-start gap-3 border-b border-border px-5 py-4">
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <h2 id="settings-title" className="text-lg font-semibold">
               Voice and video
             </h2>
             <p className="text-xs text-muted-foreground">Tune what your friends hear and what you hear.</p>
           </div>
-          <button className="icon-button" type="button" onClick={props.onClose} aria-label="Close">
-            <X size={19} className="shrink-0" />
+          <button
+            className="icon-button grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            type="button"
+            onClick={props.onClose}
+            aria-label="Close"
+          >
+            <X size={19} />
           </button>
         </header>
 
@@ -183,7 +190,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
           </div>
 
           <fieldset className="quality-field field-span col-span-2 flex flex-col gap-2 rounded-xl border border-border bg-background/60 p-3">
-            <legend>Screen quality</legend>
+            <legend className="px-1 text-xs font-semibold text-muted-foreground">Screen quality</legend>
             <QualityOption
               id="efficient"
               label="Efficient"
@@ -208,16 +215,16 @@ export function SettingsDialog(props: SettingsDialogProps) {
           </fieldset>
 
           <div className="update-row field-span col-span-2 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4 text-xs">
-            <div>
-              <strong>Application updates</strong>
-              <span>{updateCopy}</span>
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <strong className="text-[13px] font-semibold text-foreground">Application updates</strong>
+              <span className="text-[11px] text-muted-foreground">{updateCopy}</span>
             </div>
             {props.updateStatus.state === 'downloaded' ? (
               <button
-              className="inline-flex h-8 items-center justify-center rounded-lg bg-primary px-3 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-              type="button"
-              onClick={props.onInstallUpdate}
-            >
+                className="inline-flex h-8 shrink-0 items-center justify-center rounded-lg bg-primary px-3 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                type="button"
+                onClick={props.onInstallUpdate}
+              >
                 Restart and update
               </button>
             ) : (
@@ -270,12 +277,11 @@ function Toggle({
 }) {
   return (
     <label className="toggle-row flex items-center justify-between gap-3 rounded-lg px-2 py-2 text-sm">
-      <span>
-        <strong>{label}</strong>
-        <small>{detail}</small>
+      <span className="flex min-w-0 flex-col gap-0.5">
+        <strong className="text-[13px] font-semibold text-foreground">{label}</strong>
+        <small className="text-[11px] font-normal text-muted-foreground">{detail}</small>
       </span>
-      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
-      <i />
+      <Switch checked={checked} onCheckedChange={onChange} aria-label={label} />
     </label>
   );
 }
@@ -294,10 +300,33 @@ function QualityOption({
   onSelect(): void;
 }) {
   return (
-    <label className={`quality-option${selected ? ' is-selected' : ''}`} htmlFor={`quality-${id}`}>
-      <input id={`quality-${id}`} type="radio" name="quality" checked={selected} onChange={onSelect} />
-      <strong>{label}</strong>
-      <span>{detail}</span>
+    <label
+      className={cn(
+        'quality-option flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 transition-colors',
+        selected ? 'is-selected border-primary bg-primary/10' : 'border-border hover:bg-accent',
+      )}
+      htmlFor={`quality-${id}`}
+    >
+      <input
+        id={`quality-${id}`}
+        className="peer sr-only"
+        type="radio"
+        name="quality"
+        checked={selected}
+        onChange={onSelect}
+      />
+      <span
+        className={cn(
+          'grid size-4 shrink-0 place-items-center rounded-full border',
+          selected ? 'border-primary' : 'border-input',
+        )}
+      >
+        {selected && <span className="size-2 rounded-full bg-primary" />}
+      </span>
+      <span className="flex min-w-0 flex-col gap-0.5">
+        <strong className="text-[13px] font-semibold text-foreground">{label}</strong>
+        <span className="text-[11px] text-muted-foreground">{detail}</span>
+      </span>
     </label>
   );
 }

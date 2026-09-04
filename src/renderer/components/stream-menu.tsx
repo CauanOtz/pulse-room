@@ -43,7 +43,7 @@ export function StreamMenu({ sharing, quality, onSelectQuality, onStop, onClose 
       >
         {sharing && (
           <button
-            className="is-danger"
+            className="is-danger flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm text-destructive transition-colors hover:bg-destructive/10"
             type="button"
             role="menuitem"
             onClick={() => {
@@ -55,10 +55,13 @@ export function StreamMenu({ sharing, quality, onSelectQuality, onStop, onClose 
           </button>
         )}
 
-        <p>Stream quality</p>
+        <p className="px-2.5 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Stream quality
+        </p>
         {ladder.map((step) => (
           <button
             key={step.preset}
+            className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition-colors hover:bg-accent"
             type="button"
             role="menuitemradio"
             aria-checked={step.preset === quality}
@@ -67,8 +70,8 @@ export function StreamMenu({ sharing, quality, onSelectQuality, onStop, onClose 
               onClose();
             }}
           >
-            <span>{step.label}</span>
-            {step.preset === quality && <Check size={14} />}
+            <span className="flex-1">{step.label}</span>
+            {step.preset === quality && <Check size={14} className="shrink-0 text-primary" />}
           </button>
         ))}
       </div>
