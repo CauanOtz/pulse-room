@@ -293,3 +293,81 @@
     accent-color: var(--primary);
   }
 }
+
+@layer components {
+  /*
+   * Hints move on the compositor only. No blur, no shadow animation, nothing
+   * that would ask the machine to repaint while a game is running behind.
+   */
+  .pulse-tooltip {
+    animation: tooltip-in 130ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .pulse-tooltip[data-state='closed'] {
+    animation: tooltip-out 90ms ease-in forwards;
+  }
+  .pulse-tooltip[data-side='top'] {
+    transform-origin: bottom center;
+  }
+  .pulse-tooltip[data-side='bottom'] {
+    transform-origin: top center;
+  }
+  .pulse-tooltip[data-side='left'] {
+    transform-origin: right center;
+  }
+  .pulse-tooltip[data-side='right'] {
+    transform-origin: left center;
+  }
+}
+
+@keyframes tooltip-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes tooltip-out {
+  to {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+@layer components {
+  .gooey-tooltip {
+    animation: tooltip-in 160ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .gooey-tooltip[data-state='closed'] {
+    animation: tooltip-out 90ms ease-in forwards;
+  }
+  /* The drop separates from the label and returns to it. */
+  .gooey-tooltip .gooey-blob {
+    animation: gooey-settle 420ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+}
+
+@keyframes gooey-settle {
+  0% {
+    transform: translateX(-14px) scale(0.4);
+  }
+  55% {
+    transform: translateX(2px) scale(1.15);
+  }
+  100% {
+    transform: translateX(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse-tooltip,
+  .pulse-tooltip[data-state='closed'],
+  .gooey-tooltip,
+  .gooey-tooltip[data-state='closed'],
+  .gooey-tooltip .gooey-blob {
+    animation: none;
+  }
+}

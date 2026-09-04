@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ProfileBar } from '../../src/renderer/components/profile-bar';
+import { TooltipProvider } from '../../src/renderer/components/ui/tooltip';
 
 afterEach(cleanup);
 
@@ -12,7 +13,8 @@ afterEach(cleanup);
 function renderBar(overrides: Partial<Parameters<typeof ProfileBar>[0]> = {}) {
   const onToggleMicrophone = vi.fn();
   render(
-    <ProfileBar
+    <TooltipProvider>
+      <ProfileBar
       displayName="Merge lounge"
       joined
       busy={false}
@@ -25,8 +27,9 @@ function renderBar(overrides: Partial<Parameters<typeof ProfileBar>[0]> = {}) {
       onSelectMicrophone={vi.fn()}
       onSelectSpeaker={vi.fn()}
       onOpenSettings={vi.fn()}
-      {...overrides}
-    />,
+        {...overrides}
+      />
+    </TooltipProvider>,
   );
   return { onToggleMicrophone };
 }

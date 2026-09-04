@@ -7,6 +7,8 @@ import { DeviceMenu } from './device-menu';
 import { ProfileCard } from './profile-card';
 import { Button } from './ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { GooeyFilter, StatusTooltip } from './status-tooltip';
+import { Tooltip } from './ui/tooltip';
 
 interface ProfileBarProps {
   displayName: string;
@@ -45,30 +47,32 @@ export function ProfileBar(props: ProfileBarProps) {
 
   return (
     <div className="profile-strip col-span-2 col-start-1 row-start-2 flex items-center gap-1.5 border-t border-border bg-sidebar px-2 py-2">
+      <GooeyFilter />
       {/* One person, one panel: the picture and the name open the same card. */}
       <Popover>
-        <PopoverTrigger asChild>
-          <button
-            className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg px-1.5 py-1 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            type="button"
-            aria-label="Your profile"
-            title="Your profile"
-          >
-            <Avatar
-              className="grid size-9 shrink-0 place-items-center rounded-xl bg-secondary text-[11px] font-bold text-secondary-foreground"
-              name={props.displayName}
-              imageId={props.avatarId}
-            />
-            <span className="flex min-w-0 flex-col leading-tight">
-              <strong className="truncate text-[13px] font-semibold" title={props.displayName}>
-                {props.displayName}
-              </strong>
-              <small className="truncate text-[11px] text-muted-foreground">
-                {props.joined ? 'In voice' : 'Ready'}
-              </small>
-            </span>
-          </button>
-        </PopoverTrigger>
+        <StatusTooltip label={props.joined ? 'In voice' : 'Ready'} tone={props.joined ? 'live' : 'idle'}>
+          <PopoverTrigger asChild>
+            <button
+              className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg px-1.5 py-1 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              type="button"
+              aria-label="Your profile"
+            >
+              <Avatar
+                className="grid size-9 shrink-0 place-items-center rounded-xl bg-secondary text-[11px] font-bold text-secondary-foreground"
+                name={props.displayName}
+                imageId={props.avatarId}
+              />
+              <span className="flex min-w-0 flex-col leading-tight">
+                <strong className="truncate text-[13px] font-semibold" title={props.displayName}>
+                  {props.displayName}
+                </strong>
+                <small className="truncate text-[11px] text-muted-foreground">
+                  {props.joined ? 'In voice' : 'Ready'}
+                </small>
+              </span>
+            </button>
+          </PopoverTrigger>
+        </StatusTooltip>
         <PopoverContent side="top">
           <ProfileCard
             user={person}
@@ -81,20 +85,22 @@ export function ProfileBar(props: ProfileBarProps) {
       </Popover>
 
       <span className="device-control flex items-center rounded-lg bg-secondary/70">
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          className="size-8 rounded-r-none"
-          disabled={!props.joined || props.busy}
-          aria-label={props.microphoneEnabled ? 'Mute microphone' : 'Unmute microphone'}
-          onClick={props.onToggleMicrophone}
-        >
+        <Tooltip label={props.microphoneEnabled ? 'Mute' : 'Unmute'}>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="size-8 rounded-r-none"
+            disabled={!props.joined || props.busy}
+            aria-label={props.microphoneEnabled ? 'Mute microphone' : 'Unmute microphone'}
+            onClick={props.onToggleMicrophone}
+          >
           {props.joined && !props.microphoneEnabled ? (
             <MicOff className="size-4 text-destructive" />
           ) : (
             <Mic className="size-4" />
-          )}
-        </Button>
+            )}
+          </Button>
+        </Tooltip>
         <DeviceMenu
           title="Microphone"
           label="Choose microphone"
@@ -105,16 +111,18 @@ export function ProfileBar(props: ProfileBarProps) {
       </span>
 
       <span className="device-control flex items-center rounded-lg bg-secondary/70">
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          className="size-8 rounded-r-none"
-          disabled={!props.joined || props.busy}
-          aria-label="Toggle deafen"
-          onClick={props.onToggleDeafen}
-        >
-          <Headphones className={props.deafened ? 'size-4 text-destructive' : 'size-4'} />
-        </Button>
+        <Tooltip label={props.deafened ? 'Undeafen' : 'Deafen'}>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="size-8 rounded-r-none"
+            disabled={!props.joined || props.busy}
+            aria-label="Toggle deafen"
+            onClick={props.onToggleDeafen}
+          >
+            <Headphones className={props.deafened ? 'size-4 text-destructive' : 'size-4'} />
+          </Button>
+        </Tooltip>
         <DeviceMenu
           title="Speakers"
           label="Choose speakers"
@@ -125,15 +133,17 @@ export function ProfileBar(props: ProfileBarProps) {
       </span>
 
       <span className="flex items-center">
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          className="size-8"
-          aria-label="Open audio settings"
-          onClick={props.onOpenSettings}
-        >
-          <Settings className="size-4" />
-        </Button>
+        <Tooltip label="Audio settings">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="size-8"
+            aria-label="Open audio settings"
+            onClick={props.onOpenSettings}
+          >
+            <Settings className="size-4" />
+          </Button>
+        </Tooltip>
       </span>
     </div>
   );

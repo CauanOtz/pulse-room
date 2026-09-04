@@ -51,6 +51,24 @@ test('launches the secured desktop shell and completes the join flow', async () 
     await window.keyboard.press('Escape');
     await expect(popover).toBeHidden();
 
+    // Icon-only controls say what they are, without the operating system's tip.
+    await window.locator('.profile-strip').getByRole('button', { name: 'Your profile' }).hover();
+    // The call is running by now, so the status says so.
+    await expect(window.getByRole('tooltip')).toContainText('In voice');
+    await window.screenshot({ path: 'test-results/pulse-room-status-tooltip.png' });
+    await window.locator('.room-header').hover();
+
+    // Choosing a device: the list belongs to the window, not to the screen edge.
+    await window.locator('.profile-strip').getByRole('button', { name: 'Choose microphone' }).click();
+    const devices = window.locator('[role="menu"]');
+    await expect(devices.getByRole('menuitemradio', { name: 'System default' })).toBeVisible();
+    const fits = await devices.evaluate((element) => {
+      const box = element.getBoundingClientRect();
+      return box.top >= 0 && box.bottom <= window.innerHeight && box.right <= window.innerWidth;
+    });
+    expect(fits).toBe(true);
+    await window.keyboard.press('Escape');
+
     await application.evaluate(({ BrowserWindow }) =>
       BrowserWindow.getAllWindows()[0].setContentSize(1080, 680),
     );

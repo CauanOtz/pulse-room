@@ -183,6 +183,15 @@ There is no second stylesheet. The hand-written one the interface grew up with
 is gone, and what remains in CSS is only what belongs to elements rather than
 components: the reset, the scrollbars, and the shared look of a text field.
 
+## Motion
+
+This window sits over a game and decodes somebody's screen, so an effect is
+only worth its frames. Animation is therefore limited to opacity and transform,
+which the compositor handles without repainting, and nothing animates
+continuously. The one filter in the interface, the drop that merges a status
+into its label, is static: only the shape beneath it moves. Everything stops
+when the machine asks for reduced motion.
+
 ## Pictures
 
 A profile picture and a room icon are small enough that a bucket would be more
