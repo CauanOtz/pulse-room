@@ -10,6 +10,7 @@ import {
 } from '../../shared/community';
 import type { CommunityClient } from '../infrastructure/community-client';
 import { Modal } from './modal';
+import { ConfirmDialog, type Confirmation } from './confirm-dialog';
 import { Avatar } from './avatar';
 import { PictureField } from './picture-field';
 import {
@@ -278,20 +279,24 @@ export function ChannelDialog({
       </form>
       {channel && (
         <div className="danger-zone space-y-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4">
-          {confirmDelete ? (
-            <>
-              <p>Delete #{channel.name} and all its messages? This cannot be undone.</p>
-              <button className="danger-action inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-destructive/40 bg-transparent px-4 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50" disabled={busy} onClick={() => void remove()}>
-                Confirm delete channel
-              </button>
-              <button onClick={() => setConfirmDelete(false)}>Cancel</button>
-            </>
-          ) : (
-            <button className="danger-action inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-destructive/40 bg-transparent px-4 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50" onClick={() => setConfirmDelete(true)}>
-              Delete channel
-            </button>
-          )}
+          <button className="danger-action inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-destructive/40 bg-transparent px-4 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50" onClick={() => setConfirmDelete(true)}>
+            Delete channel
+          </button>
         </div>
+      )}
+      {channel && confirmDelete && (
+        <ConfirmDialog
+          confirmation={{
+            title: 'Delete channel',
+            description: `Delete ${channel.type === 'text' ? '#' : ''}${channel.name} and everything said in it? This cannot be undone.`,
+            confirmLabel: 'Delete',
+            tone: 'danger',
+            action: remove,
+          }}
+          busy={busy}
+          onCancel={() => setConfirmDelete(false)}
+          onConfirm={() => void remove()}
+        />
       )}
     </Modal>
   );
@@ -320,7 +325,7 @@ export function ServerDialog({
   const [code, setCode] = useState('');
   const [hours, setHours] = useState(24);
   const [maxUses, setMaxUses] = useState(1);
-  const [confirmation, setConfirmation] = useState<{ label: string; action: () => Promise<void> }>();
+  const [confirmation, setConfirmation] = useState<Confirmation>();
   // One row's menu at a time, held here rather than in each row, so reaching for
   // a second member puts the first one away.
   const [openMenu, setOpenMenu] = useState<string>();
@@ -428,7 +433,9 @@ export function ServerDialog({
                           <DropdownMenuItem
                             onSelect={() =>
                               setConfirmation({
-                                label: `Make ${member.displayName} the owner? You will become an administrator.`,
+                                title: 'Transfer ownership',
+                                description: `Make ${member.displayName} the owner of ${detail.server.name}? You will become an administrator, and only they will be able to give it back.`,
+                                confirmLabel: 'Transfer',
                                 action: async () => {
                                   await api.request(`${base}/transfer`, 'POST', { userId: member.id });
                                 },
@@ -443,7 +450,10 @@ export function ServerDialog({
                             className="text-destructive focus:bg-destructive focus:text-destructive-foreground data-[highlighted]:bg-destructive data-[highlighted]:text-destructive-foreground"
                             onSelect={() =>
                               setConfirmation({
-                                label: `Remove ${member.displayName} from this server?`,
+                                title: 'Remove member',
+                                description: `Remove ${member.displayName} from ${detail.server.name}? They will need a new invitation to come back.`,
+                                confirmLabel: 'Remove',
+                                tone: 'danger',
                                 action: async () => {
                                   await api.request(`${base}/members/${member.id}`, 'DELETE');
                                 },
@@ -561,13 +571,12 @@ export function ServerDialog({
         </p>
       )}
       {confirmation && (
-        <div className="confirm-panel space-y-3 rounded-xl border border-border bg-background/70 p-4 text-sm" role="alert">
-          <p>{confirmation.label}</p>
-          <button disabled={busy} className="danger-action inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-destructive/40 bg-transparent px-4 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50" onClick={() => void run(confirmation.action)}>
-            Confirm
-          </button>
-          <button onClick={() => setConfirmation(undefined)}>Cancel</button>
-        </div>
+        <ConfirmDialog
+          confirmation={confirmation}
+          busy={busy}
+          onCancel={() => setConfirmation(undefined)}
+          onConfirm={() => void run(confirmation.action)}
+        />
       )}
       <div className="danger-zone space-y-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4">
         <button
@@ -575,9 +584,12 @@ export function ServerDialog({
           disabled={busy}
           onClick={() =>
             setConfirmation({
-              label: owner
-                ? `Permanently delete ${detail.server.name}, its channels and all messages?`
-                : `Leave ${detail.server.name}? You will need a new invite to return.`,
+              title: owner ? 'Delete server' : 'Leave server',
+              description: owner
+                ? `Permanently delete ${detail.server.name}, its channels and every message in them? This cannot be undone.`
+                : `Leave ${detail.server.name}? You will need a new invitation to return.`,
+              confirmLabel: owner ? 'Delete' : 'Leave',
+              tone: 'danger',
               action: async () => {
                 await api.request(owner ? base : `${base}/members/${user.id}`, 'DELETE');
                 onRemoved();

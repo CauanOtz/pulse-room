@@ -307,7 +307,23 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
       }),
     );
     await window.screenshot({ path: 'test-results/community-member-menu.png' });
-    await window.keyboard.press('Escape');
+    // What cannot be undone is asked in front of the dialog, not appended to
+    // the end of it.
+    await window.getByRole('menuitem', { name: 'Remove from server' }).click();
+    const confirm = window.getByRole('dialog', { name: 'Remove member' });
+    await expect(confirm).toContainText('Neighbour');
+    await expect(confirm).toContainText('new invitation');
+    await window.screenshot({ path: 'test-results/community-confirm.png' });
+    expect(
+      await confirm.evaluate((element) => {
+        const box = element.getBoundingClientRect();
+        const behind = document.querySelector('.member-list')!.getBoundingClientRect();
+        return { over: box.top < behind.bottom && box.bottom > behind.top, inside: box.top >= 0 };
+      }),
+    ).toEqual({ over: true, inside: true });
+    await confirm.getByRole('button', { name: 'Cancel' }).click();
+    await expect(confirm).toHaveCount(0);
+    await expect(rows).toHaveCount(3);
     await expect(window.getByRole('menu')).toHaveCount(0);
     await window.getByRole('combobox', { name: 'Role for Friend' }).click();
     await expect(window.getByRole('option', { name: 'Administrator' })).toBeVisible();

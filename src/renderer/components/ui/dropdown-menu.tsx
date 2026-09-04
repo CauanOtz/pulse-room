@@ -53,7 +53,7 @@ export function DropdownMenuItem({ className, ...props }: ComponentProps<typeof 
         // Radix marks the item under the pointer as highlighted; the colour is
         // hung on that as well as on focus, so the row answers the mouse even
         // where something else holds the keyboard.
-        'focus:bg-accent focus:text-accent-foreground',
+        'hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground',
         'data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground',
         'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
         className,
@@ -75,7 +75,7 @@ export function DropdownMenuRadioItem({
     <Primitive.RadioItem
       className={cn(
         'relative flex cursor-default select-none items-center gap-2 rounded-lg py-2 pl-2 pr-8 text-sm outline-none transition-colors',
-        'focus:bg-accent focus:text-accent-foreground',
+        'hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground',
         'data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground',
         'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
         className,
