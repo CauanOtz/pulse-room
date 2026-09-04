@@ -371,10 +371,19 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
     await expect(window.getByRole('dialog', { name: longServerName, exact: true })).toBeVisible();
     await expectContainedDialog(window);
     await window.getByRole('button', { name: 'Close dialog' }).click();
-    // The picture the server was given is drawn on the rail beside the others.
-    await expect(
-      window.getByRole('button', { name: longServerName, exact: true }).locator('img'),
-    ).toBeVisible();
+    // The picture the server was given is drawn on the rail beside the others,
+    // filling its button rather than collapsing to nothing.
+    const railPicture = window
+      .getByRole('button', { name: longServerName, exact: true })
+      .locator('.server-picture');
+    await expect(railPicture.locator('img')).toBeVisible();
+    expect(
+      await railPicture.evaluate((element) => {
+        const box = element.getBoundingClientRect();
+        const button = element.parentElement!.getBoundingClientRect();
+        return Math.round(box.width) === Math.round(button.width) && box.width === box.height;
+      }),
+    ).toBe(true);
     expect(
       await window.locator('.server-heading > span').evaluate((element) => {
         return (
