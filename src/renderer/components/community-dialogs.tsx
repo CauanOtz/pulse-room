@@ -12,6 +12,7 @@ import type { CommunityClient } from '../infrastructure/community-client';
 import { Modal } from './modal';
 import { Avatar } from './avatar';
 import { PictureField } from './picture-field';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Request failed. Please try again.';
@@ -170,17 +171,22 @@ export function ChannelDialog({
             onChange={(e) => setDraft({ ...draft, name: e.target.value })}
           />
         </label>
-        <label>
-          Channel type
-          <select
+        <div className="flex flex-col gap-1.5 text-xs font-medium text-muted-foreground">
+          <span id="channel-type">Channel type</span>
+          <Select
             disabled={!!channel}
             value={draft.type}
-            onChange={(e) => setDraft({ ...draft, type: e.target.value as 'voice' | 'text' })}
+            onValueChange={(value) => setDraft({ ...draft, type: value as 'voice' | 'text' })}
           >
-            <option value="voice">Voice call</option>
-            <option value="text">Text chat</option>
-          </select>
-        </label>
+            <SelectTrigger aria-labelledby="channel-type">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="voice">Voice call</SelectItem>
+              <SelectItem value="text">Text chat</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
         <label className="check-row flex items-center gap-2.5 rounded-lg px-1 py-1.5 text-sm text-foreground">
           <input
             type="checkbox"
@@ -354,19 +360,21 @@ export function ServerDialog({
                 </small>
               </div>
               {owner && member.role !== 'owner' && (
-                <select
-                  aria-label={`Role for ${member.displayName}`}
+                <Select
                   disabled={busy}
                   value={member.role}
-                  onChange={(e) =>
-                    void run(() =>
-                      api.request(`${base}/members/${member.id}`, 'PATCH', { role: e.target.value }),
-                    )
+                  onValueChange={(role) =>
+                    void run(() => api.request(`${base}/members/${member.id}`, 'PATCH', { role }))
                   }
                 >
-                  <option value="member">Member</option>
-                  <option value="admin">Administrator</option>
-                </select>
+                  <SelectTrigger className="h-8 w-36 shrink-0" aria-label={`Role for ${member.displayName}`}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="member">Member</SelectItem>
+                    <SelectItem value="admin">Administrator</SelectItem>
+                  </SelectContent>
+                </Select>
               )}
               {manager &&
                 member.id !== user.id &&
@@ -424,14 +432,19 @@ export function ServerDialog({
       {tab === 'invites' && (
         <>
           <p>Only share this code with people you want in this server. Invites expire and can be revoked.</p>
-          <label>
-            Expires in
-            <select value={hours} onChange={(e) => setHours(Number(e.target.value))}>
-              <option value={1}>1 hour</option>
-              <option value={24}>24 hours</option>
-              <option value={168}>7 days</option>
-            </select>
-          </label>
+          <div className="flex flex-col gap-1.5 text-xs font-medium text-muted-foreground">
+            <span id="invite-expiry">Expires in</span>
+            <Select value={String(hours)} onValueChange={(value) => setHours(Number(value))}>
+              <SelectTrigger aria-labelledby="invite-expiry">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1">1 hour</SelectItem>
+                <SelectItem value="24">24 hours</SelectItem>
+                <SelectItem value="168">7 days</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <label>
             Maximum uses
             <input

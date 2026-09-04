@@ -88,6 +88,19 @@ test('launches the secured desktop shell and completes the join flow', async () 
         return rect.top >= 0 && rect.bottom <= innerHeight && element.scrollWidth <= element.clientWidth;
       }),
     ).toBe(true);
+    // The device list is the application's own, and it stays inside the window.
+    await window.getByRole('combobox', { name: 'Speakers' }).click();
+    const speakers = window.getByRole('listbox');
+    await expect(speakers.getByRole('option', { name: 'System default' })).toBeVisible();
+    expect(
+      await speakers.evaluate((element) => {
+        const box = element.getBoundingClientRect();
+        return box.top >= 0 && box.bottom <= window.innerHeight && box.right <= window.innerWidth;
+      }),
+    ).toBe(true);
+    await window.screenshot({ path: 'test-results/pulse-room-device-select.png' });
+    await window.keyboard.press('Escape');
+
     await window.getByLabel('Microphone gain').fill('120');
     await window.getByRole('slider', { name: 'Noise gate' }).fill('70');
     await window.getByRole('switch', { name: /Expand screen levels/ }).click();

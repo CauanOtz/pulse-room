@@ -3,9 +3,13 @@ import { RefreshCw, X } from 'lucide-react';
 import { noiseGateThresholdDb } from '../domain/conference';
 import { MicrophoneMeter } from './microphone-meter';
 import { Switch } from './ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { cn } from './ui/utils';
 import type { UserSettings } from '../application/ports/settings-repository';
-import type { AvailableMediaDevices } from '../infrastructure/media/media-devices-service';
+import type {
+  AvailableMediaDevices,
+  MediaDeviceOption,
+} from '../infrastructure/media/media-devices-service';
 import type { UpdateStatus } from '../../shared/desktop-api';
 
 interface SettingsDialogProps {
@@ -76,38 +80,18 @@ export function SettingsDialog(props: SettingsDialogProps) {
               </label>
             </>
           )}
-          <label className="field-label field-span col-span-2 flex flex-col gap-1.5 text-xs font-medium text-muted-foreground">
-            Microphone
-            <select
-              value={settings.microphoneDeviceId ?? ''}
-              onChange={(event) =>
-                setSettings({ ...settings, microphoneDeviceId: event.target.value || undefined })
-              }
-            >
-              <option value="">System default</option>
-              {props.devices.microphones.map((device) => (
-                <option key={device.id} value={device.id}>
-                  {device.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field-label field-span col-span-2 flex flex-col gap-1.5 text-xs font-medium text-muted-foreground">
-            Speakers
-            <select
-              value={settings.speakerDeviceId ?? ''}
-              onChange={(event) =>
-                setSettings({ ...settings, speakerDeviceId: event.target.value || undefined })
-              }
-            >
-              <option value="">System default</option>
-              {props.devices.speakers.map((device) => (
-                <option key={device.id} value={device.id}>
-                  {device.label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <DeviceField
+            label="Microphone"
+            value={settings.microphoneDeviceId}
+            devices={props.devices.microphones}
+            onChange={(deviceId) => setSettings({ ...settings, microphoneDeviceId: deviceId })}
+          />
+          <DeviceField
+            label="Speakers"
+            value={settings.speakerDeviceId}
+            devices={props.devices.speakers}
+            onChange={(deviceId) => setSettings({ ...settings, speakerDeviceId: deviceId })}
+          />
           <div className="mic-status field-span col-span-2 flex items-center gap-2.5 rounded-xl border border-border bg-background/60 px-3.5 py-2.5 text-xs" role="status">
             <span
               className={
@@ -264,6 +248,38 @@ export function SettingsDialog(props: SettingsDialogProps) {
           </button>
         </footer>
       </section>
+    </div>
+  );
+}
+
+/** A sound device, named in full on its own line rather than clipped. */
+function DeviceField({
+  label,
+  value,
+  devices,
+  onChange,
+}: {
+  label: string;
+  value?: string;
+  devices: MediaDeviceOption[];
+  onChange(deviceId?: string): void;
+}) {
+  return (
+    <div className="field-label field-span col-span-2 flex flex-col gap-1.5 text-xs font-medium text-muted-foreground">
+      <span id={`device-${label}`}>{label}</span>
+      <Select value={value ?? 'system'} onValueChange={(next) => onChange(next === 'system' ? undefined : next)}>
+        <SelectTrigger aria-labelledby={`device-${label}`}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="system">System default</SelectItem>
+          {devices.map((device) => (
+            <SelectItem key={device.id} value={device.id} title={device.label}>
+              {device.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   );
 }
