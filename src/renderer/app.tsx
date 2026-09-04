@@ -254,6 +254,15 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
         onShare={handleShareRequest}
         onSelectChannel={handleChannelSelect}
         onOpenParticipant={(entry, position) => setOpenParticipant({ id: entry.id, position })}
+        onCreateChannel={manager ? workspace?.onCreateChannel : undefined}
+        onEditChannel={
+          manager && workspace
+            ? (channelId) => {
+                const channel = workspace.detail.channels.find((each) => each.id === channelId);
+                if (channel) workspace.onEditChannel(channel);
+              }
+            : undefined
+        }
       />
 
       <ProfileBar

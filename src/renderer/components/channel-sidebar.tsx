@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import {
   ChevronDown,
   Hash,
+  LockKeyhole,
+  Plus,
   Headphones,
   Mic,
   MicOff,
@@ -16,6 +18,7 @@ import { Avatar } from './avatar';
 import type { AvailableMediaDevices } from '../infrastructure/media/media-devices-service';
 import { DeviceMenu } from './device-menu';
 import { Button } from './ui/button';
+import { Tooltip } from './ui/tooltip';
 import { cn } from './ui/utils';
 import { VoicePanel } from './voice-panel';
 import type { CommunityChannel } from '../../shared/community';
@@ -39,6 +42,9 @@ interface ChannelSidebarProps {
   onLeave(): void;
   onShare(): void;
   onOpenParticipant(entry: RosterEntry, position: { x: number; y: number }): void;
+  /** Absent for anyone who may not shape the server, which hides the controls. */
+  onCreateChannel?(type: 'text' | 'voice'): void;
+  onEditChannel?(channelId: string): void;
 }
 
 export function ChannelSidebar(props: ChannelSidebarProps) {
@@ -67,26 +73,24 @@ export function ChannelSidebar(props: ChannelSidebarProps) {
 
       <div className="channel-scroll flex-1 overflow-y-auto px-2 py-3.5">
         <section className="channel-group mb-4 flex flex-col gap-0.5">
-          <h2 className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Text channels
-          </h2>
+          <GroupHeading
+            label="Text channels"
+            createLabel="Create text channel"
+            onCreate={
+              props.textChannels && props.onCreateChannel && (() => props.onCreateChannel?.('text'))
+            }
+          />
           {props.textChannels ? (
             props.textChannels.map((channel) => (
-              <button
+              <ChannelRow
                 key={channel.id}
-                className={cn(
-                  'channel-row flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-muted-foreground transition-colors',
-                  'hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                  'disabled:pointer-events-none disabled:opacity-45',
-                  props.selectedTextId === channel.id && 'is-selected bg-accent text-foreground',
-                )}
-                type="button"
-                onClick={() => props.onSelectText?.(channel.id)}
-              >
-                <Hash size={17} />
-                <span className="channel-name min-w-0 flex-1 truncate">{channel.name}</span>
-                {channel.private && <small>Private</small>}
-              </button>
+                icon={<Hash size={17} />}
+                name={channel.name}
+                isPrivate={channel.private}
+                selected={props.selectedTextId === channel.id}
+                onSelect={() => props.onSelectText?.(channel.id)}
+                onEdit={props.onEditChannel && (() => props.onEditChannel?.(channel.id))}
+              />
             ))
           ) : (
             <>
@@ -110,26 +114,23 @@ export function ChannelSidebar(props: ChannelSidebarProps) {
         </section>
 
         <section className="channel-group mb-4 flex flex-col gap-0.5">
-          <h2 className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Voice channels
-          </h2>
+          <GroupHeading
+            label="Voice channels"
+            createLabel="Create voice channel"
+            onCreate={props.onCreateChannel && (() => props.onCreateChannel?.('voice'))}
+          />
           {props.channels.map((channel, index) => (
             <div key={channel.id}>
-              <button
-                className={cn(
-                  'channel-row flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-muted-foreground transition-colors',
-                  'hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                  'disabled:pointer-events-none disabled:opacity-45',
-                  isConnected && channel.id === props.activeChannelId && 'is-selected bg-accent text-foreground',
-                )}
-                type="button"
-                aria-current={isConnected && channel.id === props.activeChannelId}
+              <ChannelRow
+                icon={index === 0 ? <Volume2 size={17} /> : <Radio size={17} />}
+                name={channel.name}
+                isPrivate={channel.private}
+                selected={isConnected && channel.id === props.activeChannelId}
+                current={isConnected && channel.id === props.activeChannelId}
                 disabled={props.busy}
-                onClick={() => props.onSelectChannel(channel.id)}
-              >
-                {index === 0 ? <Volume2 size={17} /> : <Radio size={17} />}{' '}
-                <span className="channel-name min-w-0 flex-1 truncate">{channel.name}</span>
-              </button>
+                onSelect={() => props.onSelectChannel(channel.id)}
+                onEdit={props.onEditChannel && (() => props.onEditChannel?.(channel.id))}
+              />
 
               <ChannelRoster entries={rosterOf(channel.id)} onOpenParticipant={props.onOpenParticipant} />
             </div>
@@ -149,6 +150,105 @@ export function ChannelSidebar(props: ChannelSidebarProps) {
       )}
 
     </aside>
+  );
+}
+
+/**
+ * A group of channels, with the one control that makes another. The plus is
+ * drawn only for somebody who may use it.
+ */
+function GroupHeading({
+  label,
+  createLabel,
+  onCreate,
+}: {
+  label: string;
+  createLabel: string;
+  onCreate?: false | undefined | (() => void);
+}) {
+  return (
+    <div className="channel-heading flex items-center justify-between gap-2 pb-1 pl-2 pr-1">
+      <h2 className="min-w-0 truncate text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        {label}
+      </h2>
+      {onCreate && (
+        <Tooltip label={createLabel}>
+          <button
+            className="grid size-5 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            type="button"
+            aria-label={createLabel}
+            onClick={onCreate}
+          >
+            <Plus size={15} />
+          </button>
+        </Tooltip>
+      )}
+    </div>
+  );
+}
+
+/**
+ * One channel. Its settings are reached by the gear the row shows under the
+ * pointer, so a name is never squeezed by a control nobody is looking for.
+ */
+function ChannelRow({
+  icon,
+  name,
+  isPrivate,
+  selected,
+  current,
+  disabled,
+  onSelect,
+  onEdit,
+}: {
+  icon: ReactNode;
+  name: string;
+  isPrivate?: boolean;
+  selected?: boolean;
+  current?: boolean;
+  disabled?: boolean;
+  onSelect(): void;
+  onEdit?: false | undefined | (() => void);
+}) {
+  return (
+    <div className="channel-item group/channel relative">
+      <button
+        className={cn(
+          'channel-row flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-muted-foreground transition-colors',
+          'hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+          'disabled:pointer-events-none disabled:opacity-45',
+          // The gear keeps its place whether or not it is drawn, so a name
+          // never changes length under the pointer.
+          onEdit && 'pr-9',
+          selected && 'is-selected bg-accent text-foreground',
+        )}
+        type="button"
+        aria-current={current}
+        disabled={disabled}
+        onClick={onSelect}
+      >
+        {icon}
+        <span className="channel-name min-w-0 flex-1 truncate">{name}</span>
+        {isPrivate && <LockKeyhole aria-label="Private" className="size-3.5 shrink-0" />}
+      </button>
+      {onEdit && (
+        <Tooltip label="Edit channel">
+          <button
+            className={cn(
+              'channel-edit absolute right-1 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded-md',
+              'text-muted-foreground opacity-0 transition-opacity hover:bg-secondary hover:text-foreground',
+              'group-hover/channel:opacity-100 focus-visible:opacity-100',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            )}
+            type="button"
+            aria-label={`Edit ${name}`}
+            onClick={onEdit}
+          >
+            <Settings size={15} />
+          </button>
+        </Tooltip>
+      )}
+    </div>
   );
 }
 

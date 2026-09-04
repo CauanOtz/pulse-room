@@ -24,6 +24,8 @@ export interface WorkspaceBindings {
   onSelectServer(id: string): void;
   onAddServer(): void;
   onManage(): void;
+  onCreateChannel(type: 'text' | 'voice'): void;
+  onEditChannel(channel: CommunityChannel): void;
   onAccount(): void;
   onProfileChanged(): Promise<void>;
 }
@@ -41,6 +43,7 @@ export function CommunityRoot({ apiUrl }: { apiUrl: string }) {
   selectedServer.current = serverId;
   const [dialog, setDialog] = useState<'add' | 'server' | 'channel' | 'account'>();
   const [editingChannel, setEditingChannel] = useState<CommunityChannel>();
+  const [newChannelType, setNewChannelType] = useState<'text' | 'voice'>('voice');
   const [retry, setRetry] = useState(0);
   const clearSession = () => {
     api.token = '';
@@ -212,6 +215,15 @@ export function CommunityRoot({ apiUrl }: { apiUrl: string }) {
             onSelectServer: selectServer,
             onAddServer: () => setDialog('add'),
             onManage: () => setDialog('server'),
+            onCreateChannel: (type) => {
+              setEditingChannel(undefined);
+              setNewChannelType(type);
+              setDialog('channel');
+            },
+            onEditChannel: (channel) => {
+              setEditingChannel(channel);
+              setDialog('channel');
+            },
             onAccount: () => setDialog('account'),
             onProfileChanged: refreshProfile,
           }}
@@ -283,10 +295,6 @@ export function CommunityRoot({ apiUrl }: { apiUrl: string }) {
           detail={detail}
           onClose={() => setDialog(undefined)}
           onChanged={refresh}
-          onChannel={(channel) => {
-            setEditingChannel(channel);
-            setDialog('channel');
-          }}
           onRemoved={() => {
             setDetail(undefined);
             setServerId('');
@@ -300,8 +308,9 @@ export function CommunityRoot({ apiUrl }: { apiUrl: string }) {
           api={api}
           detail={detail}
           channel={editingChannel}
+          type={newChannelType}
           onSaved={refresh}
-          onClose={() => setDialog('server')}
+          onClose={() => setDialog(undefined)}
         />
       )}
       {dialog === 'account' && (

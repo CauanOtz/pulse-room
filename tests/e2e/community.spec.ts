@@ -97,15 +97,31 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
     await expect(memberRow.locator('.avatar')).toBeVisible();
     await expect(memberRow).toContainText('@owner');
     expect((await memberRow.boundingBox())!.height).toBeLessThan(72);
-    await window.getByRole('button', { name: 'Channels', exact: true }).click();
-    await window.getByRole('button', { name: 'Create channel', exact: true }).click();
+    await window.getByRole('button', { name: 'Close dialog' }).click();
+
+    // Channels are made and opened where they are read: a plus on the group
+    // that will hold it, and a gear the row shows under the pointer.
+    await window.getByRole('button', { name: 'Create voice channel' }).click();
     await window.getByLabel('Channel name', { exact: true }).fill('Game room');
     await window.getByLabel('Private channel', { exact: true }).check();
     await window.getByLabel('Share screen and system audio').uncheck();
     await expectContainedDialog(window);
     await window.screenshot({ path: 'test-results/community-channel-permissions.png' });
     await window.getByRole('button', { name: 'Save channel' }).click();
-    await expect(window.getByRole('dialog', { name: 'Friends', exact: true })).toBeVisible();
+    const gameRoom = window.locator('.channel-item', { hasText: 'Game room' });
+    await expect(gameRoom).toBeVisible();
+    // A channel not everyone may enter says so.
+    await expect(gameRoom.locator('[aria-label="Private"]')).toBeVisible();
+    const gear = gameRoom.getByRole('button', { name: 'Edit Game room' });
+    expect(await gear.evaluate((element) => getComputedStyle(element).opacity)).toBe('0');
+    await gameRoom.hover();
+    await expect(gear).toHaveCSS('opacity', '1');
+    await window.screenshot({ path: 'test-results/community-channel-hover.png' });
+    await gear.click();
+    await expect(window.getByRole('dialog', { name: 'Edit channel', exact: true })).toBeVisible();
+    await window.keyboard.press('Escape');
+
+    await window.getByRole('button', { name: 'Server settings and members' }).click();
     await window.getByRole('button', { name: 'Invites', exact: true }).click();
     await window.getByRole('button', { name: 'Generate invite' }).click();
     const invite = await window.getByLabel('Invite code — copy and share').inputValue();
@@ -290,7 +306,11 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
     await expect(window.getByRole('button', { name: 'Game room', exact: true })).toHaveCount(0);
     await window.getByRole('button', { name: 'Server settings and members' }).click();
     await expect(window.getByRole('button', { name: 'Invites', exact: true })).toHaveCount(0);
-    await expect(window.getByRole('button', { name: 'Channels', exact: true })).toHaveCount(0);
+    // Nobody but an owner or an administrator is offered the controls that
+    // shape the server.
+    await window.keyboard.press('Escape');
+    await expect(window.getByRole('button', { name: 'Create voice channel' })).toHaveCount(0);
+    await expect(window.getByRole('button', { name: 'Edit general' })).toHaveCount(0);
   } finally {
     await application.close();
     await vite.close();

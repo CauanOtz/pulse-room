@@ -109,19 +109,22 @@ export function ChannelDialog({
   api,
   detail,
   channel,
+  type = 'voice',
   onClose,
   onSaved,
 }: {
   api: CommunityClient;
   detail: CommunityDetail;
   channel?: CommunityChannel;
+  /** Which group the plus was under, for a channel that does not exist yet. */
+  type?: 'text' | 'voice';
   onClose(): void;
   onSaved(): Promise<void>;
 }) {
   const [draft, setDraft] = useState<Omit<CommunityChannel, 'id' | 'serverId'>>(
     channel ?? {
       name: '',
-      type: 'voice',
+      type,
       private: false,
       memberIds: [],
       allowSpeak: true,
@@ -300,7 +303,6 @@ export function ServerDialog({
   detail,
   onClose,
   onChanged,
-  onChannel,
   onRemoved,
 }: {
   api: CommunityClient;
@@ -308,7 +310,6 @@ export function ServerDialog({
   detail: CommunityDetail;
   onClose(): void;
   onChanged(): Promise<void>;
-  onChannel(channel?: CommunityChannel): void;
   onRemoved(): void;
 }) {
   const [tab, setTab] = useState('members');
@@ -346,7 +347,7 @@ export function ServerDialog({
   return (
     <Modal title={detail.server.name} onClose={onClose}>
       <div className="dialog-tabs inline-flex items-center gap-1 rounded-xl bg-secondary/60 p-1">
-        {['members', ...(manager ? ['channels', 'invites', 'settings'] : [])].map((item) => (
+        {['members', ...(manager ? ['invites', 'settings'] : [])].map((item) => (
           <button key={item} aria-pressed={tab === item} onClick={() => setTab(item)}>
             {item[0].toUpperCase() + item.slice(1)}
           </button>
@@ -454,22 +455,6 @@ export function ServerDialog({
             );
           })}
         </div>
-      )}
-      {tab === 'channels' && (
-        <>
-          <button className="primary-action inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50" onClick={() => onChannel()}>
-            Create channel
-          </button>
-          {detail.channels.map((channel) => (
-            <div className="member-row flex items-center gap-3 rounded-xl border border-border bg-background/60 px-3 py-2.5 text-sm" key={channel.id}>
-              <span>
-                {channel.type === 'text' ? '#' : '◖'} {channel.name}
-                {channel.private ? ' · Private' : ''}
-              </span>
-              <button onClick={() => onChannel(channel)}>Edit permissions</button>
-            </div>
-          ))}
-        </>
       )}
       {tab === 'invites' && (
         <>

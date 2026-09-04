@@ -26,6 +26,8 @@ export interface ConferenceSnapshot {
 export interface VoiceChannel {
   id: string;
   name: string;
+  /** Shown with a lock, since not everyone in the server can enter. */
+  private?: boolean;
 }
 
 export const voiceChannels: VoiceChannel[] = [
