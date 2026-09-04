@@ -62,7 +62,10 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
   let application = await electron.launch({ args: [path.resolve('.')], env });
   try {
     let window = await application.firstWindow();
-    await expect(window.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
+    // The first paint waits on the development server building the client.
+    await expect(window.getByRole('heading', { name: 'Welcome back' })).toBeVisible({
+      timeout: 60_000,
+    });
     await window.screenshot({ path: 'test-results/community-sign-in.png' });
     await window.screenshot({ path: 'test-results/community-login.png' });
     await window.getByRole('button', { name: 'Create an account', exact: true }).click();
