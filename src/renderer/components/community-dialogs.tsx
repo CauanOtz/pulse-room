@@ -321,6 +321,9 @@ export function ServerDialog({
   const [hours, setHours] = useState(24);
   const [maxUses, setMaxUses] = useState(1);
   const [confirmation, setConfirmation] = useState<{ label: string; action: () => Promise<void> }>();
+  // One row's menu at a time, held here rather than in each row, so reaching for
+  // a second member puts the first one away.
+  const [openMenu, setOpenMenu] = useState<string>();
   const manager = canManage(detail.server.role);
   const owner = detail.server.role === 'owner';
   const base = `/api/servers/${detail.server.id}`;
@@ -406,7 +409,10 @@ export function ServerDialog({
                     </span>
                   )}
                   {(removable || transferable) && (
-                    <DropdownMenu>
+                    <DropdownMenu
+                      open={openMenu === member.id}
+                      onOpenChange={(open) => setOpenMenu(open ? member.id : undefined)}
+                    >
                       <DropdownMenuTrigger asChild>
                         <button
                           className="icon-action grid size-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"

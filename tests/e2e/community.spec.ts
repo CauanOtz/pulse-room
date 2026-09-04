@@ -123,6 +123,7 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
 
     await window.getByRole('button', { name: 'Server settings and members' }).click();
     await window.getByRole('button', { name: 'Invites', exact: true }).click();
+    await window.getByLabel('Maximum uses', { exact: true }).fill('2');
     await window.getByRole('button', { name: 'Generate invite' }).click();
     const invite = await window.getByLabel('Invite code — copy and share').inputValue();
     expect(invite).toHaveLength(43);
@@ -140,6 +141,22 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
           method: 'POST',
           url: '/api/invites/join',
           headers: { authorization: `Bearer ${friend.token}` },
+          payload: { code: invite },
+        })
+      ).statusCode,
+    ).toBe(200);
+    const secondResponse = await backend.inject({
+      method: 'POST',
+      url: '/api/auth/register',
+      payload: { username: 'neighbour', displayName: 'Neighbour', password: 'Testing private communities!' },
+    });
+    const second = secondResponse.json() as AccountSession;
+    expect(
+      (
+        await backend.inject({
+          method: 'POST',
+          url: '/api/invites/join',
+          headers: { authorization: `Bearer ${second.token}` },
           payload: { code: invite },
         })
       ).statusCode,
@@ -254,12 +271,25 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
     await window.getByRole('button', { name: 'Friends', exact: true }).click();
     await window.getByRole('button', { name: 'Server settings and members' }).click();
     const rows = window.locator('.member-row');
-    await expect(rows).toHaveCount(2);
+    await expect(rows).toHaveCount(3);
     expect(
       await rows.evaluateAll((elements) =>
         new Set(elements.map((element) => Math.round(element.getBoundingClientRect().height))).size,
       ),
     ).toBe(1);
+    // One row's menu at a time, and while it is open the rows behind it are
+    // out of reach, so a click meant for another member cannot land on
+    // 'Remove from server'.
+    await window.getByRole('button', { name: 'Manage Friend' }).click();
+    await expect(window.getByRole('menu')).toHaveCount(1);
+    await expect(window.getByRole('button', { name: 'Manage Neighbour' })).toHaveCount(0);
+    await window.keyboard.press('Escape');
+    await expect(window.getByRole('menu')).toHaveCount(0);
+    await window.getByRole('button', { name: 'Manage Neighbour' }).click();
+    await expect(window.getByRole('menu')).toHaveCount(1);
+    await expect(window.getByRole('menuitem', { name: 'Remove from server' })).toHaveCount(1);
+    await window.keyboard.press('Escape');
+    await expect(window.getByRole('menu')).toHaveCount(0);
     await window.getByRole('combobox', { name: 'Role for Friend' }).click();
     await expect(window.getByRole('option', { name: 'Administrator' })).toBeVisible();
     await window.keyboard.press('Escape');
