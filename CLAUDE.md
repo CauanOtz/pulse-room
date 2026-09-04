@@ -43,3 +43,10 @@ server deployed on Railway.
   that survives the machine.
 - `scripts/build-android.ps1` builds locally; `-InitializeSigning` creates the
   identity once and refuses to replace an existing one.
+- `scripts/run-android.ps1` installs the application on the emulator and opens
+  it; `-Rebuild` compiles first, `-Release` uses the signed build, `-Screenshot`
+  saves the screen. The toolchain lives in `%LOCALAPPDATA%\PulseRoomBuild`
+  (JDK 17 and the Android SDK), and the virtual device is called `pulse-room`.
+  A stock emulator image is right for the interface, the permission prompts and
+  joining a room, and wrong for anything a manufacturer changed, which is where
+  phone-specific faults such as Xiaomi's live.
