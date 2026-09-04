@@ -166,6 +166,24 @@ screen turning off or another application coming forward. What the phone drops
 in the background is the picture of a screen share, never its sound: a phone in
 a pocket is still in the conversation.
 
+## The design system
+
+The interface is Tailwind over shadcn-style primitives built on Radix. Colour
+lives only in tokens, declared once for a black theme and once for a paper one,
+so a component never names a colour and the whole application turns with a class
+on the root element. The choice is remembered and applied before the first
+paint.
+
+Radix earns its place on behaviour rather than looks: a menu of sound devices
+flips above the bar and scrolls inside the window instead of running off the
+bottom of the screen, and a long device name truncates with its full name on
+hover. Those were the visible faults of the hand-built menus it replaced.
+
+The conversion is staged. Tailwind's preflight is deliberately not imported yet,
+so the surfaces still governed by `styles.css` keep their layout; those legacy
+variables now read from the tokens, which is why the whole application is
+already black and already follows the theme.
+
 ## Pictures
 
 A profile picture and a room icon are small enough that a bucket would be more

@@ -233,6 +233,7 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
         activeChannelId={settings.roomId}
         participants={snapshot.participants}
         avatars={avatars}
+        avatarId={workspace?.user.avatarId}
         displayName={settings.displayName}
         microphoneEnabled={snapshot.microphoneEnabled}
         deafened={snapshot.deafened}

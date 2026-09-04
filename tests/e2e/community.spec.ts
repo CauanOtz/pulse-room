@@ -142,7 +142,12 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
     await expectContainedDialog(window);
     await expect(window.getByRole('heading', { name: 'Password & security' })).toBeVisible();
     const changeButton = window.getByRole('button', { name: 'Change password', exact: true });
-    await expect(changeButton).toHaveCSS('background-color', 'rgb(154, 171, 255)');
+    // The primary action wears the theme's primary colour, whatever it is set to.
+    const primary = await window.evaluate(() =>
+      getComputedStyle(document.documentElement).getPropertyValue('--primary').trim(),
+    );
+    expect(primary).not.toBe('');
+    await expect(changeButton).toHaveCSS('background-color', primary);
     const changeBounds = await changeButton.boundingBox();
     const signOutBounds = await window.getByRole('button', { name: 'Sign out', exact: true }).boundingBox();
     expect(signOutBounds!.y - (changeBounds!.y + changeBounds!.height)).toBeGreaterThanOrEqual(20);

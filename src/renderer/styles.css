@@ -5,30 +5,32 @@
  */
 :root {
   font-family: 'Manrope Variable', 'Segoe UI', sans-serif;
-  color: #edf0f7;
-  background: #11151e;
-  color-scheme: dark;
+  color: var(--foreground);
+  background: var(--background);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 
-  --ink: #edf0f7;
-  --muted: #a5aec0;
-  --dim: #8b97ac;
-
-  --rail: #11151e;
-  --sidebar: #171d29;
-  --room: #1c2330;
-  --raised: #252e3e;
-  --hover: #232c3d;
-  --active: #303b52;
-  --line: #30394a;
-  --field: #141a25;
-  --control-line: #46536b;
-
-  --blue: #9aabff;
-  --blue-soft: #c3cdff;
-  --red: #ef6f79;
-  --green: #65d5a3;
+  /*
+   * The legacy names now read from the design tokens, so the surfaces that
+   * have not been rebuilt in Tailwind yet still follow the theme and turn
+   * black or white with it.
+   */
+  --ink: var(--foreground);
+  --muted: var(--muted-foreground);
+  --dim: color-mix(in oklab, var(--muted-foreground) 85%, var(--background));
+  --rail: var(--rail);
+  --sidebar: var(--sidebar);
+  --room: var(--background);
+  --raised: var(--card);
+  --hover: var(--accent);
+  --active: color-mix(in oklab, var(--accent) 70%, var(--primary) 30%);
+  --line: var(--border);
+  --field: color-mix(in oklab, var(--background) 70%, var(--card));
+  --control-line: var(--input);
+  --blue: var(--primary);
+  --blue-soft: color-mix(in oklab, var(--primary) 70%, var(--foreground));
+  --red: var(--destructive);
+  --green: var(--success);
 }
 
 /* Account and community management extend the existing slate/blue room shell.

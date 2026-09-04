@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import {
   ChevronDown,
-  ChevronUp,
   Hash,
   Headphones,
   Mic,
@@ -16,6 +15,8 @@ import { channelRoster, type ChannelOccupancy, type RosterEntry } from '../domai
 import { Avatar } from './avatar';
 import type { AvailableMediaDevices } from '../infrastructure/media/media-devices-service';
 import { DeviceMenu } from './device-menu';
+import { ThemeToggle } from './theme-toggle';
+import { Button } from './ui/button';
 import { VoicePanel } from './voice-panel';
 import type { CommunityChannel } from '../../shared/community';
 
@@ -40,6 +41,7 @@ interface ChannelSidebarProps {
   speakerDeviceId?: string;
   occupancy: ChannelOccupancy[];
   avatars?: ReadonlyMap<string, string | null | undefined>;
+  avatarId?: string | null;
   onSelectChannel(channelId: string): void;
   onToggleMicrophone(): void;
   onToggleDeafen(): void;
@@ -52,7 +54,6 @@ interface ChannelSidebarProps {
 }
 
 export function ChannelSidebar(props: ChannelSidebarProps) {
-  const [openMenu, setOpenMenu] = useState<'microphone' | 'speaker'>();
   const isConnected = props.connectionState === 'connected' || props.connectionState === 'reconnecting';
   const activeChannel = props.channels.find((channel) => channel.id === props.activeChannelId);
   const rosterOf = (channelId: string) =>
@@ -137,79 +138,83 @@ export function ChannelSidebar(props: ChannelSidebarProps) {
         />
       )}
 
-      <div className="profile-strip">
-        <span className="profile-avatar">{props.displayName.slice(0, 2).toUpperCase()}</span>
-        <span className="profile-copy">
-          <strong>{props.displayName}</strong>
-          <small>{props.joined ? 'In voice' : 'Ready'}</small>
-        </span>
-        <span className="device-control">
-          <button
-            type="button"
-            disabled={!props.joined || props.busy}
-            aria-label={props.microphoneEnabled ? 'Mute microphone' : 'Unmute microphone'}
-            onClick={props.onToggleMicrophone}
-          >
-            {props.joined && !props.microphoneEnabled ? (
-              <MicOff size={17} className="is-off" />
-            ) : (
-              <Mic size={17} />
-            )}
-          </button>
-          <button
-            className="device-caret"
-            type="button"
-            aria-label="Choose microphone"
-            aria-expanded={openMenu === 'microphone'}
-            onClick={() => setOpenMenu(openMenu === 'microphone' ? undefined : 'microphone')}
-          >
-            {openMenu === 'microphone' ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-          </button>
-        </span>
+      <div className="profile-strip flex flex-col gap-2 border-t border-border bg-sidebar px-3 py-2.5">
+        <div className="flex items-center gap-2.5">
+          <Avatar
+            className="grid size-9 shrink-0 place-items-center rounded-xl bg-secondary text-[11px] font-bold text-secondary-foreground"
+            name={props.displayName}
+            imageId={props.avatarId}
+          />
+          <span className="profile-copy flex min-w-0 flex-col leading-tight">
+            <strong className="truncate text-[13px] font-semibold" title={props.displayName}>
+              {props.displayName}
+            </strong>
+            <small className="truncate text-[11px] text-muted-foreground">
+              {props.joined ? 'In voice' : 'Ready'}
+            </small>
+          </span>
+        </div>
 
-        <span className="device-control">
-          <button
-            type="button"
-            disabled={!props.joined || props.busy}
-            aria-label="Toggle deafen"
-            onClick={props.onToggleDeafen}
-          >
-            <Headphones size={17} className={props.deafened ? 'is-off' : ''} />
-          </button>
-          <button
-            className="device-caret"
-            type="button"
-            aria-label="Choose speakers"
-            aria-expanded={openMenu === 'speaker'}
-            onClick={() => setOpenMenu(openMenu === 'speaker' ? undefined : 'speaker')}
-          >
-            {openMenu === 'speaker' ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-          </button>
-        </span>
+        <div className="flex items-center gap-1">
+          <span className="device-control flex items-center rounded-lg bg-secondary/70">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="size-8 rounded-r-none"
+              disabled={!props.joined || props.busy}
+              aria-label={props.microphoneEnabled ? 'Mute microphone' : 'Unmute microphone'}
+              onClick={props.onToggleMicrophone}
+            >
+              {props.joined && !props.microphoneEnabled ? (
+                <MicOff className="size-4 text-destructive" />
+              ) : (
+                <Mic className="size-4" />
+              )}
+            </Button>
+            <DeviceMenu
+              title="Microphone"
+              label="Choose microphone"
+              devices={props.devices.microphones}
+              selectedId={props.microphoneDeviceId}
+              onSelect={props.onSelectMicrophone}
+            />
+          </span>
 
-        <button type="button" aria-label="Open audio settings" onClick={props.onOpenSettings}>
-          <Settings size={17} />
-        </button>
+          <span className="device-control flex items-center rounded-lg bg-secondary/70">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="size-8 rounded-r-none"
+              disabled={!props.joined || props.busy}
+              aria-label="Toggle deafen"
+              onClick={props.onToggleDeafen}
+            >
+              <Headphones className={props.deafened ? 'size-4 text-destructive' : 'size-4'} />
+            </Button>
+            <DeviceMenu
+              title="Speakers"
+              label="Choose speakers"
+              devices={props.devices.speakers}
+              selectedId={props.speakerDeviceId}
+              onSelect={props.onSelectSpeaker}
+            />
+          </span>
+
+          <span className="ml-auto flex items-center gap-1">
+            <ThemeToggle className="size-8" />
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="size-8"
+              aria-label="Open audio settings"
+              onClick={props.onOpenSettings}
+            >
+              <Settings className="size-4" />
+            </Button>
+          </span>
+        </div>
       </div>
 
-      {openMenu === 'microphone' && (
-        <DeviceMenu
-          title="Microphone"
-          devices={props.devices.microphones}
-          selectedId={props.microphoneDeviceId}
-          onSelect={props.onSelectMicrophone}
-          onClose={() => setOpenMenu(undefined)}
-        />
-      )}
-      {openMenu === 'speaker' && (
-        <DeviceMenu
-          title="Speakers"
-          devices={props.devices.speakers}
-          selectedId={props.speakerDeviceId}
-          onSelect={props.onSelectSpeaker}
-          onClose={() => setOpenMenu(undefined)}
-        />
-      )}
     </aside>
   );
 }

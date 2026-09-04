@@ -1,11 +1,12 @@
 import { createRequire } from 'node:module';
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 
 const { version } = createRequire(import.meta.url)('./package.json') as { version: string };
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
   base: './',
   define: {
     __APP_VERSION__: JSON.stringify(version),

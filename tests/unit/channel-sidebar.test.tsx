@@ -5,6 +5,13 @@ import { voiceChannels } from '../../src/renderer/domain/conference';
 
 afterEach(cleanup);
 
+/** Radix opens on pointer down, which is what a mouse actually sends first. */
+const openMenu = (name: string) => {
+  const trigger = screen.getByRole('button', { name });
+  fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false, pointerType: 'mouse' });
+  fireEvent.click(trigger);
+};
+
 function renderSidebar(overrides: Partial<Parameters<typeof ChannelSidebar>[0]> = {}) {
   const onSelectChannel = vi.fn();
   const onOpenParticipant = vi.fn();
@@ -103,7 +110,7 @@ describe('ChannelSidebar', () => {
   it('changes the microphone from the caret beside it', () => {
     const { onSelectMicrophone } = renderSidebar();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Choose microphone' }));
+    openMenu('Choose microphone');
     fireEvent.click(screen.getByRole('menuitemradio', { name: 'USB microphone' }));
 
     expect(onSelectMicrophone).toHaveBeenCalledWith('usb-1');
@@ -112,7 +119,7 @@ describe('ChannelSidebar', () => {
   it('offers the system default as a way back', () => {
     const { onSelectMicrophone } = renderSidebar({ microphoneDeviceId: 'usb-1' });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Choose microphone' }));
+    openMenu('Choose microphone');
     fireEvent.click(screen.getByRole('menuitemradio', { name: 'System default' }));
 
     expect(onSelectMicrophone).toHaveBeenCalledWith(undefined);
