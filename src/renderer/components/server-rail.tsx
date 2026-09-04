@@ -63,7 +63,7 @@ export function ServerRail({
           aria-current={server.active}
           onClick={() => onSelect?.(server.id)}
         >
-          <Avatar className="server-picture" name={server.label} initials={server.mark} imageId={server.iconId} />
+          <Avatar className="server-picture size-full rounded-2xl" name={server.label} initials={server.mark} imageId={server.iconId} />
         </button>
       ))}
       <button className="server-button server-action grid size-11 shrink-0 place-items-center rounded-2xl bg-secondary text-success transition-all duration-150 hover:rounded-xl hover:bg-success hover:text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" type="button" aria-label="Add server" onClick={onAdd}>

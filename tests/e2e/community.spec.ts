@@ -358,12 +358,23 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
 
     await window.getByRole('button', { name: 'Server settings and members' }).click();
     await window.getByRole('button', { name: 'Settings', exact: true }).click();
+    // A picture given to the server is stored, attached, and drawn back on the
+    // rail beside every other server.
+    await window
+      .getByLabel('Server picture', { exact: true })
+      .setInputFiles({ name: 'crest.png', mimeType: 'image/png', buffer: png(256) });
+    await expect(window.locator('.picture-preview img')).toBeVisible();
+    await window.screenshot({ path: 'test-results/community-server-icon.png' });
     const longServerName = 'Our private room for games and conversations with friends';
     await window.getByLabel('Server name', { exact: true }).fill(longServerName);
     await window.getByRole('button', { name: 'Rename server', exact: true }).click();
     await expect(window.getByRole('dialog', { name: longServerName, exact: true })).toBeVisible();
     await expectContainedDialog(window);
     await window.getByRole('button', { name: 'Close dialog' }).click();
+    // The picture the server was given is drawn on the rail beside the others.
+    await expect(
+      window.getByRole('button', { name: longServerName, exact: true }).locator('img'),
+    ).toBeVisible();
     expect(
       await window.locator('.server-heading > span').evaluate((element) => {
         return (

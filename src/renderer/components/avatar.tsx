@@ -43,7 +43,9 @@ export function Avatar({ name, initials, imageId, accent, className }: AvatarPro
   return (
     <span
       className={cn(
-        'avatar relative isolate grid place-items-center overflow-hidden select-none',
+        // The picture is drawn absolutely, so with one there is nothing left to
+        // give the box a height: it fills its parent unless told otherwise.
+        'avatar relative isolate grid size-full place-items-center overflow-hidden select-none',
         className,
         url && 'has-picture text-transparent',
       )}

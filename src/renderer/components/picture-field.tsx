@@ -47,7 +47,15 @@ export function PictureField({ name, imageId, label, canEdit, onChoose, onRemove
                 </button>
               )}
             </div>
-            <small>{problem ?? 'PNG, JPEG or WebP. It is cropped to a square and shrunk before it is sent.'}</small>
+            {problem ? (
+              // A refused picture is the one thing here worth reading, so it is
+              // not left in the same grey as the hint it replaces.
+              <small className="picture-problem rounded-md bg-destructive/10 px-2 py-1 text-xs font-medium text-destructive" role="alert">
+                {problem}
+              </small>
+            ) : (
+              <small>PNG, JPEG or WebP. It is cropped to a square and shrunk before it is sent.</small>
+            )}
           </>
         ) : (
           <small>Only the owner and administrators can change this.</small>
