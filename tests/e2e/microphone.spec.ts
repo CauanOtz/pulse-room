@@ -1,3 +1,5 @@
+import { mkdtemp, rm } from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import { _electron as electron, expect, test } from '@playwright/test';
 
@@ -7,9 +9,12 @@ import { _electron as electron, expect, test } from '@playwright/test';
  * module load and the node itself rather than trusting module resolution.
  */
 test('runs the microphone through the noise gate when joining', async () => {
+  // Its own profile: one profile means one instance, and these tests must
+  // not collide with each other or with an installed Pulse Room.
+  const dataDir = await mkdtemp(path.join(os.tmpdir(), 'pulse-microphone-e2e-'));
   const application = await electron.launch({
     args: [path.resolve('.'), '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'],
-    env: { ...process.env, NODE_ENV: 'test' },
+    env: { ...process.env, NODE_ENV: 'test', PULSE_TEST_USER_DATA: dataDir },
   });
 
   try {
@@ -76,5 +81,6 @@ test('runs the microphone through the noise gate when joining', async () => {
     await expect(you.locator('.roster-flag')).toHaveCount(0);
   } finally {
     await application.close();
+    await rm(dataDir, { recursive: true, force: true });
   }
 });

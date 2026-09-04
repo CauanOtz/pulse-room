@@ -1,4 +1,6 @@
 import { readFileSync } from 'node:fs';
+import { mkdtemp, rm } from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import { _electron as electron, expect, test } from '@playwright/test';
 
@@ -6,10 +8,13 @@ const { version } = JSON.parse(readFileSync(path.resolve('package.json'), 'utf8'
 
 test('launches the secured desktop shell and completes the join flow', async () => {
   test.setTimeout(60_000);
+  // Its own profile: one profile means one instance, and these tests must
+  // not collide with each other or with an installed Pulse Room.
+  const dataDir = await mkdtemp(path.join(os.tmpdir(), 'pulse-desktop-e2e-'));
   // No fake devices here: this test has to capture the real monitor.
   const application = await electron.launch({
     args: [path.resolve('.')],
-    env: { ...process.env, NODE_ENV: 'test' },
+    env: { ...process.env, NODE_ENV: 'test', PULSE_TEST_USER_DATA: dataDir },
   });
 
   const problems: string[] = [];
@@ -132,5 +137,6 @@ test('launches the secured desktop shell and completes the join flow', async () 
   } finally {
     problems.forEach((problem) => console.log('Renderer problem:', problem));
     await application.close();
+    await rm(dataDir, { recursive: true, force: true });
   }
 });
