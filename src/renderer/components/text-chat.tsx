@@ -158,7 +158,9 @@ export function TextChat({
         }}
       >
         <textarea
-          className="min-h-10 max-h-40 w-full flex-1 resize-none rounded-xl border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+          // Typing here is the ordinary thing to do in a channel, so the box
+          // only warms a shade when it takes the keys. The caret says the rest.
+          className="min-h-10 max-h-40 w-full flex-1 resize-none rounded-xl border border-input bg-background px-3 py-2 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus:border-ring/40 focus:bg-secondary/40 focus-visible:outline-none disabled:opacity-60"
           rows={1}
           aria-label="Message"
           placeholder={

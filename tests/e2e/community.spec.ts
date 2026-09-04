@@ -139,6 +139,15 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
     await window.getByRole('button', { name: 'Close dialog' }).click();
     await window.getByRole('button', { name: 'Just us', exact: true }).click();
     await expect(window.getByText('Only our little circle.', { exact: true })).toBeVisible();
+    // Typing in a channel does not ring the box: the border only warms.
+    await window.getByLabel('Message', { exact: true }).click();
+    expect(
+      await window
+        .getByLabel('Message', { exact: true })
+        .evaluate((element) => getComputedStyle(element).boxShadow),
+    ).toBe('none');
+    await window.screenshot({ path: 'test-results/community-composer-focus.png' });
+
     // The bar under the channels and the bar under the conversation draw one
     // line across the window: same top, same bottom.
     expect(
