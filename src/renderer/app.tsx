@@ -7,6 +7,7 @@ import type { ChannelOccupancy, RosterEntry } from './domain/roster';
 import { RoomSoundPlayer } from './infrastructure/media/room-sound-player';
 import { CallControls } from './components/call-controls';
 import { ChannelSidebar } from './components/channel-sidebar';
+import { ProfileBar } from './components/profile-bar';
 import { ParticipantPopover } from './components/participant-popover';
 import { RoomAudio } from './components/room-audio';
 import { ServerRail } from './components/server-rail';
@@ -213,7 +214,7 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
   };
 
   return (
-    <div className="app-shell grid h-full w-full grid-cols-[72px_240px_minmax(0,1fr)] bg-background text-foreground">
+    <div className="app-shell grid h-full w-full grid-cols-[72px_240px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)_auto] bg-background text-foreground">
       <VideoLevelFilter />
       <ServerRail
         servers={workspace?.servers}
@@ -233,29 +234,50 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
         activeChannelId={settings.roomId}
         participants={snapshot.participants}
         avatars={avatars}
-        avatarId={workspace?.user.avatarId}
-        displayName={settings.displayName}
-        microphoneEnabled={snapshot.microphoneEnabled}
-        deafened={snapshot.deafened}
         joined={joined}
         busy={busy}
         screenSharing={snapshot.screenSharing}
-        devices={devices}
-        microphoneDeviceId={settings.microphoneDeviceId}
-        speakerDeviceId={settings.speakerDeviceId}
         occupancy={occupancy}
-        onToggleMicrophone={() => canSpeak && void run(() => controller.toggleMicrophone())}
-        onToggleDeafen={() => void run(() => controller.toggleDeafen())}
-        onSelectMicrophone={(deviceId) => handleSettingsSaved({ ...settings, microphoneDeviceId: deviceId })}
-        onSelectSpeaker={(deviceId) => handleSettingsSaved({ ...settings, speakerDeviceId: deviceId })}
         onLeave={() => void run(() => controller.gateway.leave())}
         onShare={handleShareRequest}
         onSelectChannel={handleChannelSelect}
         onOpenParticipant={(entry, position) => setOpenParticipant({ id: entry.id, position })}
+      />
+
+      <ProfileBar
+        displayName={settings.displayName}
+        avatarId={workspace?.user.avatarId}
+        joined={joined}
+        busy={busy}
+        microphoneEnabled={snapshot.microphoneEnabled}
+        deafened={snapshot.deafened}
+        devices={devices}
+        microphoneDeviceId={settings.microphoneDeviceId}
+        speakerDeviceId={settings.speakerDeviceId}
+        onToggleMicrophone={() => canSpeak && void run(() => controller.toggleMicrophone())}
+        onToggleDeafen={() => void run(() => controller.toggleDeafen())}
+        onSelectMicrophone={(deviceId) => handleSettingsSaved({ ...settings, microphoneDeviceId: deviceId })}
+        onSelectSpeaker={(deviceId) => handleSettingsSaved({ ...settings, speakerDeviceId: deviceId })}
+        user={workspace?.user}
+        onChoosePicture={
+          workspace &&
+          (async (image) => {
+            await workspace.api.upload('/api/account/avatar', image);
+            await workspace.onProfileChanged();
+          })
+        }
+        onRemovePicture={
+          workspace &&
+          (async () => {
+            await workspace.api.request('/api/account/avatar', 'DELETE');
+            await workspace.onProfileChanged();
+          })
+        }
+        onOpenAccount={workspace?.onAccount}
         onOpenSettings={() => setSettingsOpen(true)}
       />
 
-      <main className="room-main flex min-w-0 flex-col bg-background">
+      <main className="room-main col-start-3 row-start-1 flex min-w-0 flex-col bg-background">
         <header className="room-header flex h-12 flex-none items-center gap-2 border-b border-border px-4 text-sm">
           <div className="room-title flex min-w-0 items-center gap-2">
             <span>#</span>

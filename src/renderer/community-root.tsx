@@ -10,6 +10,7 @@ import { App } from './app';
 import { AccountScreen } from './components/account-screen';
 import { AccountDialog, AddServerDialog, ChannelDialog, ServerDialog } from './components/community-dialogs';
 import { Modal } from './components/modal';
+import { LoaderCircle } from 'lucide-react';
 import { ServerRail } from './components/server-rail';
 import { ApiError, CommunityClient } from './infrastructure/community-client';
 import { ImageCache } from './infrastructure/image-cache';
@@ -24,6 +25,7 @@ export interface WorkspaceBindings {
   onAddServer(): void;
   onManage(): void;
   onAccount(): void;
+  onProfileChanged(): Promise<void>;
 }
 export function CommunityRoot({ apiUrl }: { apiUrl: string }) {
   const api = useMemo(() => new CommunityClient(apiUrl.replace(/\/$/, '')), [apiUrl]);
@@ -97,6 +99,9 @@ export function CommunityRoot({ apiUrl }: { apiUrl: string }) {
       setServerId(result.servers[0]?.id ?? '');
     }
   };
+  // The list of servers and the room you are in are two different questions, so
+  // they are asked separately. Switching rooms then costs one round trip rather
+  // than re-reading a list that has not changed.
   useEffect(() => {
     if (!user) return;
     const abort = new AbortController();
@@ -111,27 +116,50 @@ export function CommunityRoot({ apiUrl }: { apiUrl: string }) {
         );
         if (abort.signal.aborted) return;
         setServers(result.servers);
-        if (!serverId || !result.servers.some((s) => s.id === serverId)) {
-          setDetail(undefined);
-          setServerId(result.servers[0]?.id ?? '');
-        } else {
-          const next = await api.request<CommunityDetail>(
-            `/api/servers/${serverId}`,
-            'GET',
-            undefined,
-            abort.signal,
-          );
-          if (!abort.signal.aborted) setDetail(next);
-        }
-        if (!abort.signal.aborted) setError('');
+        setServerId((current) =>
+          current && result.servers.some((s) => s.id === current) ? current : (result.servers[0]?.id ?? ''),
+        );
+        setError('');
       } catch (e) {
-        if (!abort.signal.aborted) {
-          setError(e instanceof Error ? e.message : 'Could not load your servers.');
-          if (e instanceof ApiError && [403, 404].includes(e.status)) {
-            setDetail(undefined);
-            setServerId('');
-            setDialog(undefined);
-          }
+        if (!abort.signal.aborted) setError(e instanceof Error ? e.message : 'Could not load your servers.');
+      } finally {
+        if (!abort.signal.aborted) timer = setTimeout(() => void read(), 5000);
+      }
+    };
+    void read();
+    return () => {
+      abort.abort();
+      clearTimeout(timer);
+    };
+  }, [api, user]);
+
+  useEffect(() => {
+    if (!user) return;
+    if (!serverId) {
+      setDetail(undefined);
+      return;
+    }
+    const abort = new AbortController();
+    let timer: ReturnType<typeof setTimeout>;
+    const read = async () => {
+      try {
+        const next = await api.request<CommunityDetail>(
+          `/api/servers/${serverId}`,
+          'GET',
+          undefined,
+          abort.signal,
+        );
+        if (abort.signal.aborted) return;
+        setDetail(next);
+        setError('');
+      } catch (e) {
+        if (abort.signal.aborted) return;
+        setError(e instanceof Error ? e.message : 'Could not open that server.');
+        // Membership can be taken away while the room is open.
+        if (e instanceof ApiError && [403, 404].includes(e.status)) {
+          setDetail(undefined);
+          setServerId('');
+          setDialog(undefined);
         }
       } finally {
         if (!abort.signal.aborted) timer = setTimeout(() => void read(), 5000);
@@ -143,9 +171,13 @@ export function CommunityRoot({ apiUrl }: { apiUrl: string }) {
       clearTimeout(timer);
     };
   }, [api, user, serverId]);
+  const refreshProfile = async () => {
+    setUser(await api.request<{ user: Account }>('/api/auth/me').then((result) => result.user));
+  };
   const selectServer = (id: string) => {
     if (id !== serverId) {
-      setDetail(undefined);
+      // The room you are looking at stays on screen until the next one has
+      // loaded. Blanking the window for the round trip reads as a fault.
       setServerId(id);
       setDialog(undefined);
     }
@@ -181,24 +213,39 @@ export function CommunityRoot({ apiUrl }: { apiUrl: string }) {
             onAddServer: () => setDialog('add'),
             onManage: () => setDialog('server'),
             onAccount: () => setDialog('account'),
+            onProfileChanged: refreshProfile,
           }}
         />
       ) : (
-        <div className="community-empty flex h-full flex-col items-center justify-center gap-3 p-8 text-center text-sm text-muted-foreground">
+        <div className="community-empty grid h-full w-full grid-cols-[72px_minmax(0,1fr)] bg-background text-foreground">
           <ServerRail
             servers={servers}
             activeId={serverId}
             onSelect={selectServer}
             onAdd={() => setDialog('add')}
             onAccount={() => setDialog('account')}
+            showAccount
           />
-          <main>
-            <h1>{servers.length ? 'Opening your server…' : `Welcome, ${user.displayName}`}</h1>
-            <p>Create a private space for your friends, or join one with an invite.</p>
-            <button className="primary-action" onClick={() => setDialog('add')}>
-              Create or join a server
-            </button>
-          </main>
+          {serverId ? (
+            // Opening a room is a moment, not a place: it says so and nothing else.
+            <main className="flex min-w-0 flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
+              <LoaderCircle className="size-5 animate-spin" aria-hidden="true" />
+              Opening your server…
+            </main>
+          ) : (
+            <main className="flex min-w-0 flex-col items-center justify-center gap-3 p-8 text-center">
+              <h1 className="text-2xl font-semibold tracking-tight">Welcome, {user.displayName}</h1>
+              <p className="max-w-sm text-sm text-muted-foreground">
+                Create a private space for your friends, or join one with an invite.
+              </p>
+              <button
+                className="primary-action mt-1 inline-flex h-9 items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                onClick={() => setDialog('add')}
+              >
+                Create or join a server
+              </button>
+            </main>
+          )}
         </div>
       )}
       {error && (
@@ -262,10 +309,7 @@ export function CommunityRoot({ apiUrl }: { apiUrl: string }) {
           api={api}
           user={user}
           onClose={() => setDialog(undefined)}
-          onProfileChanged={async () => {
-            setUser(await api.request<{ user: Account }>('/api/auth/me').then((result) => result.user));
-            await refresh();
-          }}
+          onProfileChanged={refreshProfile}
           onLogout={async () => {
             await api.request('/api/auth/logout', 'POST');
             clearSession();

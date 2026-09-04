@@ -15,7 +15,6 @@ const openMenu = (name: string) => {
 function renderSidebar(overrides: Partial<Parameters<typeof ChannelSidebar>[0]> = {}) {
   const onSelectChannel = vi.fn();
   const onOpenParticipant = vi.fn();
-  const onSelectMicrophone = vi.fn();
   const onLeave = vi.fn();
   const onShare = vi.fn();
   render(
@@ -26,27 +25,18 @@ function renderSidebar(overrides: Partial<Parameters<typeof ChannelSidebar>[0]> 
       participants={[
         { id: 'you', name: 'You', initials: 'YO', accent: '#a8bdff', isLocal: true, isMuted: false, isSpeaking: false, volume: 100, locallyMuted: false },
       ]}
-      displayName="You"
-      microphoneEnabled
-      deafened={false}
       joined
       busy={false}
       screenSharing={false}
-      devices={{ microphones: [{ id: 'usb-1', label: 'USB microphone' }], speakers: [] }}
       occupancy={[]}
       onSelectChannel={onSelectChannel}
       onOpenParticipant={onOpenParticipant}
-      onToggleMicrophone={vi.fn()}
-      onToggleDeafen={vi.fn()}
-      onSelectMicrophone={onSelectMicrophone}
-      onSelectSpeaker={vi.fn()}
       onLeave={onLeave}
       onShare={onShare}
-      onOpenSettings={vi.fn()}
       {...overrides}
     />,
   );
-  return { onSelectChannel, onOpenParticipant, onSelectMicrophone, onLeave, onShare };
+  return { onSelectChannel, onOpenParticipant, onLeave, onShare };
 }
 
 describe('ChannelSidebar', () => {
@@ -107,21 +97,4 @@ describe('ChannelSidebar', () => {
     expect(onLeave).toHaveBeenCalledTimes(1);
   });
 
-  it('changes the microphone from the caret beside it', () => {
-    const { onSelectMicrophone } = renderSidebar();
-
-    openMenu('Choose microphone');
-    fireEvent.click(screen.getByRole('menuitemradio', { name: 'USB microphone' }));
-
-    expect(onSelectMicrophone).toHaveBeenCalledWith('usb-1');
-  });
-
-  it('offers the system default as a way back', () => {
-    const { onSelectMicrophone } = renderSidebar({ microphoneDeviceId: 'usb-1' });
-
-    openMenu('Choose microphone');
-    fireEvent.click(screen.getByRole('menuitemradio', { name: 'System default' }));
-
-    expect(onSelectMicrophone).toHaveBeenCalledWith(undefined);
-  });
 });

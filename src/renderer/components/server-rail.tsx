@@ -23,12 +23,14 @@ export function ServerRail({
   onSelect,
   onAdd,
   onAccount,
+  showAccount = false,
 }: {
   servers?: Community[];
   activeId?: string;
   onSelect?(id: string): void;
   onAdd?(): void;
   onAccount?(): void;
+  showAccount?: boolean;
 }) {
   const items: RailItem[] =
     servers?.map((s) => ({
@@ -72,7 +74,8 @@ export function ServerRail({
           <Compass size={19} />
         </button>
       )}
-      {onAccount && (
+      {/* Only where there is no profile bar to hold it: the account lives there. */}
+      {onAccount && showAccount && (
         <button
           className="server-button account-rail-button mt-auto grid size-11 shrink-0 place-items-center rounded-2xl bg-secondary text-secondary-foreground transition-all duration-150 hover:rounded-xl hover:bg-primary hover:text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           title="Your account"

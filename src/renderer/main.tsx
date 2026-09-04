@@ -3,7 +3,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { App } from './app';
 import { CommunityRoot } from './community-root';
-import { installTheme } from './components/theme-toggle';
+import { installTheme } from './components/theme';
 import './theme.css';
 
 installTheme();

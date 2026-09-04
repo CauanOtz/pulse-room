@@ -15,6 +15,18 @@ if (typeof window !== 'undefined') {
     }),
   });
 
+  // Floating panels watch for movement, which jsdom cannot report.
+  if (typeof globalThis.IntersectionObserver === 'undefined') {
+    globalThis.IntersectionObserver = class {
+      observe(): void {}
+      unobserve(): void {}
+      disconnect(): void {}
+      takeRecords(): [] {
+        return [];
+      }
+    } as unknown as typeof IntersectionObserver;
+  }
+
   // Floating panels measure themselves, which jsdom cannot do.
   if (typeof globalThis.ResizeObserver === 'undefined') {
     globalThis.ResizeObserver = class {

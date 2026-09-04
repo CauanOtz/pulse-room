@@ -32,7 +32,7 @@ export function DeviceMenu({ title, label, devices, selectedId, onSelect }: Devi
   const current = selectedId ?? '';
 
   return (
-    <DropdownMenu>
+    <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"

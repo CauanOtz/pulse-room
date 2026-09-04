@@ -139,7 +139,13 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
     window = await application.firstWindow();
     await expect(window.getByRole('button', { name: 'Just us', exact: true })).toBeVisible();
     await expect(window.getByRole('heading', { name: 'Welcome back' })).toHaveCount(0);
-    await window.getByRole('button', { name: 'Your account' }).click();
+    // The picture opens the person; the person's own picture offers its actions.
+    await window.getByRole('button', { name: 'Your profile' }).click();
+    await expect(window.getByText('@owner')).toBeVisible();
+    await window.getByRole('button', { name: 'Your picture' }).click();
+    await expect(window.getByRole('menuitem', { name: /photo/ })).toBeVisible();
+    await window.keyboard.press('Escape');
+    await window.getByRole('button', { name: 'Account settings' }).click();
     await expectContainedDialog(window);
     await expect(window.getByRole('heading', { name: 'Password & security' })).toBeVisible();
     const changeButton = window.getByRole('button', { name: 'Change password', exact: true });
@@ -167,7 +173,17 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
     await expectContainedDialog(window);
     await window.screenshot({ path: 'test-results/community-account-compact.png' });
     await window.keyboard.press('Escape');
-    await expect(window.getByRole('button', { name: 'Your account' })).toBeFocused();
+
+    // The name carries what the person can set, starting with the appearance.
+    await window.getByRole('button', { name: 'Your settings' }).click();
+    const appearance = window.getByRole('radiogroup', { name: 'Appearance' });
+    await expect(appearance).toBeVisible();
+    await appearance.getByRole('radio', { name: 'Light' }).click();
+    await expect(window.locator('html')).toHaveClass(/theme-light/);
+    await window.screenshot({ path: 'test-results/community-light.png' });
+    await appearance.getByRole('radio', { name: 'Dark' }).click();
+    await expect(window.locator('html')).not.toHaveClass(/theme-light/);
+    await window.keyboard.press('Escape');
     await window.getByRole('button', { name: 'Server settings and members' }).click();
     await window.getByRole('button', { name: 'Settings', exact: true }).click();
     const longServerName = 'Our private room for games and conversations with friends';
@@ -187,7 +203,8 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
       await window.locator('.app-shell').evaluate((element) => element.scrollWidth <= element.clientWidth),
     ).toBe(true);
     await window.screenshot({ path: 'test-results/community-long-name.png' });
-    await window.getByRole('button', { name: 'Your account' }).click();
+    await window.getByRole('button', { name: 'Your profile' }).click();
+    await window.getByRole('button', { name: 'Account settings' }).click();
     await window.getByLabel('Current password', { exact: true }).fill('Testing private communities!');
     await window.getByLabel('New password', { exact: true }).fill('A different secure password!');
     await changeButton.click();
