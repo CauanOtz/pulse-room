@@ -242,7 +242,11 @@ function ChannelRow({
             )}
             type="button"
             aria-label={`Edit ${name}`}
-            onClick={onEdit}
+            // Reaching for the settings of a channel is not asking to enter it.
+            onClick={(event) => {
+              event.stopPropagation();
+              onEdit();
+            }}
           >
             <Settings size={15} />
           </button>

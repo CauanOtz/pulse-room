@@ -121,6 +121,23 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
     await expect(window.getByRole('dialog', { name: 'Edit channel', exact: true })).toBeVisible();
     await window.keyboard.press('Escape');
 
+    // The gear opens the channel it belongs to, tooltip and all.
+    const lounge = window.locator('.channel-item', { hasText: 'Lounge' });
+    await lounge.hover();
+    const loungeGear = lounge.getByRole('button', { name: 'Edit Lounge' });
+    await loungeGear.hover();
+    await expect(window.getByRole('tooltip', { name: 'Edit channel' })).toBeVisible();
+    await loungeGear.click();
+    await expect(window.getByRole('dialog', { name: 'Edit channel', exact: true })).toBeVisible();
+    await expect(window.getByLabel('Channel name', { exact: true })).toHaveValue('Lounge');
+    await window.keyboard.press('Escape');
+    const general = window.locator('.channel-item', { hasText: 'general' });
+    await general.hover();
+    await general.getByRole('button', { name: 'Edit general' }).click();
+    await expect(window.getByRole('dialog', { name: 'Edit channel', exact: true })).toBeVisible();
+    await expect(window.getByLabel('Channel name', { exact: true })).toHaveValue('general');
+    await window.keyboard.press('Escape');
+
     await window.getByRole('button', { name: 'Server settings and members' }).click();
     await window.getByRole('button', { name: 'Invites', exact: true }).click();
     await window.getByLabel('Maximum uses', { exact: true }).fill('2');
