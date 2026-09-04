@@ -179,10 +179,9 @@ flips above the bar and scrolls inside the window instead of running off the
 bottom of the screen, and a long device name truncates with its full name on
 hover. Those were the visible faults of the hand-built menus it replaced.
 
-The conversion is staged. Tailwind's preflight is deliberately not imported yet,
-so the surfaces still governed by `styles.css` keep their layout; those legacy
-variables now read from the tokens, which is why the whole application is
-already black and already follows the theme.
+There is no second stylesheet. The hand-written one the interface grew up with
+is gone, and what remains in CSS is only what belongs to elements rather than
+components: the reset, the scrollbars, and the shared look of a text field.
 
 ## Pictures
 

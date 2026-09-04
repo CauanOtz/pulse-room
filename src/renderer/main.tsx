@@ -5,7 +5,6 @@ import { App } from './app';
 import { CommunityRoot } from './community-root';
 import { installTheme } from './components/theme-toggle';
 import './theme.css';
-import './styles.css';
 
 installTheme();
 

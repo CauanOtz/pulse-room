@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { ImageCache } from '../infrastructure/image-cache';
+import { cn } from './ui/utils';
 
 const ImagesContext = createContext<ImageCache | undefined>(undefined);
 
@@ -39,10 +40,21 @@ export function Avatar({ name, initials, imageId, accent, className }: AvatarPro
     };
   }, [imageId, images]);
 
-  const classes = ['avatar', className, url ? 'has-picture' : undefined].filter(Boolean).join(' ');
   return (
-    <span className={classes} style={accent ? { background: accent } : undefined} aria-hidden="true">
-      {url ? <img src={url} alt="" draggable={false} /> : (initials ?? name.slice(0, 2).toUpperCase())}
+    <span
+      className={cn(
+        'avatar relative isolate grid place-items-center overflow-hidden select-none',
+        className,
+        url && 'has-picture text-transparent',
+      )}
+      style={accent ? { background: accent } : undefined}
+      aria-hidden="true"
+    >
+      {url ? (
+        <img className="absolute inset-0 size-full object-cover" src={url} alt="" draggable={false} />
+      ) : (
+        (initials ?? name.slice(0, 2).toUpperCase())
+      )}
     </span>
   );
 }

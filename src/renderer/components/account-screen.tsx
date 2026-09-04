@@ -47,23 +47,23 @@ export function AccountScreen({
     }
   };
   return (
-    <main className="account-screen">
-      <div className="account-story">
-        <div className="brand-mark">P</div>
+    <main className="account-screen grid h-full grid-cols-1 overflow-auto lg:grid-cols-2">
+      <div className="account-story hidden flex-col justify-center bg-sidebar p-[clamp(2.5rem,7vw,6rem)] lg:flex">
+        <div className="brand-mark grid size-11 shrink-0 place-items-center rounded-2xl bg-primary text-lg font-bold text-primary-foreground">P</div>
         <h1>
           Your people.
           <br />
           Your rooms.
         </h1>
         <p>A place for the whole squad. And a quiet one just for two.</p>
-        <div className="account-room">
+        <div className="account-room mt-6 flex items-center gap-3.5 text-xs text-muted-foreground">
           <span>FR</span>
           <div>
             <strong>Friends</strong>
             <small>Late games, good company</small>
           </div>
         </div>
-        <div className="account-room">
+        <div className="account-room mt-6 flex items-center gap-3.5 text-xs text-muted-foreground">
           <span>US</span>
           <div>
             <strong>Just us</strong>
@@ -71,7 +71,7 @@ export function AccountScreen({
           </div>
         </div>
       </div>
-      <section className="account-form">
+      <section className="account-form flex flex-col justify-center gap-4 p-[clamp(1.5rem,5vw,4rem)]">
         <h2>
           {mode === 'login'
             ? 'Welcome back'
@@ -89,7 +89,7 @@ export function AccountScreen({
             <p>Password changed. Save this replacement recovery code; the old code no longer works.</p>
             <textarea aria-label="New recovery code" readOnly value={newRecovery} />
             <button
-              className="primary-action"
+              className="primary-action inline-flex h-9 items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
               onClick={() => {
                 setNewRecovery('');
                 setMode('login');
@@ -148,14 +148,22 @@ export function AccountScreen({
               />
             </label>
             {mode !== 'login' && (
-              <small>Use at least 12 characters. A memorable passphrase works well.</small>
+              <small className="text-[11px] text-muted-foreground">
+                Use at least 12 characters. A memorable passphrase works well.
+              </small>
             )}
             {error && (
-              <p role="alert" className="form-error">
+              <p
+                role="alert"
+                className="form-error rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive"
+              >
                 {error}
               </p>
             )}
-            <button className="primary-action" disabled={busy}>
+            <button
+              className="primary-action mt-1 inline-flex h-9 items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
+              disabled={busy}
+            >
               {busy
                 ? 'Please wait…'
                 : mode === 'login'
@@ -167,7 +175,7 @@ export function AccountScreen({
           </form>
         )}
         {!newRecovery && (
-          <div className="account-links">
+          <div className="account-links flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
             <button
               disabled={busy}
               onClick={() => {

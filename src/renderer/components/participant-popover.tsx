@@ -24,9 +24,9 @@ export function ParticipantPopover({ entry, position, onVolumeChange, onMutedCha
   useEffect(() => cardRef.current?.focus(), []);
 
   return (
-    <div className="popover-backdrop" role="presentation" onMouseDown={onClose} onContextMenu={(event) => event.preventDefault()}>
+    <div className="popover-backdrop fixed inset-0 z-40" role="presentation" onMouseDown={onClose} onContextMenu={(event) => event.preventDefault()}>
       <div
-        className="participant-popover"
+        className="participant-popover fixed z-50 w-58 rounded-xl border border-border bg-popover p-3 text-popover-foreground shadow-2xl"
         role="dialog"
         aria-label={`${entry.name} audio`}
         ref={cardRef}
@@ -35,11 +35,11 @@ export function ParticipantPopover({ entry, position, onVolumeChange, onMutedCha
         onMouseDown={(event) => event.stopPropagation()}
       >
         <header>
-          <span className="popover-avatar" style={{ background: entry.accent }}>{entry.initials}</span>
+          <span className="popover-avatar grid size-8 shrink-0 place-items-center rounded-xl text-[11px] font-bold text-background" style={{ background: entry.accent }}>{entry.initials}</span>
           <strong>{entry.name}</strong>
         </header>
 
-        <label className="popover-volume">
+        <label className="popover-volume flex flex-col gap-2 text-xs text-muted-foreground">
           <span>Volume<em>{entry.volume}%</em></span>
           <input
             aria-label={`${entry.name} volume`}

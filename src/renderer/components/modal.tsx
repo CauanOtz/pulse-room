@@ -1,34 +1,44 @@
 import { useEffect, useRef, type ReactNode } from 'react';
-import { X } from 'lucide-react';
+import {
+  Dialog,
+  DialogBody,
+  DialogCloseButton,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from './ui/dialog';
 
-export function Modal({ title, children, onClose }: { title: string; children: ReactNode; onClose(): void }) {
-  const ref = useRef<HTMLDialogElement>(null);
+/**
+ * One dialog for the whole application. Radix owns the focus trap, the escape
+ * key and the scrim; the body scrolls on its own so a long dialog never grows
+ * past the window.
+ */
+export function Modal({
+  title,
+  children,
+  onClose,
+}: {
+  title: string;
+  children: ReactNode;
+  onClose(): void;
+}) {
+  // The dialog is unmounted by whoever opened it, which can outrun the focus
+  // restoration inside the primitive, so the caller's focus is kept here.
+  const opener = useRef<HTMLElement | null>(null);
   useEffect(() => {
-    const dialog = ref.current!;
-    const previous = document.activeElement as HTMLElement;
-    dialog.showModal();
-    return () => {
-      dialog.close();
-      previous?.focus();
-    };
+    opener.current = document.activeElement as HTMLElement | null;
+    return () => opener.current?.focus?.();
   }, []);
+
   return (
-    <dialog
-      className="community-modal"
-      ref={ref}
-      aria-label={title}
-      onCancel={(e) => {
-        e.preventDefault();
-        onClose();
-      }}
-    >
-      <header>
-        <h2>{title}</h2>
-        <button className="modal-close" type="button" aria-label="Close dialog" onClick={onClose}>
-          <X size={20} />
-        </button>
-      </header>
-      <div className="modal-body">{children}</div>
-    </dialog>
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="community-modal" aria-label={title}>
+        <DialogHeader>
+          <DialogTitle className="text-lg font-semibold">{title}</DialogTitle>
+          <DialogCloseButton />
+        </DialogHeader>
+        <DialogBody className="modal-body">{children}</DialogBody>
+      </DialogContent>
+    </Dialog>
   );
 }

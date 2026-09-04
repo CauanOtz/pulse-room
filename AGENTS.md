@@ -10,6 +10,11 @@ server deployed on Railway.
 - Write the message as the author of the change would: a short imperative
   subject, then the reason for the change when it is not obvious.
 
+## Releasing
+
+- Never publish a release, push a version tag, or send an installer without the
+  user asking for it in that message. Build it, show it, and wait.
+
 ## Releases
 
 - The version lives only in `package.json`; the renderer and the end-to-end

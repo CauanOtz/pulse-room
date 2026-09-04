@@ -62,17 +62,25 @@ export function MicrophoneMeter({ deviceId, gateThresholdDb }: MicrophoneMeterPr
   const toPercent = (db: number) => Math.min(100, Math.max(0, ((db - floorDb) / -floorDb) * 100));
 
   return (
-    <div className="meter-field field-span">
-      <span>Microphone level</span>
+    <div className="meter-field field-span flex flex-col gap-2">
+      <span className="text-xs font-medium text-muted-foreground">Microphone level</span>
       {failure ? (
-        <small role="alert">{failure}</small>
+        <small className="text-[11px] text-destructive" role="alert">
+          {failure}
+        </small>
       ) : (
         <>
-          <div className="meter" role="meter" aria-label="Microphone level" aria-valuenow={Math.round(levelDb)} aria-valuemin={floorDb} aria-valuemax={0}>
-            <i style={{ width: `${toPercent(levelDb)}%` }} />
-            <b style={{ left: `${toPercent(gateThresholdDb)}%` }} />
+          <div className="meter relative h-2 overflow-hidden rounded-full bg-secondary" role="meter" aria-label="Microphone level" aria-valuenow={Math.round(levelDb)} aria-valuemin={floorDb} aria-valuemax={0}>
+            <i
+              className="block h-full rounded-full bg-gradient-to-r from-success to-primary transition-[width] duration-75"
+              style={{ width: `${toPercent(levelDb)}%` }}
+            />
+            <b
+              className="absolute -top-0.5 bottom-[-0.125rem] w-0.5 bg-foreground"
+              style={{ left: `${toPercent(gateThresholdDb)}%` }}
+            />
           </div>
-          <small>Speak normally: the bar should pass the marker, which is where the noise gate opens.</small>
+          <small className="text-[11px] text-muted-foreground">Speak normally: the bar should pass the marker, which is where the noise gate opens.</small>
         </>
       )}
     </div>

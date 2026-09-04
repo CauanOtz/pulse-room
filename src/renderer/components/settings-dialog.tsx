@@ -30,35 +30,37 @@ export function SettingsDialog(props: SettingsDialogProps) {
   const updateCopy = getUpdateCopy(props.updateStatus, props.version);
 
   return (
-    <div className="dialog-backdrop" role="presentation" onMouseDown={props.onClose}>
+    <div className="dialog-backdrop fixed inset-0 z-50 grid place-items-center bg-black/70 p-4 backdrop-blur-[2px]" role="presentation" onMouseDown={props.onClose}>
       <section
-        className="dialog settings-dialog"
+        className="dialog settings-dialog flex max-h-[min(90vh,44rem)] w-[min(38rem,calc(100vw-2rem))] flex-col rounded-2xl border border-border bg-card text-card-foreground shadow-2xl"
         role="dialog"
         aria-modal="true"
         aria-labelledby="settings-title"
         onMouseDown={(event) => event.stopPropagation()}
       >
-        <header>
-          <div>
-            <h2 id="settings-title">Voice and video</h2>
-            <p>Tune what your friends hear and what you hear.</p>
+        <header className="flex flex-none items-start gap-3 border-b border-border px-5 py-4">
+          <div className="min-w-0">
+            <h2 id="settings-title" className="text-lg font-semibold">
+              Voice and video
+            </h2>
+            <p className="text-xs text-muted-foreground">Tune what your friends hear and what you hear.</p>
           </div>
           <button className="icon-button" type="button" onClick={props.onClose} aria-label="Close">
-            <X size={19} />
+            <X size={19} className="shrink-0" />
           </button>
         </header>
 
-        <div className="settings-body">
+        <div className="settings-body grid min-h-0 flex-1 grid-cols-2 gap-4 overflow-y-auto px-5 py-5">
           {!props.managedAccount && (
             <>
-              <label className="field-label">
+              <label className="field-label flex flex-col gap-1.5 text-xs font-medium text-muted-foreground">
                 Display name
                 <input
                   value={settings.displayName}
                   onChange={(event) => setSettings({ ...settings, displayName: event.target.value })}
                 />
               </label>
-              <label className="field-label">
+              <label className="field-label flex flex-col gap-1.5 text-xs font-medium text-muted-foreground">
                 Room name
                 <input
                   value={settings.roomId}
@@ -67,7 +69,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
               </label>
             </>
           )}
-          <label className="field-label field-span">
+          <label className="field-label field-span col-span-2 flex flex-col gap-1.5 text-xs font-medium text-muted-foreground">
             Microphone
             <select
               value={settings.microphoneDeviceId ?? ''}
@@ -83,7 +85,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
               ))}
             </select>
           </label>
-          <label className="field-label field-span">
+          <label className="field-label field-span col-span-2 flex flex-col gap-1.5 text-xs font-medium text-muted-foreground">
             Speakers
             <select
               value={settings.speakerDeviceId ?? ''}
@@ -99,8 +101,14 @@ export function SettingsDialog(props: SettingsDialogProps) {
               ))}
             </select>
           </label>
-          <div className="mic-status field-span" role="status">
-            <span className={props.microphoneLive ? 'is-live' : 'is-off'} />
+          <div className="mic-status field-span col-span-2 flex items-center gap-2.5 rounded-xl border border-border bg-background/60 px-3.5 py-2.5 text-xs" role="status">
+            <span
+              className={
+                props.microphoneLive
+                  ? 'is-live size-2 shrink-0 rounded-full bg-success shadow-[0_0_0_4px] shadow-success/20'
+                  : 'is-off size-2 shrink-0 rounded-full bg-destructive shadow-[0_0_0_4px] shadow-destructive/20'
+              }
+            />
             {props.microphoneLive
               ? 'Your microphone is live in the room.'
               : (props.microphoneProblem ?? 'Your microphone is not publishing.')}
@@ -111,7 +119,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
             gateThresholdDb={noiseGateThresholdDb(settings.noiseGate)}
           />
 
-          <label className="field-label field-span gain-field">
+          <label className="field-label field-span gain-field col-span-2 flex flex-col gap-2 text-xs font-medium text-muted-foreground">
             <span>
               Microphone gain <strong>{settings.microphoneGain}%</strong>
             </span>
@@ -126,7 +134,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
             <small>A limiter protects the signal when gain goes above 100%.</small>
           </label>
 
-          <label className="field-label field-span gain-field">
+          <label className="field-label field-span gain-field col-span-2 flex flex-col gap-2 text-xs font-medium text-muted-foreground">
             <span>
               Noise gate <strong>{settings.noiseGate}%</strong>
             </span>
@@ -141,7 +149,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
             <small>Silences fans and keyboards between words. Lower it if your voice gets clipped.</small>
           </label>
 
-          <div className="toggle-block field-span">
+          <div className="toggle-block field-span col-span-2 flex flex-col gap-1 rounded-xl border border-border bg-background/60 p-2">
             <Toggle
               label="Noise suppression"
               detail="Filtering from the browser audio engine."
@@ -174,7 +182,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
             />
           </div>
 
-          <fieldset className="quality-field field-span">
+          <fieldset className="quality-field field-span col-span-2 flex flex-col gap-2 rounded-xl border border-border bg-background/60 p-3">
             <legend>Screen quality</legend>
             <QualityOption
               id="efficient"
@@ -199,13 +207,17 @@ export function SettingsDialog(props: SettingsDialogProps) {
             />
           </fieldset>
 
-          <div className="update-row field-span">
+          <div className="update-row field-span col-span-2 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4 text-xs">
             <div>
               <strong>Application updates</strong>
               <span>{updateCopy}</span>
             </div>
             {props.updateStatus.state === 'downloaded' ? (
-              <button type="button" onClick={props.onInstallUpdate}>
+              <button
+              className="inline-flex h-8 items-center justify-center rounded-lg bg-primary px-3 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+              type="button"
+              onClick={props.onInstallUpdate}
+            >
                 Restart and update
               </button>
             ) : (
@@ -223,12 +235,16 @@ export function SettingsDialog(props: SettingsDialogProps) {
           </div>
         </div>
 
-        <footer>
-          <button className="secondary-button" type="button" onClick={props.onClose}>
+        <footer className="flex flex-none flex-wrap items-center justify-end gap-2 border-t border-border px-5 py-3.5">
+          <button
+            className="secondary-button inline-flex h-9 items-center justify-center rounded-lg border border-border px-4 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+            type="button"
+            onClick={props.onClose}
+          >
             Cancel
           </button>
           <button
-            className="primary-button"
+            className="primary-button inline-flex h-9 items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
             type="button"
             onClick={() => props.onSave(settings)}
             disabled={!settings.displayName.trim() || (!props.managedAccount && !settings.roomId.trim())}
@@ -253,7 +269,7 @@ function Toggle({
   onChange(value: boolean): void;
 }) {
   return (
-    <label className="toggle-row">
+    <label className="toggle-row flex items-center justify-between gap-3 rounded-lg px-2 py-2 text-sm">
       <span>
         <strong>{label}</strong>
         <small>{detail}</small>

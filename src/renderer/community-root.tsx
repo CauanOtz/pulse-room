@@ -150,10 +150,10 @@ export function CommunityRoot({ apiUrl }: { apiUrl: string }) {
       setDialog(undefined);
     }
   };
-  if (restoring) return <main className="account-loading">Opening Pulse Room…</main>;
+  if (restoring) return <main className="account-loading flex h-full flex-col items-center justify-center gap-4 text-sm text-muted-foreground">Opening Pulse Room…</main>;
   if (!user && error)
     return (
-      <main className="account-loading">
+      <main className="account-loading flex h-full flex-col items-center justify-center gap-4 text-sm text-muted-foreground">
         <p role="alert">{error}</p>
         <button onClick={() => setRetry((x) => x + 1)}>Retry connection</button>
         <button
@@ -184,7 +184,7 @@ export function CommunityRoot({ apiUrl }: { apiUrl: string }) {
           }}
         />
       ) : (
-        <div className="community-empty">
+        <div className="community-empty flex h-full flex-col items-center justify-center gap-3 p-8 text-center text-sm text-muted-foreground">
           <ServerRail
             servers={servers}
             activeId={serverId}
@@ -202,7 +202,7 @@ export function CommunityRoot({ apiUrl }: { apiUrl: string }) {
         </div>
       )}
       {error && (
-        <div className="community-status" role="alert">
+        <div className="community-status fixed bottom-3 right-3 z-50 max-w-112 rounded-lg border border-destructive bg-card p-3 text-xs text-destructive shadow-lg" role="alert">
           {error}
         </div>
       )}

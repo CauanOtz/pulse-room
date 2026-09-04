@@ -31,18 +31,18 @@ export function PictureField({ name, imageId, label, canEdit, onChoose, onRemove
   };
 
   return (
-    <div className="picture-field">
-      <Avatar name={name} imageId={imageId} className="picture-preview" />
-      <div className="picture-actions">
+    <div className="picture-field flex items-center gap-3.5 rounded-xl border border-border bg-background/60 p-3.5">
+      <Avatar name={name} imageId={imageId} className="picture-preview grid size-17 shrink-0 place-items-center rounded-2xl bg-secondary text-xl font-bold text-secondary-foreground" />
+      <div className="picture-actions flex min-w-0 flex-col gap-2">
         <strong>{label}</strong>
         {canEdit ? (
           <>
             <div>
-              <button type="button" className="secondary-button" disabled={busy} onClick={() => input.current?.click()}>
+              <button type="button" className="secondary-button inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-border bg-transparent px-3 text-xs font-medium text-foreground transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-50" disabled={busy} onClick={() => input.current?.click()}>
                 <ImageUp size={15} /> {imageId ? 'Replace' : 'Add picture'}
               </button>
               {imageId && (
-                <button type="button" className="secondary-button" disabled={busy} onClick={() => void run(onRemove)}>
+                <button type="button" className="secondary-button inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-border bg-transparent px-3 text-xs font-medium text-foreground transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-50" disabled={busy} onClick={() => void run(onRemove)}>
                   <Trash2 size={15} /> Remove
                 </button>
               )}
@@ -55,7 +55,7 @@ export function PictureField({ name, imageId, label, canEdit, onChoose, onRemove
       </div>
       <input
         ref={input}
-        className="picture-input"
+        className="picture-input pointer-events-none absolute size-px opacity-0"
         type="file"
         accept="image/png,image/jpeg,image/webp"
         aria-label={label}

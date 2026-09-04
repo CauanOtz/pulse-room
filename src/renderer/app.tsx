@@ -213,7 +213,7 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
   };
 
   return (
-    <div className="app-shell">
+    <div className="app-shell grid h-full w-full grid-cols-[72px_240px_minmax(0,1fr)] bg-background text-foreground">
       <VideoLevelFilter />
       <ServerRail
         servers={workspace?.servers}
@@ -255,13 +255,13 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
         onOpenSettings={() => setSettingsOpen(true)}
       />
 
-      <main className="room-main">
-        <header className="room-header">
-          <div className="room-title">
+      <main className="room-main flex min-w-0 flex-col bg-background">
+        <header className="room-header flex h-12 flex-none items-center gap-2 border-b border-border px-4 text-sm">
+          <div className="room-title flex min-w-0 items-center gap-2">
             <span>#</span>
             <strong>{textChannel?.name ?? activeChannel?.name ?? 'Choose a channel'}</strong>
             <i />
-            <span className="room-description">
+            <span className="room-description min-w-0 truncate border-l border-border pl-2 text-xs text-muted-foreground">
               {workspace ? workspace.detail.server.name : 'A room for games, films, and unfinished stories.'}
             </span>
             {joined && textChannel && (
@@ -270,7 +270,7 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
           </div>
         </header>
 
-        <div className="room-content">
+        <div className="room-content relative grid min-h-0 flex-1 grid-cols-1 grid-rows-1 place-items-stretch overflow-hidden p-2">
           {textChannel && workspace ? (
             <TextChat
               key={textChannel.id}
@@ -309,15 +309,15 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
             </Stage>
           )}
           {joined && !canSpeak && (
-            <p className="permission-note">
+            <p className="permission-note mx-4 mb-2 rounded-lg border border-border bg-card px-3 py-2 text-xs text-muted-foreground">
               You can listen in this channel. Speaking is restricted by its permissions.
             </p>
           )}
           {joined && !canShare && (
-            <p className="permission-note">Screen sharing is restricted in this channel.</p>
+            <p className="permission-note mx-4 mb-2 rounded-lg border border-border bg-card px-3 py-2 text-xs text-muted-foreground">Screen sharing is restricted in this channel.</p>
           )}
           {snapshot.error && (
-            <div className="error-banner" role="alert">
+            <div className="error-banner mx-4 mb-2 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive" role="alert">
               {snapshot.error}
             </div>
           )}
@@ -366,7 +366,7 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
  */
 function VideoLevelFilter() {
   return (
-    <svg className="filter-defs" aria-hidden="true" focusable="false">
+    <svg className="filter-defs pointer-events-none absolute size-0" aria-hidden="true" focusable="false">
       <filter id="expanded-video-levels" colorInterpolationFilters="sRGB">
         <feComponentTransfer>
           <feFuncR type="linear" slope="1.164" intercept="-0.073" />

@@ -32,9 +32,9 @@ export function StreamMenu({ sharing, quality, onSelectQuality, onStop, onClose 
   useEffect(() => cardRef.current?.focus(), []);
 
   return (
-    <div className="popover-backdrop" role="presentation" onMouseDown={onClose}>
+    <div className="popover-backdrop fixed inset-0 z-40" role="presentation" onMouseDown={onClose}>
       <div
-        className="dock-menu"
+        className="dock-menu absolute bottom-full right-0 mb-2 w-56 rounded-xl border border-border bg-popover p-1 text-popover-foreground shadow-xl"
         role="menu"
         aria-label="Stream options"
         ref={cardRef}

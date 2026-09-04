@@ -49,7 +49,7 @@ export function AddServerDialog({
   }
   return (
     <Modal title={mode === 'create' ? 'Create a server' : 'Join a server'} onClose={onClose}>
-      <div className="dialog-tabs">
+      <div className="dialog-tabs inline-flex items-center gap-1 rounded-xl bg-secondary/60 p-1">
         <button
           aria-pressed={mode === 'create'}
           onClick={() => {
@@ -86,11 +86,11 @@ export function AddServerDialog({
           />
         </label>
         {error && (
-          <p className="form-error" role="alert">
+          <p className="form-error rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive" role="alert">
             {error}
           </p>
         )}
-        <button className="primary-action" disabled={busy}>
+        <button className="primary-action inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50" disabled={busy}>
           {busy ? 'Please wait…' : mode === 'create' ? 'Create server' : 'Join server'}
         </button>
       </form>
@@ -181,7 +181,7 @@ export function ChannelDialog({
             <option value="text">Text chat</option>
           </select>
         </label>
-        <label className="check-row">
+        <label className="check-row flex items-center gap-2.5 rounded-lg px-1 py-1.5 text-sm text-foreground">
           <input
             type="checkbox"
             checked={draft.private}
@@ -196,7 +196,7 @@ export function ChannelDialog({
             {detail.members
               .filter((m) => m.role === 'member')
               .map((member) => (
-                <label className="check-row" key={member.id}>
+                <label className="check-row flex items-center gap-2.5 rounded-lg px-1 py-1.5 text-sm text-foreground" key={member.id}>
                   <input
                     type="checkbox"
                     checked={draft.memberIds.includes(member.id)}
@@ -221,7 +221,7 @@ export function ChannelDialog({
           <legend>Member permissions</legend>
           {draft.type === 'voice' ? (
             <>
-              <label className="check-row">
+              <label className="check-row flex items-center gap-2.5 rounded-lg px-1 py-1.5 text-sm text-foreground">
                 <input
                   type="checkbox"
                   checked={draft.allowSpeak}
@@ -229,7 +229,7 @@ export function ChannelDialog({
                 />
                 Speak in this call
               </label>
-              <label className="check-row">
+              <label className="check-row flex items-center gap-2.5 rounded-lg px-1 py-1.5 text-sm text-foreground">
                 <input
                   type="checkbox"
                   checked={draft.allowShare}
@@ -239,7 +239,7 @@ export function ChannelDialog({
               </label>
             </>
           ) : (
-            <label className="check-row">
+            <label className="check-row flex items-center gap-2.5 rounded-lg px-1 py-1.5 text-sm text-foreground">
               <input
                 type="checkbox"
                 checked={!draft.readOnly}
@@ -253,26 +253,26 @@ export function ChannelDialog({
           </small>
         </fieldset>
         {error && (
-          <p role="alert" className="form-error">
+          <p role="alert" className="form-error rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
             {error}
           </p>
         )}
-        <button className="primary-action" disabled={busy}>
+        <button className="primary-action inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50" disabled={busy}>
           {busy ? 'Saving…' : 'Save channel'}
         </button>
       </form>
       {channel && (
-        <div className="danger-zone">
+        <div className="danger-zone space-y-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4">
           {confirmDelete ? (
             <>
               <p>Delete #{channel.name} and all its messages? This cannot be undone.</p>
-              <button className="danger-action" disabled={busy} onClick={() => void remove()}>
+              <button className="danger-action inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-destructive/40 bg-transparent px-4 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50" disabled={busy} onClick={() => void remove()}>
                 Confirm delete channel
               </button>
               <button onClick={() => setConfirmDelete(false)}>Cancel</button>
             </>
           ) : (
-            <button className="danger-action" onClick={() => setConfirmDelete(true)}>
+            <button className="danger-action inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-destructive/40 bg-transparent px-4 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50" onClick={() => setConfirmDelete(true)}>
               Delete channel
             </button>
           )}
@@ -333,7 +333,7 @@ export function ServerDialog({
   }
   return (
     <Modal title={detail.server.name} onClose={onClose}>
-      <div className="dialog-tabs">
+      <div className="dialog-tabs inline-flex items-center gap-1 rounded-xl bg-secondary/60 p-1">
         {['members', ...(manager ? ['channels', 'invites', 'settings'] : [])].map((item) => (
           <button key={item} aria-pressed={tab === item} onClick={() => setTab(item)}>
             {item[0].toUpperCase() + item.slice(1)}
@@ -341,9 +341,9 @@ export function ServerDialog({
         ))}
       </div>
       {tab === 'members' && (
-        <div className="member-list">
+        <div className="member-list flex flex-col gap-2">
           {detail.members.map((member) => (
-            <div className="member-row" key={member.id}>
+            <div className="member-row flex items-center gap-3 rounded-xl border border-border bg-background/60 px-3 py-2.5 text-sm" key={member.id}>
               <div>
                 <strong>
                   {member.displayName}
@@ -407,11 +407,11 @@ export function ServerDialog({
       )}
       {tab === 'channels' && (
         <>
-          <button className="primary-action" onClick={() => onChannel()}>
+          <button className="primary-action inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50" onClick={() => onChannel()}>
             Create channel
           </button>
           {detail.channels.map((channel) => (
-            <div className="member-row" key={channel.id}>
+            <div className="member-row flex items-center gap-3 rounded-xl border border-border bg-background/60 px-3 py-2.5 text-sm" key={channel.id}>
               <span>
                 {channel.type === 'text' ? '#' : '◖'} {channel.name}
                 {channel.private ? ' · Private' : ''}
@@ -444,7 +444,7 @@ export function ServerDialog({
           </label>
           <button
             disabled={busy}
-            className="primary-action"
+            className="primary-action inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
             onClick={() =>
               void run(async () => {
                 setCode(
@@ -462,7 +462,7 @@ export function ServerDialog({
             </label>
           )}
           {invites.map((invite) => (
-            <div className="member-row" key={invite.id}>
+            <div className="member-row flex items-center gap-3 rounded-xl border border-border bg-background/60 px-3 py-2.5 text-sm" key={invite.id}>
               <span>
                 {invite.uses}/{invite.maxUses} uses
                 <small>Expires {new Date(invite.expiresAt).toLocaleString()}</small>
@@ -503,29 +503,29 @@ export function ServerDialog({
             Server name
             <input required maxLength={60} value={name} onChange={(e) => setName(e.target.value)} />
           </label>
-          <button className="primary-action" disabled={busy}>
+          <button className="primary-action inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50" disabled={busy}>
             Rename server
           </button>
         </form>
         </>
       )}
       {error && (
-        <p className="form-error" role="alert">
+        <p className="form-error rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive" role="alert">
           {error}
         </p>
       )}
       {confirmation && (
-        <div className="confirm-panel" role="alert">
+        <div className="confirm-panel space-y-3 rounded-xl border border-border bg-background/70 p-4 text-sm" role="alert">
           <p>{confirmation.label}</p>
-          <button disabled={busy} className="danger-action" onClick={() => void run(confirmation.action)}>
+          <button disabled={busy} className="danger-action inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-destructive/40 bg-transparent px-4 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50" onClick={() => void run(confirmation.action)}>
             Confirm
           </button>
           <button onClick={() => setConfirmation(undefined)}>Cancel</button>
         </div>
       )}
-      <div className="danger-zone">
+      <div className="danger-zone space-y-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4">
         <button
-          className="danger-action"
+          className="danger-action inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-destructive/40 bg-transparent px-4 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
           disabled={busy}
           onClick={() =>
             setConfirmation({
@@ -565,13 +565,13 @@ export function AccountDialog({
   const [busy, setBusy] = useState(false);
   return (
     <Modal title="Your account" onClose={onClose}>
-      <div className="account-identity">
-        <Avatar name={user.displayName} imageId={user.avatarId} className="account-avatar" />
-        <div>
-          <strong>{user.displayName}</strong>
-          <span>@{user.username}</span>
+      <div className="account-identity flex items-center gap-3 border-b border-border pb-4">
+        <Avatar name={user.displayName} imageId={user.avatarId} className="account-avatar grid size-12 shrink-0 place-items-center rounded-2xl bg-secondary text-sm font-bold text-secondary-foreground" />
+        <div className="flex min-w-0 flex-col leading-tight">
+          <strong className="truncate text-sm font-semibold">{user.displayName}</strong>
+          <span className="truncate text-xs text-muted-foreground">@{user.username}</span>
         </div>
-        <span className="account-badge">Signed in</span>
+        <span className="account-badge ml-auto rounded-full bg-success/15 px-2.5 py-1 text-[11px] font-semibold text-success">Signed in</span>
       </div>
       <PictureField
         name={user.displayName}
@@ -587,12 +587,14 @@ export function AccountDialog({
           await onProfileChanged();
         }}
       />
-      <section className="account-security">
-        <div className="section-heading">
-          <LockKeyhole size={18} aria-hidden="true" />
-          <div>
-            <h3>Password & security</h3>
-            <p>Use a unique password to keep your rooms private.</p>
+      <section className="account-security space-y-3">
+        <div className="section-heading flex items-start gap-2 text-sm font-semibold text-foreground">
+          <LockKeyhole size={18} aria-hidden="true" className="mt-0.5 shrink-0 text-primary" />
+          <div className="flex flex-col gap-0.5">
+            <h3 className="text-sm font-semibold">Password &amp; security</h3>
+            <p className="text-xs font-normal text-muted-foreground">
+              Use a unique password to keep your rooms private.
+            </p>
           </div>
         </div>
         <form
@@ -622,7 +624,7 @@ export function AccountDialog({
               onChange={(e) => setCurrent(e.target.value)}
             />
           </label>
-          <div className="form-field">
+          <div className="form-field flex flex-col gap-1.5 text-xs font-medium text-muted-foreground">
             <label>
               New password
               <input
@@ -638,22 +640,22 @@ export function AccountDialog({
             </label>
             <small id="password-hint">At least 12 characters. Other devices will be signed out.</small>
           </div>
-          <div className="form-actions">
-            <button className="primary-action" disabled={busy}>
+          <div className="form-actions flex flex-wrap items-center justify-end gap-2">
+            <button className="primary-action inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50" disabled={busy}>
               {busy ? 'Please wait…' : 'Change password'}
             </button>
           </div>
         </form>
         {message && <p role="status">{message}</p>}
       </section>
-      <footer className="account-session">
-        <div>
-          <strong>This device</strong>
-          <small>Sign out of Pulse Room on this computer.</small>
+      <footer className="account-session flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4 text-sm">
+        <div className="flex min-w-0 flex-col leading-tight">
+          <strong className="text-sm font-semibold">This device</strong>
+          <small className="text-xs text-muted-foreground">Sign out of Pulse Room on this computer.</small>
         </div>
         <button
           disabled={busy}
-          className="danger-action"
+          className="danger-action inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-destructive/40 bg-transparent px-4 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
           onClick={() => {
             setBusy(true);
             void onLogout().catch((e) => {

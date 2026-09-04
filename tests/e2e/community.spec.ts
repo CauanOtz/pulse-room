@@ -9,7 +9,7 @@ import { png } from '../helpers/images';
 import type { AccountSession } from '../../src/shared/community';
 
 async function expectContainedDialog(window: Page) {
-  const dialog = window.locator('dialog[open]');
+  const dialog = window.locator('[role="dialog"]');
   await expect(dialog).toBeVisible();
   const layout = await dialog.evaluate((element) => {
     const body = element.querySelector('.modal-body')!;
@@ -63,6 +63,7 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
   try {
     let window = await application.firstWindow();
     await expect(window.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
+    await window.screenshot({ path: 'test-results/community-sign-in.png' });
     await window.screenshot({ path: 'test-results/community-login.png' });
     await window.getByRole('button', { name: 'Create an account', exact: true }).click();
     await window.getByLabel('Username', { exact: true }).fill('owner');

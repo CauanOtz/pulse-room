@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Headphones, Maximize2, Minimize2, MonitorUp, Radio, ShieldCheck, Volume2 } from 'lucide-react';
 import type { Participant } from '../domain/conference';
 import { MediaOutput } from './media-output';
+import { cn } from './ui/utils';
 import { ParticipantTiles } from './participant-tiles';
 
 interface StageProps {
@@ -95,11 +96,11 @@ export function Stage({
 
   if (!joined) {
     return (
-      <section className="stage stage-empty" ref={stageRef}>
-        <div className="stage-symbol"><Radio size={22} /></div>
+      <section className="stage stage-empty relative flex size-full flex-col items-center justify-center overflow-hidden rounded-lg bg-stage p-8 text-center" ref={stageRef}>
+        <div className="stage-symbol mb-4 grid size-13 place-items-center rounded-full bg-secondary text-primary"><Radio size={22} /></div>
         <h1>Come as you are</h1>
         <p>A quiet place for loud nights. Pick a voice channel on the left to join.</p>
-        <div className="stage-facts">
+        <div className="stage-facts flex flex-wrap justify-center gap-4 text-xs text-muted-foreground [&>span]:flex [&>span]:items-center [&>span]:gap-1.5">
           <span><ShieldCheck size={16} /> Noise suppression</span>
           <span><Headphones size={16} /> Separate volumes</span>
           <span><MonitorUp size={16} /> 1080p screen audio</span>
@@ -110,7 +111,7 @@ export function Stage({
 
   if (!active?.screenStream) {
     return (
-      <section className="stage stage-room" ref={stageRef}>
+      <section className="stage stage-room relative flex size-full flex-col overflow-hidden rounded-lg bg-stage" ref={stageRef}>
         <ParticipantTiles
           avatars={avatars}
           participants={participants} layout="grid" onFocus={focus} />
@@ -121,24 +122,31 @@ export function Stage({
 
   return (
     <section
-      className={`stage stage-live${controlsVisible ? '' : ' is-idle'}`}
+      className={cn(
+        'stage stage-live relative size-full overflow-hidden rounded-lg bg-stage',
+        !controlsVisible && 'is-idle cursor-none',
+      )}
       ref={stageRef}
       onMouseMove={revealControls}
       onMouseLeave={() => setControlsVisible(false)}
       onFocusCapture={holdControls}
     >
       <div
-        className={`live-toolbar${controlsVisible ? '' : ' is-hidden'}`}
+        className={cn(
+            'live-toolbar absolute inset-x-0 top-0 z-2 flex items-center justify-between gap-3 px-3 py-2.5 transition-opacity duration-200',
+            'bg-gradient-to-b from-black/85 via-black/55 to-transparent',
+            controlsVisible ? 'opacity-100' : 'is-hidden pointer-events-none opacity-0',
+          )}
         onMouseEnter={holdControls}
         onMouseMove={holdControls}
       >
-        <div className="live-source">
-          <span className="live-pulse" /> Live from {active.isLocal ? 'your screen' : active.name}
+        <div className="live-source flex min-w-0 items-center gap-2 truncate text-xs font-medium text-foreground">
+          <span className="live-pulse size-2 shrink-0 rounded-full bg-destructive shadow-[0_0_0_4px] shadow-destructive/20" /> Live from {active.isLocal ? 'your screen' : active.name}
         </div>
 
-        <div className="live-tools">
+        <div className="live-tools flex items-center gap-3">
           {!active.isLocal && (
-            <label className="live-volume">
+            <label className="live-volume flex items-center gap-2 text-xs text-muted-foreground">
               <Volume2 size={15} />
               <input
                 aria-label={`${active.name} screen volume`}
@@ -155,7 +163,7 @@ export function Stage({
           )}
 
           <button
-            className="live-action"
+            className="live-action inline-flex items-center gap-2 rounded-lg border border-border bg-card/80 px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent"
             type="button"
             onClick={toggleFullScreen}
             aria-label={fullScreen ? 'Exit full screen' : 'Enter full screen'}
@@ -166,7 +174,7 @@ export function Stage({
         </div>
       </div>
 
-      <div className="live-surface" onDoubleClick={toggleFullScreen}>
+      <div className="live-surface absolute inset-0 flex bg-stage" onDoubleClick={toggleFullScreen}>
         <MediaOutput
           key={active.id}
           stream={active.screenStream}
@@ -179,7 +187,11 @@ export function Stage({
       </div>
 
       <div
-        className={`live-overlay${controlsVisible ? '' : ' is-hidden'}`}
+        className={cn(
+            'live-overlay pointer-events-none absolute inset-x-0 bottom-0 z-2 flex flex-col items-center gap-2 p-3 transition-opacity duration-200',
+            '[&_*]:pointer-events-auto',
+            controlsVisible ? 'opacity-100' : 'is-hidden opacity-0 [&_*]:pointer-events-none',
+          )}
         onMouseEnter={holdControls}
         onMouseMove={holdControls}
       >

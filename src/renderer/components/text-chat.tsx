@@ -77,9 +77,9 @@ export function TextChat({
     }
   }
   return (
-    <section className="text-chat" aria-label={`${channel.name} chat`}>
+    <section className="text-chat flex min-h-0 flex-1 flex-col" aria-label={`${channel.name} chat`}>
       <div
-        className="chat-history"
+        className="chat-history flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-4"
         onScroll={(e) => {
           const el = e.currentTarget;
           scrollToEnd.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
@@ -102,25 +102,28 @@ export function TextChat({
           </button>
         )}
         {!messages.length && !error && (
-          <div className="chat-welcome">
+          <div className="chat-welcome mx-auto max-w-md py-10 text-center text-sm text-muted-foreground">
             <span>#</span>
             <h2>This is #{channel.name}</h2>
             <p>The start of your conversation. Only members with access can read it.</p>
           </div>
         )}
         {messages.map((message) => (
-          <article className="chat-message" key={message.id}>
+          <article className="chat-message flex items-start gap-3 text-sm" key={message.id}>
             <Avatar
-              className="profile-avatar"
+              className="profile-avatar grid size-9 shrink-0 place-items-center rounded-xl bg-secondary text-[11px] font-bold text-secondary-foreground"
               name={message.authorName}
               imageId={avatars?.get(message.authorId)}
             />
-            <div>
-              <header>
-                <strong>{message.authorName}</strong>
-                <time dateTime={message.createdAt}>{new Date(message.createdAt).toLocaleString()}</time>
+            <div className="min-w-0 flex-1">
+              <header className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                <strong className="text-sm font-semibold">{message.authorName}</strong>
+                <time className="text-[11px] text-muted-foreground" dateTime={message.createdAt}>
+                  {new Date(message.createdAt).toLocaleString()}
+                </time>
                 {(manager || message.authorId === user.id) && (
                   <button
+                    className="ml-auto text-[11px] text-muted-foreground transition-colors hover:text-destructive"
                     aria-label={`Delete message from ${message.authorName}`}
                     onClick={() =>
                       void api
@@ -143,18 +146,20 @@ export function TextChat({
         <div ref={bottom} />
       </div>
       {error && (
-        <p className="form-error" role="alert">
+        <p className="form-error rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive" role="alert">
           {error}
         </p>
       )}
       <form
-        className="chat-composer"
+        className="chat-composer flex items-end gap-2 border-t border-border px-4 py-3"
         onSubmit={(e) => {
           e.preventDefault();
           void send();
         }}
       >
         <textarea
+          className="min-h-10 max-h-40 w-full flex-1 resize-none rounded-xl border border-input bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+          rows={1}
           aria-label="Message"
           placeholder={
             channel.readOnly && !manager ? 'This channel is read-only.' : `Message #${channel.name}`
@@ -170,7 +175,7 @@ export function TextChat({
             }
           }}
         />
-        <button className="primary-action" disabled={busy || !draft.trim() || (channel.readOnly && !manager)}>
+        <button className="primary-action inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50" disabled={busy || !draft.trim() || (channel.readOnly && !manager)}>
           Send
         </button>
       </form>
