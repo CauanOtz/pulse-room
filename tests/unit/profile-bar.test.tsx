@@ -39,12 +39,13 @@ describe('ProfileBar', () => {
     expect(screen.getByText('In voice')).toBeInTheDocument();
   });
 
-  it('separates the picture from the name, each opening its own panel', () => {
+  it('gives the person one panel, reached from the picture or the name', () => {
     renderBar();
 
-    expect(screen.getByRole('button', { name: 'Your profile' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Your settings' })).toBeInTheDocument();
-    // The theme moved into the settings panel, so no icon stands alone for it.
+    const profile = screen.getByRole('button', { name: 'Your profile' });
+    expect(profile).toHaveTextContent('Merge lounge');
+    expect(profile).toHaveTextContent('In voice');
+    // The theme lives inside that panel, so no icon stands alone for it.
     expect(screen.queryByRole('button', { name: /theme/i })).not.toBeInTheDocument();
   });
 

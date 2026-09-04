@@ -174,12 +174,27 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
     await window.screenshot({ path: 'test-results/community-account-compact.png' });
     await window.keyboard.press('Escape');
 
-    // The name carries what the person can set, starting with the appearance.
-    await window.getByRole('button', { name: 'Your settings' }).click();
+    // Appearance lives in that same panel, under the account.
+    await window.getByRole('button', { name: 'Your profile' }).click();
     const appearance = window.getByRole('radiogroup', { name: 'Appearance' });
     await expect(appearance).toBeVisible();
     await appearance.getByRole('radio', { name: 'Light' }).click();
     await expect(window.locator('html')).toHaveClass(/theme-light/);
+    // The whole window repaints, panels included, once the colours settle.
+    await expect
+      .poll(async () =>
+        window.evaluate(() => {
+          const account = [...document.querySelectorAll('button')].find((button) =>
+            button.textContent?.includes('Account settings'),
+          );
+          const style = getComputedStyle(document.documentElement);
+          return {
+            account: account && getComputedStyle(account).backgroundColor,
+            secondary: style.getPropertyValue('--secondary').trim(),
+          };
+        }),
+      )
+      .toEqual({ account: 'oklch(0.955 0 0)', secondary: 'oklch(0.955 0 0)' });
     await window.screenshot({ path: 'test-results/community-light.png' });
     await appearance.getByRole('radio', { name: 'Dark' }).click();
     await expect(window.locator('html')).not.toHaveClass(/theme-light/);

@@ -277,7 +277,7 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
         onOpenSettings={() => setSettingsOpen(true)}
       />
 
-      <main className="room-main col-start-3 row-start-1 flex min-w-0 flex-col bg-background">
+      <main className="room-main col-start-3 row-span-2 row-start-1 flex min-w-0 flex-col bg-background">
         <header className="room-header flex h-12 flex-none items-center gap-2 border-b border-border px-4 text-sm">
           <div className="room-title flex min-w-0 items-center gap-2">
             <span>#</span>

@@ -44,12 +44,12 @@ export function ProfileBar(props: ProfileBarProps) {
   };
 
   return (
-    <div className="profile-strip col-span-3 col-start-1 row-start-2 flex items-center gap-2 border-t border-border bg-sidebar px-3 py-2">
-      {/* The picture opens the person; the name opens what the person can set. */}
+    <div className="profile-strip col-span-2 col-start-1 row-start-2 flex items-center gap-1.5 border-t border-border bg-sidebar px-2 py-2">
+      {/* One person, one panel: the picture and the name open the same card. */}
       <Popover>
         <PopoverTrigger asChild>
           <button
-            className="rounded-xl transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg px-1.5 py-1 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             type="button"
             aria-label="Your profile"
             title="Your profile"
@@ -59,6 +59,14 @@ export function ProfileBar(props: ProfileBarProps) {
               name={props.displayName}
               imageId={props.avatarId}
             />
+            <span className="flex min-w-0 flex-col leading-tight">
+              <strong className="truncate text-[13px] font-semibold" title={props.displayName}>
+                {props.displayName}
+              </strong>
+              <small className="truncate text-[11px] text-muted-foreground">
+                {props.joined ? 'In voice' : 'Ready'}
+              </small>
+            </span>
           </button>
         </PopoverTrigger>
         <PopoverContent side="top">
@@ -72,27 +80,7 @@ export function ProfileBar(props: ProfileBarProps) {
         </PopoverContent>
       </Popover>
 
-      <Popover>
-        <PopoverTrigger asChild>
-          <button
-            className="flex min-w-0 max-w-64 flex-col rounded-lg px-2 py-1 text-left leading-tight transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            type="button"
-            aria-label="Your settings"
-          >
-            <strong className="truncate text-[13px] font-semibold" title={props.displayName}>
-              {props.displayName}
-            </strong>
-            <small className="truncate text-[11px] text-muted-foreground">
-              {props.joined ? 'In voice' : 'Ready'}
-            </small>
-          </button>
-        </PopoverTrigger>
-        <PopoverContent side="top">
-          <AppearanceChoice />
-        </PopoverContent>
-      </Popover>
-
-      <span className="device-control ml-2 flex items-center rounded-lg bg-secondary/70">
+      <span className="device-control flex items-center rounded-lg bg-secondary/70">
         <Button
           variant="ghost"
           size="icon-sm"
@@ -136,7 +124,7 @@ export function ProfileBar(props: ProfileBarProps) {
         />
       </span>
 
-      <span className="ml-auto flex items-center gap-1">
+      <span className="flex items-center">
         <Button
           variant="ghost"
           size="icon-sm"

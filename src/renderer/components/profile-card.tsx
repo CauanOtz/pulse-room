@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { ImageUp, Trash2, UserRound } from 'lucide-react';
 import type { Account } from '../../shared/community';
 import { toSquareImage } from '../infrastructure/square-image';
+import { AppearanceChoice } from './appearance-choice';
 import { Avatar } from './avatar';
 import { Button } from './ui/button';
 import {
@@ -102,6 +103,9 @@ export function ProfileCard({
           Account settings
         </Button>
       )}
+
+      <div className="h-px bg-border" />
+      <AppearanceChoice />
 
       <input
         ref={input}
