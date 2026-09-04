@@ -91,6 +91,12 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
     );
     await expect(window.getByText('Only our little circle.', { exact: true })).toHaveCount(0);
     await window.getByRole('button', { name: 'Server settings and members' }).click();
+    // A member reads as one line: picture, name, handle, then the controls, all
+    // on the right edge at the same place however long the name is.
+    const memberRow = window.locator('.member-row').first();
+    await expect(memberRow.locator('.avatar')).toBeVisible();
+    await expect(memberRow).toContainText('@owner');
+    expect((await memberRow.boundingBox())!.height).toBeLessThan(72);
     await window.getByRole('button', { name: 'Channels', exact: true }).click();
     await window.getByRole('button', { name: 'Create channel', exact: true }).click();
     await window.getByLabel('Channel name', { exact: true }).fill('Game room');
@@ -133,6 +139,10 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
     await window.getByRole('button', { name: 'Close dialog' }).click();
     await window.getByRole('button', { name: 'Just us', exact: true }).click();
     await expect(window.getByText('Only our little circle.', { exact: true })).toBeVisible();
+    // Beside the conversation, the people who share the server.
+    const roster = window.getByRole('complementary', { name: 'Members' });
+    await expect(roster).toContainText('Owner — 1');
+    await expect(roster.getByText('Owner (you)')).toBeVisible();
     await window.screenshot({ path: 'test-results/community-chat.png' });
     await application.close();
     application = await electron.launch({ args: [path.resolve('.')], env });
@@ -199,6 +209,29 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
     await appearance.getByRole('radio', { name: 'Dark' }).click();
     await expect(window.locator('html')).not.toHaveClass(/theme-light/);
     await window.keyboard.press('Escape');
+
+    // A server with more than one person: rows of one height, and the controls
+    // in a single column at the right however long the names are.
+    await window.getByRole('button', { name: 'Friends', exact: true }).click();
+    await window.getByRole('button', { name: 'Server settings and members' }).click();
+    const rows = window.locator('.member-row');
+    await expect(rows).toHaveCount(2);
+    expect(
+      await rows.evaluateAll((elements) =>
+        new Set(elements.map((element) => Math.round(element.getBoundingClientRect().height))).size,
+      ),
+    ).toBe(1);
+    await window.getByRole('combobox', { name: 'Role for Friend' }).click();
+    await expect(window.getByRole('option', { name: 'Administrator' })).toBeVisible();
+    await window.keyboard.press('Escape');
+    await window.getByRole('button', { name: 'Manage Friend' }).click();
+    await expect(window.getByRole('menuitem', { name: 'Transfer ownership' })).toBeVisible();
+    await expect(window.getByRole('menuitem', { name: 'Remove from server' })).toBeVisible();
+    await window.keyboard.press('Escape');
+    await window.screenshot({ path: 'test-results/community-members.png' });
+    await window.getByRole('button', { name: 'Close dialog' }).click();
+    await window.getByRole('button', { name: 'Just us', exact: true }).click();
+
     await window.getByRole('button', { name: 'Server settings and members' }).click();
     await window.getByRole('button', { name: 'Settings', exact: true }).click();
     const longServerName = 'Our private room for games and conversations with friends';

@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { LockKeyhole, LogOut } from 'lucide-react';
+import { LockKeyhole, LogOut, MoreVertical } from 'lucide-react';
 import {
   canManage,
   type Account,
@@ -12,6 +12,12 @@ import type { CommunityClient } from '../infrastructure/community-client';
 import { Modal } from './modal';
 import { Avatar } from './avatar';
 import { PictureField } from './picture-field';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 
 function errorMessage(error: unknown): string {
@@ -347,70 +353,106 @@ export function ServerDialog({
         ))}
       </div>
       {tab === 'members' && (
-        <div className="member-list flex flex-col gap-2">
-          {detail.members.map((member) => (
-            <div className="member-row flex items-center gap-3 rounded-xl border border-border bg-background/60 px-3 py-2.5 text-sm" key={member.id}>
-              <div>
-                <strong>
-                  {member.displayName}
-                  {member.id === user.id ? ' (you)' : ''}
-                </strong>
-                <small>
-                  @{member.username} · {member.role}
-                </small>
+        <div className="member-list flex flex-col gap-1.5">
+          {detail.members.map((member) => {
+            const removable =
+              manager &&
+              member.id !== user.id &&
+              member.role !== 'owner' &&
+              (owner || member.role === 'member');
+            const transferable = owner && member.id !== user.id;
+            return (
+              <div
+                className="member-row flex items-center gap-3 rounded-xl border border-border bg-background/60 px-3 py-2.5 text-sm"
+                key={member.id}
+              >
+                <Avatar
+                  className="grid size-9 shrink-0 place-items-center rounded-full bg-secondary text-[11px] font-bold text-secondary-foreground"
+                  name={member.displayName}
+                  imageId={member.avatarId}
+                />
+                <div className="flex min-w-0 flex-col leading-tight">
+                  <strong className="truncate font-semibold" title={member.displayName}>
+                    {member.displayName}
+                    {member.id === user.id ? ' (you)' : ''}
+                  </strong>
+                  <small className="truncate text-xs text-muted-foreground" title={`@${member.username}`}>
+                    @{member.username}
+                  </small>
+                </div>
+                {/* The controls keep to the right, at one width, so the column
+                    reads straight however long the names are. */}
+                <div className="ml-auto flex shrink-0 items-center gap-2">
+                  {owner && member.role !== 'owner' ? (
+                    <Select
+                      disabled={busy}
+                      value={member.role}
+                      onValueChange={(role) =>
+                        void run(() => api.request(`${base}/members/${member.id}`, 'PATCH', { role }))
+                      }
+                    >
+                      <SelectTrigger className="h-8 w-36" aria-label={`Role for ${member.displayName}`}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="member">Member</SelectItem>
+                        <SelectItem value="admin">Administrator</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <span className="member-role rounded-md bg-secondary px-2 py-1 text-xs font-medium capitalize text-muted-foreground">
+                      {member.role}
+                    </span>
+                  )}
+                  {(removable || transferable) && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          className="icon-action grid size-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                          disabled={busy}
+                          aria-label={`Manage ${member.displayName}`}
+                          type="button"
+                        >
+                          <MoreVertical aria-hidden="true" className="size-4" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        {transferable && (
+                          <DropdownMenuItem
+                            onSelect={() =>
+                              setConfirmation({
+                                label: `Make ${member.displayName} the owner? You will become an administrator.`,
+                                action: async () => {
+                                  await api.request(`${base}/transfer`, 'POST', { userId: member.id });
+                                },
+                              })
+                            }
+                          >
+                            Transfer ownership
+                          </DropdownMenuItem>
+                        )}
+                        {removable && (
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onSelect={() =>
+                              setConfirmation({
+                                label: `Remove ${member.displayName} from this server?`,
+                                action: async () => {
+                                  await api.request(`${base}/members/${member.id}`, 'DELETE');
+                                },
+                              })
+                            }
+                          >
+                            Remove from server
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                </div>
               </div>
-              {owner && member.role !== 'owner' && (
-                <Select
-                  disabled={busy}
-                  value={member.role}
-                  onValueChange={(role) =>
-                    void run(() => api.request(`${base}/members/${member.id}`, 'PATCH', { role }))
-                  }
-                >
-                  <SelectTrigger className="h-8 w-36 shrink-0" aria-label={`Role for ${member.displayName}`}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="member">Member</SelectItem>
-                    <SelectItem value="admin">Administrator</SelectItem>
-                  </SelectContent>
-                </Select>
-              )}
-              {manager &&
-                member.id !== user.id &&
-                member.role !== 'owner' &&
-                (owner || member.role === 'member') && (
-                  <button
-                    disabled={busy}
-                    onClick={() =>
-                      setConfirmation({
-                        label: `Remove ${member.displayName} from this server?`,
-                        action: async () => {
-                          await api.request(`${base}/members/${member.id}`, 'DELETE');
-                        },
-                      })
-                    }
-                  >
-                    Remove
-                  </button>
-                )}
-              {owner && member.id !== user.id && (
-                <button
-                  disabled={busy}
-                  onClick={() =>
-                    setConfirmation({
-                      label: `Make ${member.displayName} the owner? You will become an administrator.`,
-                      action: async () => {
-                        await api.request(`${base}/transfer`, 'POST', { userId: member.id });
-                      },
-                    })
-                  }
-                >
-                  Transfer ownership
-                </button>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
       {tab === 'channels' && (

@@ -77,7 +77,7 @@ export function TextChat({
     }
   }
   return (
-    <section className="text-chat flex min-h-0 flex-1 flex-col" aria-label={`${channel.name} chat`}>
+    <section className="text-chat flex min-h-0 min-w-0 flex-1 flex-col" aria-label={`${channel.name} chat`}>
       <div
         className="chat-history flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-4"
         onScroll={(e) => {

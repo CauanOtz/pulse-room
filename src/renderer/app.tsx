@@ -3,7 +3,7 @@ import type { UpdateStatus } from '../shared/desktop-api';
 import { ConferenceController } from './application/conference-controller';
 import { emptyPresence, presenceSounds, type RoomPresence } from './application/room-presence';
 import { voiceChannels } from './domain/conference';
-import type { ChannelOccupancy, RosterEntry } from './domain/roster';
+import { accountOf, type ChannelOccupancy, type RosterEntry } from './domain/roster';
 import { RoomSoundPlayer } from './infrastructure/media/room-sound-player';
 import { CallControls } from './components/call-controls';
 import { ChannelSidebar } from './components/channel-sidebar';
@@ -23,6 +23,7 @@ import { LocalSettingsRepository } from './infrastructure/persistence/local-sett
 import type { WorkspaceBindings } from './community-root';
 import { canManage } from '../shared/community';
 import { TextChat } from './components/text-chat';
+import { MemberSidebar } from './components/member-sidebar';
 
 const mediaDevicesService = new MediaDevicesService();
 const roomSoundPlayer = new RoomSoundPlayer();
@@ -107,6 +108,17 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
     snapshot.screenSharing,
     controller,
   ]);
+  // Who is in a call anywhere in this server: the room this client joined knows
+  // its own people first hand, the rest come from the service.
+  const inVoice = useMemo(
+    () =>
+      new Set([
+        ...occupancy.flatMap((room) => room.occupants.map((one) => accountOf(one.identity))),
+        ...snapshot.participants.map((participant) => accountOf(participant.id)),
+      ]),
+    [occupancy, snapshot.participants],
+  );
+
   const broadcasters = useMemo(
     () => snapshot.participants.filter((participant) => participant.screenStream),
     [snapshot.participants],
@@ -294,14 +306,22 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
 
         <div className="room-content relative grid min-h-0 flex-1 grid-cols-1 grid-rows-1 place-items-stretch overflow-hidden p-2">
           {textChannel && workspace ? (
-            <TextChat
-              key={textChannel.id}
-              api={workspace.api}
-              user={workspace.user}
-              channel={textChannel}
-              manager={manager}
-              avatars={avatars}
-            />
+            // Reading a channel leaves room beside it for the people in it.
+            <div className="flex min-h-0 min-w-0 gap-2">
+              <TextChat
+                key={textChannel.id}
+                api={workspace.api}
+                user={workspace.user}
+                channel={textChannel}
+                manager={manager}
+                avatars={avatars}
+              />
+              <MemberSidebar
+                members={workspace.detail.members}
+                userId={workspace.user.id}
+                voiceIds={inVoice}
+              />
+            </div>
           ) : (
             <Stage
               avatars={avatars}
