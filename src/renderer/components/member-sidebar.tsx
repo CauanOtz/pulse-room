@@ -22,7 +22,7 @@ export function MemberSidebar({
   const groups = useMemo(() => groupMembers(members, voiceIds), [members, voiceIds]);
   return (
     <aside
-      className="member-sidebar flex w-56 flex-none flex-col gap-4 overflow-y-auto rounded-lg border border-border bg-card/40 px-2 py-3"
+      className="member-sidebar flex w-56 flex-none flex-col gap-4 overflow-y-auto border-l border-border bg-sidebar/40 px-2 py-3"
       aria-label="Members"
     >
       {groups.map((group) => (

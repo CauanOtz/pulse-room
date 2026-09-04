@@ -139,6 +139,20 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
     await window.getByRole('button', { name: 'Close dialog' }).click();
     await window.getByRole('button', { name: 'Just us', exact: true }).click();
     await expect(window.getByText('Only our little circle.', { exact: true })).toBeVisible();
+    // The bar under the channels and the bar under the conversation draw one
+    // line across the window: same top, same bottom.
+    expect(
+      await window.evaluate(() => {
+        const box = (selector: string) => document.querySelector(selector)!.getBoundingClientRect();
+        const strip = box('.profile-strip');
+        const composer = box('.chat-composer');
+        return {
+          top: Math.round(composer.top - strip.top),
+          bottom: Math.round(composer.bottom - strip.bottom),
+          onTheFloor: Math.round(window.innerHeight - strip.bottom),
+        };
+      }),
+    ).toEqual({ top: 0, bottom: 0, onTheFloor: 0 });
     // Beside the conversation, the people who share the server.
     const roster = window.getByRole('complementary', { name: 'Members' });
     await expect(roster).toContainText('Owner — 1');

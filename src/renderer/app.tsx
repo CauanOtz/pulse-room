@@ -304,10 +304,10 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
           </div>
         </header>
 
-        <div className="room-content relative grid min-h-0 flex-1 grid-cols-1 grid-rows-1 place-items-stretch overflow-hidden p-2">
+        <div className="room-content relative grid min-h-0 flex-1 grid-cols-1 grid-rows-1 place-items-stretch overflow-hidden">
           {textChannel && workspace ? (
             // Reading a channel leaves room beside it for the people in it.
-            <div className="flex min-h-0 min-w-0 gap-2">
+            <div className="flex min-h-0 min-w-0">
               <TextChat
                 key={textChannel.id}
                 api={workspace.api}
@@ -323,32 +323,35 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
               />
             </div>
           ) : (
-            <Stage
-              avatars={avatars}
-              participants={snapshot.participants}
-              joined={joined}
-              speakerDeviceId={settings.speakerDeviceId}
-              expandLevels={settings.expandScreenLevels}
-            >
-              {joined && (
-                <CallControls
-                  microphoneEnabled={snapshot.microphoneEnabled}
-                  deafened={snapshot.deafened}
-                  screenSharing={snapshot.screenSharing}
-                  quality={settings.screenSharePreset}
-                  busy={busy}
-                  onToggleMicrophone={() => canSpeak && void run(() => controller.toggleMicrophone())}
-                  onToggleDeafen={() => void run(() => controller.toggleDeafen())}
-                  onShare={handleShareRequest}
-                  onSelectQuality={(preset) => {
-                    setSettings((current) => ({ ...current, screenSharePreset: preset }));
-                    void run(() => controller.setScreenQuality(preset));
-                  }}
-                  onOpenSettings={() => setSettingsOpen(true)}
-                  onLeave={() => void run(() => controller.gateway.leave())}
-                />
-              )}
-            </Stage>
+            // The room is a card of its own, inset from the window.
+            <div className="flex min-h-0 min-w-0 p-2">
+              <Stage
+                avatars={avatars}
+                participants={snapshot.participants}
+                joined={joined}
+                speakerDeviceId={settings.speakerDeviceId}
+                expandLevels={settings.expandScreenLevels}
+              >
+                {joined && (
+                  <CallControls
+                    microphoneEnabled={snapshot.microphoneEnabled}
+                    deafened={snapshot.deafened}
+                    screenSharing={snapshot.screenSharing}
+                    quality={settings.screenSharePreset}
+                    busy={busy}
+                    onToggleMicrophone={() => canSpeak && void run(() => controller.toggleMicrophone())}
+                    onToggleDeafen={() => void run(() => controller.toggleDeafen())}
+                    onShare={handleShareRequest}
+                    onSelectQuality={(preset) => {
+                      setSettings((current) => ({ ...current, screenSharePreset: preset }));
+                      void run(() => controller.setScreenQuality(preset));
+                    }}
+                    onOpenSettings={() => setSettingsOpen(true)}
+                    onLeave={() => void run(() => controller.gateway.leave())}
+                  />
+                )}
+              </Stage>
+            </div>
           )}
           {joined && !canSpeak && (
             <p className="permission-note mx-4 mb-2 rounded-lg border border-border bg-card px-3 py-2 text-xs text-muted-foreground">
@@ -356,10 +359,15 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
             </p>
           )}
           {joined && !canShare && (
-            <p className="permission-note mx-4 mb-2 rounded-lg border border-border bg-card px-3 py-2 text-xs text-muted-foreground">Screen sharing is restricted in this channel.</p>
+            <p className="permission-note mx-4 mb-2 rounded-lg border border-border bg-card px-3 py-2 text-xs text-muted-foreground">
+              Screen sharing is restricted in this channel.
+            </p>
           )}
           {snapshot.error && (
-            <div className="error-banner mx-4 mb-2 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive" role="alert">
+            <div
+              className="error-banner mx-4 mb-2 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive"
+              role="alert"
+            >
               {snapshot.error}
             </div>
           )}
