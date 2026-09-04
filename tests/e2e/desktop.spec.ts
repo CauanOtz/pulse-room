@@ -61,7 +61,7 @@ test('launches the secured desktop shell and completes the join flow', async () 
     // Icon-only controls say what they are, without the operating system's tip.
     await window.locator('.profile-strip').getByRole('button', { name: 'Your profile' }).hover();
     // The call is running by now, so the status says so.
-    await expect(window.getByRole('tooltip')).toContainText('In voice');
+    await expect(window.getByRole('tooltip').filter({ hasText: 'In voice' })).toBeVisible();
     await window.screenshot({ path: 'test-results/pulse-room-status-tooltip.png' });
     await window.locator('.room-header').hover();
 

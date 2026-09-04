@@ -112,10 +112,9 @@ export function Stage({
   if (!active?.screenStream) {
     return (
       <section className="stage stage-room relative flex size-full flex-col overflow-hidden rounded-lg bg-stage" ref={stageRef}>
-        <ParticipantTiles
-          avatars={avatars}
-          participants={participants} layout="grid" onFocus={focus} />
-        <div className="live-overlay">{children}</div>
+        <ParticipantTiles avatars={avatars} participants={participants} layout="grid" onFocus={focus} />
+        {/* The controls belong under the middle of the room, not against its edge. */}
+        <div className="live-overlay flex flex-col items-center gap-2 px-3 pb-3">{children}</div>
       </section>
     );
   }

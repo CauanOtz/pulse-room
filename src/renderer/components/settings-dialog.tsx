@@ -229,13 +229,17 @@ export function SettingsDialog(props: SettingsDialogProps) {
               </button>
             ) : (
               <button
+                className="inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-border px-3 text-xs font-medium text-foreground transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-50"
                 type="button"
                 onClick={props.onCheckUpdates}
                 disabled={
                   props.updateStatus.state === 'checking' || props.updateStatus.state === 'downloading'
                 }
               >
-                <RefreshCw size={15} className={props.updateStatus.state === 'checking' ? 'spin' : ''} />{' '}
+                <RefreshCw
+                  size={15}
+                  className={props.updateStatus.state === 'checking' ? 'animate-spin' : ''}
+                />
                 Check now
               </button>
             )}
