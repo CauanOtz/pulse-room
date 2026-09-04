@@ -288,6 +288,25 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
     await window.getByRole('button', { name: 'Manage Neighbour' }).click();
     await expect(window.getByRole('menu')).toHaveCount(1);
     await expect(window.getByRole('menuitem', { name: 'Remove from server' })).toHaveCount(1);
+    const removeItem = window.getByRole('menuitem', { name: 'Remove from server' });
+    const transferItem = window.getByRole('menuitem', { name: 'Transfer ownership' });
+    const resting = await transferItem.evaluate((element) => getComputedStyle(element).backgroundColor);
+    await transferItem.hover();
+    await expect(transferItem).not.toHaveCSS('background-color', resting);
+    // Taking somebody out of the server is the one item that answers in red.
+    await removeItem.hover();
+    await expect(removeItem).toHaveCSS(
+      'background-color',
+      await window.evaluate(() => {
+        const probe = document.createElement('div');
+        probe.style.backgroundColor = 'var(--destructive)';
+        document.body.append(probe);
+        const value = getComputedStyle(probe).backgroundColor;
+        probe.remove();
+        return value;
+      }),
+    );
+    await window.screenshot({ path: 'test-results/community-member-menu.png' });
     await window.keyboard.press('Escape');
     await expect(window.getByRole('menu')).toHaveCount(0);
     await window.getByRole('combobox', { name: 'Role for Friend' }).click();

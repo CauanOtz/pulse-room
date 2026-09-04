@@ -440,7 +440,7 @@ export function ServerDialog({
                         )}
                         {removable && (
                           <DropdownMenuItem
-                            className="text-destructive focus:text-destructive"
+                            className="text-destructive focus:bg-destructive focus:text-destructive-foreground data-[highlighted]:bg-destructive data-[highlighted]:text-destructive-foreground"
                             onSelect={() =>
                               setConfirmation({
                                 label: `Remove ${member.displayName} from this server?`,

@@ -49,8 +49,13 @@ export function DropdownMenuItem({ className, ...props }: ComponentProps<typeof 
   return (
     <Primitive.Item
       className={cn(
-        'relative flex cursor-default select-none items-center gap-2 rounded-lg px-2 py-2 text-sm outline-none',
-        'focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+        'relative flex cursor-default select-none items-center gap-2 rounded-lg px-2 py-2 text-sm outline-none transition-colors',
+        // Radix marks the item under the pointer as highlighted; the colour is
+        // hung on that as well as on focus, so the row answers the mouse even
+        // where something else holds the keyboard.
+        'focus:bg-accent focus:text-accent-foreground',
+        'data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground',
+        'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
         className,
       )}
       {...props}
@@ -69,8 +74,10 @@ export function DropdownMenuRadioItem({
   return (
     <Primitive.RadioItem
       className={cn(
-        'relative flex cursor-default select-none items-center gap-2 rounded-lg py-2 pl-2 pr-8 text-sm outline-none',
-        'focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+        'relative flex cursor-default select-none items-center gap-2 rounded-lg py-2 pl-2 pr-8 text-sm outline-none transition-colors',
+        'focus:bg-accent focus:text-accent-foreground',
+        'data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground',
+        'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
         className,
       )}
       {...props}

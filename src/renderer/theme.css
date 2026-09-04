@@ -27,7 +27,8 @@
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.245 0 0);
   --muted-foreground: oklch(0.72 0 0);
-  --accent: oklch(0.27 0 0);
+  /* Bright enough that the row under the pointer is plain on a dark panel. */
+  --accent: oklch(0.305 0 0);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.62 0.19 20);
   --destructive-foreground: oklch(0.985 0 0);
