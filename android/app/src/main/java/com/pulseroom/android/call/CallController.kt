@@ -60,8 +60,14 @@ class CallController(private val context: Context, private val api: PulseApi) {
             try {
                 val credentials = api.roomToken(channelId)
                 if (current != generation) return@launch
+                // Adaptive stream would decide what to receive from the size and
+                // visibility of the view holding it, which this application has
+                // already decided for itself: it subscribes to the one screen
+                // being watched and drops the picture when the screen goes away.
+                // Two opinions on one track deadlock, because a renderer that is
+                // sent no frames never reports a size worth sending frames to.
                 val activeRoom = LiveKit.create(context, RoomOptions(
-                    adaptiveStream = true, dynacast = true,
+                    adaptiveStream = false, dynacast = true,
                     audioTrackCaptureDefaults = LocalAudioTrackOptions(noiseSuppression = true, echoCancellation = true, autoGainControl = true),
                 ))
                 room = activeRoom

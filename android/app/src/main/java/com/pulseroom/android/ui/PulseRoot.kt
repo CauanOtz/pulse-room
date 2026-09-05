@@ -78,7 +78,8 @@ import com.pulseroom.android.data.*
                 )
             },
             bottomBar = {
-                if (call.channelId != null) CallBar(call, model, onOpen = model::showChannels, onSettings = { audioSettings = true })
+                if (call.channelId != null) CallBar(call, model, onOpen = model::showChannels,
+                    onSettings = { audioSettings = true }, onWatch = { model.showChannels(); fullScreen = true })
             },
         ) { padding ->
             Column(Modifier.fillMaxSize().padding(padding).imePadding()) {
@@ -219,13 +220,23 @@ import com.pulseroom.android.data.*
     }
 }
 
-@Composable private fun CallBar(call: CallState, model: PulseViewModel, onOpen: () -> Unit, onSettings: () -> Unit) {
+@Composable private fun CallBar(call: CallState, model: PulseViewModel, onOpen: () -> Unit, onSettings: () -> Unit, onWatch: () -> Unit) {
     Surface(color = Slate, tonalElevation = 0.dp) {
         Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 12.dp, vertical = 8.dp)) {
             Row(Modifier.fillMaxWidth().clickable(onClick = onOpen), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.GraphicEq, null, Modifier.size(18.dp), tint = Speaking)
                 Text("${call.status} · ${call.channelName}", Modifier.weight(1f).padding(start = 8.dp), style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 IconButton(onSettings) { Icon(Icons.Default.Tune, "Audio settings") }
+            }
+            // The bar follows the call everywhere, so a screen that goes live is
+            // said here. Reading a text channel used to hide it completely.
+            call.shares.firstOrNull()?.let { share ->
+                AssistChip(
+                    onClick = onWatch,
+                    label = { Text("Watch ${share.name}'s screen") },
+                    leadingIcon = { Icon(Icons.Default.ScreenShare, null, Modifier.size(18.dp)) },
+                    modifier = Modifier.padding(bottom = 4.dp),
+                )
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                 if (call.canSpeak) {
