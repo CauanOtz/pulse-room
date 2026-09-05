@@ -117,7 +117,9 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
     await expect(gameRoom.locator('[aria-label="Private"]')).toBeVisible();
     const gear = gameRoom.getByRole('button', { name: 'Edit Game room' });
     expect(await gear.evaluate((element) => getComputedStyle(element).opacity)).toBe('0');
-    await gameRoom.hover();
+    // Hovering the gear is hovering the row it sits in, and it keeps the
+    // pointer there while the fade finishes.
+    await gear.hover();
     await expect(gear).toHaveCSS('opacity', '1');
     await window.screenshot({ path: 'test-results/community-channel-hover.png' });
     await gear.click();
@@ -200,6 +202,18 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
         .evaluate((element) => getComputedStyle(element).boxShadow),
     ).toBe('none');
     await window.screenshot({ path: 'test-results/community-composer-focus.png' });
+
+    // No File, Edit, View and Window bar over the room. The editing shortcuts
+    // belong to the browser, not to that bar, so they still work without it.
+    expect(await application.evaluate(({ Menu }) => Menu.getApplicationMenu())).toBeNull();
+    const composer = window.getByLabel('Message', { exact: true });
+    await composer.fill('cut me');
+    await window.keyboard.press('Control+A');
+    await window.keyboard.press('Control+X');
+    await expect(composer).toHaveValue('');
+    await window.keyboard.press('Control+V');
+    await expect(composer).toHaveValue('cut me');
+    await composer.fill('');
 
     // The bar under the channels and the bar under the conversation draw one
     // line across the window: same top, same bottom.

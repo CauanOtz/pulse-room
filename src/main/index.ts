@@ -128,6 +128,10 @@ app.on('before-quit', () => {
 });
 
 app.whenReady().then(() => {
+  // The window is the whole application; a File, Edit, View and Window bar
+  // above it belongs to a document editor. Editing shortcuts are the browser's
+  // own and survive this, which the end-to-end test holds to.
+  Menu.setApplicationMenu(null);
   screenCaptureService.install(session.defaultSession);
   registerIpcHandlers();
   mainWindow = createMainWindow();
