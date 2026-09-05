@@ -33,8 +33,6 @@ test('launches the secured desktop shell and completes the join flow', async () 
     await window.getByRole('button', { name: 'Lounge' }).click();
     await expect(window.locator('.tile-grid .participant-tile')).toHaveCount(4);
     // A face in the room is round: the box that holds it is as tall as it is
-    // wide, whether it holds a picture or a pair of initials.
-    // A face in the room is round: the box that holds it is as tall as it is
     // wide. An avatar has no size of its own, so this is the shape of a rule
     // somebody could take away without noticing.
     expect(

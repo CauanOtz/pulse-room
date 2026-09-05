@@ -2,7 +2,7 @@ import type { DesktopCapturerSource, Session } from 'electron';
 import { desktopCapturer } from 'electron';
 import type { CaptureSource } from '../../shared/desktop-api';
 
-const trustedOrigins = new Set(['file://', 'http://localhost:5173', 'http://127.0.0.1:5173']);
+const trustedOrigins = new Set(['http://localhost:5173', 'http://127.0.0.1:5173']);
 
 export class ScreenCaptureService {
   private preferredSourceId: string | undefined;
@@ -58,6 +58,10 @@ export class ScreenCaptureService {
   }
 
   private isTrustedOrigin(origin: string): boolean {
-    return trustedOrigins.has(origin) || origin.startsWith('file://');
+    if (origin.startsWith('file://')) return true;
+    // Chromium writes an origin with a trailing slash. Comparing it as given
+    // refused every request from the development server, and a refusal reaches
+    // the person sharing as 'Invalid capture constraints' and nothing else.
+    return trustedOrigins.has(origin.replace(/\/$/, ''));
   }
 }

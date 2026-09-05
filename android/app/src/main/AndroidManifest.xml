@@ -19,7 +19,13 @@
         android:icon="@drawable/ic_pulse"
         android:theme="@style/Theme.PulseRoom"
         android:supportsRtl="true">
-        <activity android:name=".MainActivity" android:exported="true" android:windowSoftInputMode="adjustResize">
+        <!-- A call survives a turn of the phone. Without this, going full screen
+             rotates the device, Android destroys and rebuilds the activity, and the
+             video renderer is torn down and the subscription dropped and retaken
+             underneath a running call, which the media library aborts on. -->
+        <activity android:name=".MainActivity" android:exported="true"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|uiMode|density"
+            android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
