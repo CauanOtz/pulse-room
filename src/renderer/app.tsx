@@ -349,6 +349,9 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
                 expandLevels={settings.expandScreenLevels}
                 watching={snapshot.watching}
                 onWatch={(participantId) => controller.gateway.watchScreen(participantId)}
+                onOptions={(participant, position) =>
+                  setOpenParticipant({ id: participant.id, position })
+                }
                 screenVolumes={screenVolumes}
                 onScreenVolume={(participantId, volume) =>
                   setScreenVolumes((volumes) => ({ ...volumes, [participantId]: volume }))
@@ -409,6 +412,8 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
           position={openParticipant.position}
           onVolumeChange={(volume) => controller.gateway.setParticipantVolume(popoverEntry.id, volume)}
           onMutedChange={(muted) => controller.gateway.setParticipantMuted(popoverEntry.id, muted)}
+          watching={snapshot.watching === popoverEntry.id}
+          onStopWatching={() => controller.gateway.watchScreen(undefined)}
           onClose={() => setOpenParticipant(undefined)}
         />
       )}

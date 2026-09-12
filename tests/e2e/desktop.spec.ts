@@ -149,14 +149,16 @@ test('launches the secured desktop shell and completes the join flow', async () 
     await window.getByRole('button', { name: 'Exit full screen' }).click();
     await expect(window.getByRole('button', { name: 'Enter full screen' })).toBeVisible();
 
-    // Leaving the stream leaves the room, and stops the decoding with it. The
-    // controls have to be woken first: they step aside while nobody reaches.
+    // Putting the picture away is not leaving the stream: the room comes back
+    // and the tile keeps it running. The controls have to be woken first, since
+    // they step aside while nobody reaches for them.
     await window.locator('.stage-live').hover();
-    await window.getByRole('button', { name: 'Stop watching' }).click();
+    await window.getByRole('button', { name: 'Back to the room' }).click();
     await expect(window.getByLabel('Shared screen')).toHaveCount(0);
-    expect(await window.locator('video').count()).toBe(0);
-    await expect(window.getByText('Your screen is live')).toBeVisible();
-    await window.getByRole('button', { name: 'Watch stream' }).click();
+    await expect(window.getByText('Watching your screen')).toBeVisible();
+    await expect(window.locator('.tile-video')).toBeVisible();
+    await window.getByRole('button', { name: 'Open again' }).click();
+    await expect(window.getByLabel('Shared screen')).toBeVisible();
 
     // The stream quality menu rides on the caret beside the share button.
     await window.locator('.stage-live').hover();

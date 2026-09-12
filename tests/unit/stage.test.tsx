@@ -95,17 +95,60 @@ describe('Stage', () => {
     expect(screen.getByText('Live from Maya')).toBeInTheDocument();
   });
 
-  it('lets a viewer leave a stream and stay in the room', () => {
+  it('puts the picture away without leaving the stream', () => {
     const participants = [createParticipant({ id: 'maya', name: 'Maya', screenStream: liveScreen() })];
+    const onWatch = vi.fn();
 
-    render(<Watchable participants={participants} initial="maya" />);
+    render(
+      <Stage
+        participants={participants}
+        joined
+        watching="maya"
+        onWatch={onWatch}
+      />,
+    );
     expect(screen.getByText('Live from Maya')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Stop watching' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Back to the room' }));
 
+    // The room is back and the stream is still running: its tile keeps the
+    // picture, the card says so, and nothing was unsubscribed.
     expect(screen.queryByText('Live from Maya')).not.toBeInTheDocument();
-    expect(document.querySelector('video')).toBeNull();
-    expect(screen.getByText('Maya is sharing a screen')).toBeInTheDocument();
+    expect(screen.getByText('Watching Maya')).toBeInTheDocument();
+    expect(document.querySelector('.tile-video')).toBeInTheDocument();
+    expect(onWatch).not.toHaveBeenCalled();
+  });
+
+  it('opens the picture again from the card that says it is being watched', () => {
+    const participants = [createParticipant({ id: 'maya', name: 'Maya', screenStream: liveScreen() })];
+
+    render(<Stage participants={participants} joined watching="maya" onWatch={() => undefined} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Back to the room' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Open again' }));
+
+    expect(screen.getByText('Live from Maya')).toBeInTheDocument();
+  });
+
+  it('asks what to do with somebody on a right click', () => {
+    const participants = [createParticipant({ id: 'maya', name: 'Maya', screenStream: liveScreen() })];
+    const onOptions = vi.fn();
+
+    render(
+      <Stage
+        participants={participants}
+        joined
+        watching="maya"
+        onWatch={() => undefined}
+        onOptions={onOptions}
+      />,
+    );
+    fireEvent.contextMenu(screen.getByRole('button', { name: 'Watch Maya' }));
+
+    // Leaving a stream for good is asked for here, not by closing a window.
+    expect(onOptions).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'maya' }),
+      expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }),
+    );
   });
 
   it('lets a viewer switch between two live screens', () => {

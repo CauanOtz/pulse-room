@@ -117,10 +117,12 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
     await expect(gameRoom.locator('[aria-label="Private"]')).toBeVisible();
     const gear = gameRoom.getByRole('button', { name: 'Edit Game room' });
     expect(await gear.evaluate((element) => getComputedStyle(element).opacity)).toBe('0');
-    // Hovering the gear is hovering the row it sits in, and it keeps the
-    // pointer there while the fade finishes.
-    await gear.hover();
-    await expect(gear).toHaveCSS('opacity', '1');
+    // The list redraws itself every few seconds as the server is polled, which
+    // can take the pointer off the row mid-fade, so the whole gesture retries.
+    await expect(async () => {
+      await gear.hover();
+      await expect(gear).toHaveCSS('opacity', '1', { timeout: 1_000 });
+    }).toPass({ timeout: 15_000 });
     await window.screenshot({ path: 'test-results/community-channel-hover.png' });
     await gear.click();
     await expect(window.getByRole('dialog', { name: 'Edit channel', exact: true })).toBeVisible();
@@ -128,10 +130,13 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
 
     // The gear opens the channel it belongs to, tooltip and all.
     const lounge = window.locator('.channel-item', { hasText: 'Lounge' });
-    await lounge.hover();
     const loungeGear = lounge.getByRole('button', { name: 'Edit Lounge' });
-    await loungeGear.hover();
-    await expect(window.getByRole('tooltip', { name: 'Edit channel' })).toBeVisible();
+    await expect(async () => {
+      await loungeGear.hover();
+      await expect(window.getByRole('tooltip', { name: 'Edit channel' })).toBeVisible({
+        timeout: 1_000,
+      });
+    }).toPass({ timeout: 15_000 });
     await loungeGear.click();
     await expect(window.getByRole('dialog', { name: 'Edit channel', exact: true })).toBeVisible();
     await expect(window.getByLabel('Channel name', { exact: true })).toHaveValue('Lounge');

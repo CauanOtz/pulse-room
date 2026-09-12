@@ -13,6 +13,8 @@ interface ParticipantTilesProps {
   layout: 'grid' | 'strip';
   avatars?: ReadonlyMap<string, string | null | undefined>;
   onFocus(participant: Participant): void;
+  /** A right click asks what else can be done with the person under it. */
+  onOptions?(participant: Participant, position: { x: number; y: number }): void;
 }
 
 /**
@@ -26,6 +28,7 @@ export function ParticipantTiles({
   layout,
   avatars,
   onFocus,
+  onOptions,
 }: ParticipantTilesProps) {
   return (
     <div
@@ -61,6 +64,11 @@ export function ParticipantTiles({
             aria-pressed={participant.id === focusedId}
             disabled={!live}
             onClick={() => onFocus(participant)}
+            onContextMenu={(event) => {
+              if (!onOptions || participant.isLocal) return;
+              event.preventDefault();
+              onOptions(participant, { x: event.clientX, y: event.clientY });
+            }}
           >
             {picture ? (
               <MediaOutput

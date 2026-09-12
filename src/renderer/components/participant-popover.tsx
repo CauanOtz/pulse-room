@@ -1,16 +1,27 @@
 import { useEffect, useRef } from 'react';
-import { VolumeX, Volume2 } from 'lucide-react';
+import { MonitorOff, VolumeX, Volume2 } from 'lucide-react';
 import type { RosterEntry } from '../domain/roster';
 
 interface ParticipantPopoverProps {
   entry: RosterEntry;
   position: { x: number; y: number };
+  /** True while their screen is the one this client asked for. */
+  watching?: boolean;
   onVolumeChange(volume: number): void;
   onMutedChange(muted: boolean): void;
+  onStopWatching?(): void;
   onClose(): void;
 }
 
-export function ParticipantPopover({ entry, position, onVolumeChange, onMutedChange, onClose }: ParticipantPopoverProps) {
+export function ParticipantPopover({
+  entry,
+  position,
+  watching,
+  onVolumeChange,
+  onMutedChange,
+  onStopWatching,
+  onClose,
+}: ParticipantPopoverProps) {
   const cardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -55,6 +66,22 @@ export function ParticipantPopover({ entry, position, onVolumeChange, onMutedCha
           {entry.locallyMuted ? <VolumeX size={15} /> : <Volume2 size={15} />}
           {entry.locallyMuted ? 'Unmute for me' : 'Mute for me'}
         </button>
+
+        {watching && (
+          // Putting a screen away is not the same as refusing it, so the one
+          // act that hangs up on somebody's stream is asked for by name.
+          <button
+            type="button"
+            className="popover-action"
+            onClick={() => {
+              onStopWatching?.();
+              onClose();
+            }}
+          >
+            <MonitorOff size={15} />
+            Stop watching
+          </button>
+        )}
       </div>
     </div>
   );

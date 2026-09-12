@@ -14,6 +14,8 @@ interface StageProps {
   /** Whose screen this client asked for, if anyone's. */
   watching?: string;
   onWatch(participantId?: string): void;
+  /** A right click on somebody in the room. */
+  onOptions?(participant: Participant, position: { x: number; y: number }): void;
   /** The sound of each screen, which plays whether or not it is being watched. */
   screenVolumes?: Record<string, number>;
   onScreenVolume?(participantId: string, volume: number): void;
@@ -29,6 +31,7 @@ export function Stage({
   avatars,
   watching,
   onWatch,
+  onOptions,
   screenVolumes,
   onScreenVolume,
   children,
@@ -36,8 +39,16 @@ export function Stage({
   const broadcasts = participants.filter((participant) => participant.isBroadcasting);
   // Nobody is shown a screen they did not ask for: decoding one is the most
   // expensive thing in the room, and not every machine here can spare it.
-  const active = broadcasts.find((broadcast) => broadcast.id === watching);
+  const watched = broadcasts.find((broadcast) => broadcast.id === watching);
+  // Putting the picture away is not the same as leaving the stream. The room
+  // comes back, the stream keeps running in its tile, and only the menu on that
+  // tile hangs up on it.
+  const [minimised, setMinimised] = useState(false);
+  const active = minimised ? undefined : watched;
   const picture = active?.screenStream?.getVideoTracks().length ? active.screenStream : undefined;
+
+  // A different screen, or a new one, is something to look at.
+  useEffect(() => setMinimised(false), [watching]);
 
   const stageRef = useRef<HTMLElement>(null);
   const [fullScreen, setFullScreen] = useState(false);
@@ -93,7 +104,13 @@ export function Stage({
 
   const focus = (participant: Participant) => {
     if (!participant.isBroadcasting) return;
-    onWatch(participant.id === watching ? undefined : participant.id);
+    if (participant.id !== watching) {
+      setMinimised(false);
+      onWatch(participant.id);
+      return;
+    }
+    // Already the one being watched: this is about the picture, not the stream.
+    setMinimised((away) => !away);
   };
 
   if (!joined) {
@@ -123,15 +140,22 @@ export function Stage({
               >
                 <span className="live-pulse size-2 shrink-0 rounded-full bg-destructive shadow-[0_0_0_4px] shadow-destructive/20" />
                 <span className="min-w-0 truncate">
-                  {broadcast.isLocal ? 'Your screen is live' : `${broadcast.name} is sharing a screen`}
+                  {watching === broadcast.id
+                    ? `Watching ${broadcast.isLocal ? 'your screen' : broadcast.name}`
+                    : broadcast.isLocal
+                      ? 'Your screen is live'
+                      : `${broadcast.name} is sharing a screen`}
                 </span>
                 <button
                   className="inline-flex h-8 shrink-0 items-center gap-2 rounded-lg bg-primary px-3 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
                   type="button"
-                  onClick={() => onWatch(broadcast.id)}
+                  onClick={() => {
+                    setMinimised(false);
+                    onWatch(broadcast.id);
+                  }}
                 >
                   <Tv aria-hidden="true" className="size-4" />
-                  {watching === broadcast.id ? 'Opening…' : 'Watch stream'}
+                  {watching === broadcast.id ? 'Open again' : 'Watch stream'}
                 </button>
               </div>
             ))}
@@ -143,6 +167,7 @@ export function Stage({
           watching={watching}
           layout="grid"
           onFocus={focus}
+          onOptions={onOptions}
         />
         {/* The controls belong under the middle of the room, not against its edge. */}
         <div className="live-overlay flex flex-col items-center gap-2 px-3 pb-3">{children}</div>
@@ -203,11 +228,11 @@ export function Stage({
           <button
             className="live-action inline-flex items-center gap-2 rounded-lg border border-border bg-card/80 px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent"
             type="button"
-            onClick={() => onWatch(undefined)}
-            aria-label="Stop watching"
+            onClick={() => setMinimised(true)}
+            aria-label="Back to the room"
           >
             <X size={15} />
-            <span>Stop watching</span>
+            <span>Back to the room</span>
           </button>
         </div>
       </div>
@@ -241,6 +266,7 @@ export function Stage({
           focusedId={active.id}
           layout="strip"
           onFocus={focus}
+          onOptions={onOptions}
         />
         {children}
       </div>
