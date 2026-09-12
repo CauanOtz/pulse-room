@@ -127,6 +127,12 @@ test('launches the secured desktop shell and completes the join flow', async () 
     await expect(window.getByText('System audio is included automatically on Windows.')).toBeVisible();
     await shareDialog.getByRole('button', { name: 'Share full screen' }).click();
     await expect(window.locator('.voice-panel').getByRole('button', { name: 'Stop sharing' })).toBeVisible();
+
+    // A screen is offered, never forced: until somebody asks for it, no video
+    // is being decoded on this machine, including the machine sharing it.
+    await expect(window.getByText('Your screen is live')).toBeVisible();
+    expect(await window.locator('video').count()).toBe(0);
+    await window.getByRole('button', { name: 'Watch stream' }).click();
     await expect(window.getByLabel('Shared screen')).toBeVisible();
     await expect(window.getByLabel('Shared screen')).toHaveClass(/is-expanded/);
     await window.screenshot({ path: 'test-results/pulse-room-stage.png', fullPage: true });
@@ -142,6 +148,15 @@ test('launches the secured desktop shell and completes the join flow', async () 
     await expect(window.getByRole('button', { name: 'Exit full screen' })).toBeVisible();
     await window.getByRole('button', { name: 'Exit full screen' }).click();
     await expect(window.getByRole('button', { name: 'Enter full screen' })).toBeVisible();
+
+    // Leaving the stream leaves the room, and stops the decoding with it. The
+    // controls have to be woken first: they step aside while nobody reaches.
+    await window.locator('.stage-live').hover();
+    await window.getByRole('button', { name: 'Stop watching' }).click();
+    await expect(window.getByLabel('Shared screen')).toHaveCount(0);
+    expect(await window.locator('video').count()).toBe(0);
+    await expect(window.getByText('Your screen is live')).toBeVisible();
+    await window.getByRole('button', { name: 'Watch stream' }).click();
 
     // The stream quality menu rides on the caret beside the share button.
     await window.locator('.stage-live').hover();

@@ -8,6 +8,7 @@ import {
   Mic,
   MicOff,
   Radio,
+  Tv,
   Settings,
   Volume2,
   VolumeX,
@@ -15,6 +16,8 @@ import {
 import type { ConnectionState, Participant, VoiceChannel } from '../domain/conference';
 import { channelRoster, type ChannelOccupancy, type RosterEntry } from '../domain/roster';
 import { Avatar } from './avatar';
+import { MediaOutput } from './media-output';
+import { HoverCard, HoverCardContent, HoverCardTrigger } from './ui/hover-card';
 import type { AvailableMediaDevices } from '../infrastructure/media/media-devices-service';
 import { DeviceMenu } from './device-menu';
 import { Button } from './ui/button';
@@ -45,6 +48,11 @@ interface ChannelSidebarProps {
   /** Absent for anyone who may not shape the server, which hides the controls. */
   onCreateChannel?(type: 'text' | 'voice'): void;
   onEditChannel?(channelId: string): void;
+  /** Whose screen this client asked for, and how to ask for another. */
+  watching?: string;
+  onWatch?(participantId?: string): void;
+  /** Borrows a screen while it is being glanced at, and gives it back. */
+  onPreview?(participantId?: string): void;
 }
 
 export function ChannelSidebar(props: ChannelSidebarProps) {
@@ -132,7 +140,13 @@ export function ChannelSidebar(props: ChannelSidebarProps) {
                 onEdit={props.onEditChannel && (() => props.onEditChannel?.(channel.id))}
               />
 
-              <ChannelRoster entries={rosterOf(channel.id)} onOpenParticipant={props.onOpenParticipant} />
+              <ChannelRoster
+                entries={rosterOf(channel.id)}
+                watching={props.watching}
+                onOpenParticipant={props.onOpenParticipant}
+                onWatch={props.onWatch}
+                onPreview={props.onPreview}
+              />
             </div>
           ))}
         </section>
@@ -258,23 +272,29 @@ function ChannelRow({
 
 function ChannelRoster({
   entries,
+  watching,
   onOpenParticipant,
+  onWatch,
+  onPreview,
 }: {
   entries: RosterEntry[];
+  watching?: string;
   onOpenParticipant(entry: RosterEntry, position: { x: number; y: number }): void;
+  onWatch?(participantId?: string): void;
+  onPreview?(participantId?: string): void;
 }) {
   if (entries.length === 0) return null;
 
   return (
     <div className="voice-roster mb-2 ml-6 flex flex-col gap-1">
       {entries.map((entry) => (
+        <div className="roster-row flex min-w-0 items-center gap-1" key={entry.id}>
         <button
           className={cn(
-            'roster-entry flex w-full items-center gap-2 rounded-lg px-1.5 py-1 text-left text-xs text-muted-foreground transition-colors',
+            'roster-entry flex min-w-0 flex-1 items-center gap-2 rounded-lg px-1.5 py-1 text-left text-xs text-muted-foreground transition-colors',
             'enabled:hover:bg-accent enabled:hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             entry.isSpeaking && 'is-speaking text-foreground',
           )}
-          key={entry.id}
           type="button"
           disabled={!entry.detailed || entry.isLocal}
           aria-label={entry.detailed && !entry.isLocal ? `Audio options for ${entry.name}` : entry.name}
@@ -290,11 +310,75 @@ function ChannelRoster({
             imageId={entry.avatarId}
             accent={entry.accent}
           />
-          <span className="roster-name">{entry.name}</span>
+          <span className="roster-name min-w-0 truncate">{entry.name}</span>
           {entry.isMuted && <MicOff size={13} className="roster-flag" />}
           {entry.locallyMuted && <VolumeX size={13} className="roster-flag" />}
         </button>
+        {entry.isBroadcasting && (
+          <LiveBadge entry={entry} watching={watching} onWatch={onWatch} onPreview={onPreview} />
+        )}
+        </div>
       ))}
     </div>
+  );
+}
+
+/**
+ * Says that somebody is sharing, and shows what, for as long as the pointer
+ * rests on it. The picture is borrowed for the glance and given back after, so
+ * a machine that only looked in passing goes back to decoding nothing.
+ */
+function LiveBadge({
+  entry,
+  watching,
+  onWatch,
+  onPreview,
+}: {
+  entry: RosterEntry;
+  watching?: string;
+  onWatch?(participantId?: string): void;
+  onPreview?(participantId?: string): void;
+}) {
+  const picture = entry.screenStream?.getVideoTracks().length ? entry.screenStream : undefined;
+  return (
+    <HoverCard
+      openDelay={250}
+      closeDelay={120}
+      onOpenChange={(open) => onPreview?.(open ? entry.id : undefined)}
+    >
+      <HoverCardTrigger asChild>
+        <span
+          className="roster-live shrink-0 rounded-md bg-destructive px-1 py-px text-[9px] font-bold uppercase tracking-wide text-destructive-foreground"
+          aria-label={`${entry.name} is live`}
+        >
+          Live
+        </span>
+      </HoverCardTrigger>
+      <HoverCardContent className="w-64" side="right" align="start">
+        <div className="mb-2 aspect-video overflow-hidden rounded-lg bg-stage">
+          {picture ? (
+            <MediaOutput
+              stream={picture}
+              muted
+              video
+              className="size-full object-cover"
+              label={`${entry.name} screen preview`}
+            />
+          ) : (
+            <div className="grid size-full place-items-center text-[11px] text-muted-foreground">
+              Asking for the picture…
+            </div>
+          )}
+        </div>
+        <button
+          className="inline-flex h-8 w-full items-center justify-center gap-2 rounded-lg bg-primary px-3 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+          type="button"
+          onClick={() => onWatch?.(watching === entry.id ? undefined : entry.id)}
+        >
+          <Tv aria-hidden="true" className="size-4" />
+          {watching === entry.id ? 'Stop watching' : 'Watch stream'}
+        </button>
+      </HoverCardContent>
+    </HoverCard>
   );
 }

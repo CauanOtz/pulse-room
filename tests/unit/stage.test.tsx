@@ -1,4 +1,5 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Stage } from '../../src/renderer/components/stage';
 import type { Participant } from '../../src/renderer/domain/conference';
@@ -12,8 +13,34 @@ function createParticipant(overrides: Partial<Participant> & Pick<Participant, '
     isSpeaking: false,
     volume: 100,
     locallyMuted: false,
+    isBroadcasting: Boolean(overrides.screenStream),
     ...overrides,
   };
+}
+
+/** A screen on the wire: an empty stream is a broadcast nobody subscribed to. */
+const liveScreen = () =>
+  new MediaStream([{ kind: 'video', id: 'screen', stop: () => undefined } as MediaStreamTrack]);
+
+/**
+ * The stage does not choose what to show; the room does. This holds that choice
+ * the way the application does, so a test can click and see the result.
+ */
+function Watchable({
+  participants,
+  initial,
+  ...props
+}: { participants: Participant[]; initial?: string } & Record<string, unknown>) {
+  const [watching, setWatching] = useState<string | undefined>(initial);
+  return (
+    <Stage
+      participants={participants}
+      joined
+      watching={watching}
+      onWatch={setWatching}
+      {...props}
+    />
+  );
 }
 
 const requestFullscreen = vi.fn(async () => undefined);
@@ -32,7 +59,7 @@ afterEach(() => {
 
 describe('Stage', () => {
   it('invites you in before you have joined anywhere', () => {
-    render(<Stage participants={[]} joined={false} />);
+    render(<Stage participants={[]} joined={false} onWatch={() => undefined} />);
 
     expect(screen.getByRole('heading', { name: 'Come as you are' })).toBeInTheDocument();
   });
@@ -43,22 +70,51 @@ describe('Stage', () => {
       createParticipant({ id: 'maya', name: 'Maya', isSpeaking: true }),
     ];
 
-    render(<Stage participants={participants} joined />);
+    render(<Watchable participants={participants} />);
 
     expect(screen.getByRole('button', { name: 'Maya' })).toBeDisabled();
     expect(document.querySelectorAll('.participant-tile')).toHaveLength(2);
     expect(document.querySelector('.participant-tile.is-speaking')).toHaveTextContent('Maya');
   });
 
-  it('lets a viewer switch between two live screens', () => {
+  it('shows nobody a screen they did not ask for', () => {
     const participants = [
-      createParticipant({ id: 'you', name: 'You', isLocal: true, screenStream: new MediaStream() }),
-      createParticipant({ id: 'maya', name: 'Maya', screenStream: new MediaStream() }),
+      createParticipant({ id: 'you', name: 'You', isLocal: true }),
+      createParticipant({ id: 'maya', name: 'Maya', screenStream: liveScreen() }),
     ];
 
-    render(<Stage participants={participants} joined />);
+    render(<Watchable participants={participants} />);
 
-    // A friend's screen wins the default so the local capture never mirrors itself.
+    // Decoding a screen is the most expensive thing in the room, so a machine
+    // that is not looking never starts.
+    expect(document.querySelector('video')).toBeNull();
+    expect(screen.getByText('Maya is sharing a screen')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Watch stream' }));
+
+    expect(screen.getByText('Live from Maya')).toBeInTheDocument();
+  });
+
+  it('lets a viewer leave a stream and stay in the room', () => {
+    const participants = [createParticipant({ id: 'maya', name: 'Maya', screenStream: liveScreen() })];
+
+    render(<Watchable participants={participants} initial="maya" />);
+    expect(screen.getByText('Live from Maya')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Stop watching' }));
+
+    expect(screen.queryByText('Live from Maya')).not.toBeInTheDocument();
+    expect(document.querySelector('video')).toBeNull();
+    expect(screen.getByText('Maya is sharing a screen')).toBeInTheDocument();
+  });
+
+  it('lets a viewer switch between two live screens', () => {
+    const participants = [
+      createParticipant({ id: 'you', name: 'You', isLocal: true, screenStream: liveScreen() }),
+      createParticipant({ id: 'maya', name: 'Maya', screenStream: liveScreen() }),
+    ];
+
+    render(<Watchable participants={participants} initial="maya" />);
     expect(screen.getByText('Live from Maya')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Watch You' }));
@@ -72,68 +128,77 @@ describe('Stage', () => {
     expect(screen.queryByText('Live from your screen')).not.toBeInTheDocument();
   });
 
-  it('still previews your own screen when you are the only one live', () => {
-    const participants = [
-      createParticipant({ id: 'you', name: 'You', isLocal: true, screenStream: new MediaStream() }),
-      createParticipant({ id: 'maya', name: 'Maya' }),
-    ];
-
-    render(<Stage participants={participants} joined />);
-
-    expect(screen.getByText('Live from your screen')).toBeInTheDocument();
-  });
-
   it('keeps the room visible as a strip while a screen is live', () => {
     const participants = [
-      createParticipant({ id: 'maya', name: 'Maya', screenStream: new MediaStream() }),
+      createParticipant({ id: 'maya', name: 'Maya', screenStream: liveScreen() }),
       createParticipant({ id: 'noah', name: 'Noah' }),
     ];
 
-    render(<Stage participants={participants} joined />);
+    render(<Watchable participants={participants} initial="maya" />);
 
     expect(screen.getByText('Live from Maya')).toBeInTheDocument();
     expect(document.querySelector('.tile-strip')?.querySelectorAll('.participant-tile')).toHaveLength(2);
   });
 
-  it('gives screen audio a level of its own', () => {
-    const participants = [createParticipant({ id: 'maya', name: 'Maya', volume: 40, screenStream: new MediaStream() })];
+  it('gives screen audio a level of its own, watched or not', () => {
+    const participants = [createParticipant({ id: 'maya', name: 'Maya', volume: 40, screenStream: liveScreen() })];
+    const onScreenVolume = vi.fn();
 
-    render(<Stage participants={participants} joined />);
-    const video = document.querySelector('video');
-    // Screen audio starts at half, leaving room to push a quiet stream higher.
-    expect(video?.volume).toBeCloseTo(0.5);
+    const { rerender } = render(
+      <Stage
+        participants={participants}
+        joined
+        watching="maya"
+        onWatch={() => undefined}
+        screenVolumes={{ maya: 180 }}
+        onScreenVolume={onScreenVolume}
+      />,
+    );
+    // The picture never carries the sound, so leaving it cannot take the music.
+    expect(document.querySelector('video')?.muted).toBe(true);
+    expect(screen.getByText('180%')).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('Maya screen volume'), { target: { value: '30' } });
-    expect(video?.volume).toBeCloseTo(0.3);
+    expect(onScreenVolume).toHaveBeenCalledWith('maya', 30);
 
-    fireEvent.change(screen.getByLabelText('Maya screen volume'), { target: { value: '180' } });
-    expect(screen.getByText('180%')).toBeInTheDocument();
+    // The same control is offered to somebody listening without watching.
+    rerender(
+      <Stage
+        participants={participants}
+        joined
+        onWatch={() => undefined}
+        screenVolumes={{ maya: 180 }}
+        onScreenVolume={onScreenVolume}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText('Maya screen volume'), { target: { value: '70' } });
+    expect(onScreenVolume).toHaveBeenCalledWith('maya', 70);
   });
 
   it('offers no screen volume for your own preview, which plays muted', () => {
-    const participants = [createParticipant({ id: 'you', name: 'You', isLocal: true, screenStream: new MediaStream() })];
+    const participants = [createParticipant({ id: 'you', name: 'You', isLocal: true, screenStream: liveScreen() })];
 
-    render(<Stage participants={participants} joined />);
+    render(<Watchable participants={participants} initial="you" />);
 
     expect(screen.queryByLabelText(/screen volume/)).not.toBeInTheDocument();
     expect(document.querySelector('video')?.muted).toBe(true);
   });
 
   it('expands the video levels only when the viewer asks for it', () => {
-    const participants = [createParticipant({ id: 'maya', name: 'Maya', screenStream: new MediaStream() })];
+    const participants = [createParticipant({ id: 'maya', name: 'Maya', screenStream: liveScreen() })];
 
-    const { rerender } = render(<Stage participants={participants} joined />);
+    const { rerender } = render(<Watchable participants={participants} initial="maya" />);
     expect(document.querySelector('video')).not.toHaveClass('is-expanded');
 
-    rerender(<Stage participants={participants} joined expandLevels />);
+    rerender(<Watchable participants={participants} initial="maya" expandLevels />);
     expect(document.querySelector('video')).toHaveClass('is-expanded');
   });
 
   it('steps the controls aside while nobody reaches for them', () => {
     vi.useFakeTimers();
     try {
-      const participants = [createParticipant({ id: 'maya', name: 'Maya', screenStream: new MediaStream() })];
-      render(<Stage participants={participants} joined />);
+      const participants = [createParticipant({ id: 'maya', name: 'Maya', screenStream: liveScreen() })];
+      render(<Watchable participants={participants} initial="maya" />);
       const toolbar = document.querySelector('.live-toolbar');
       const stage = document.querySelector('.stage-live') as HTMLElement;
 
@@ -159,24 +224,24 @@ describe('Stage', () => {
   });
 
   it('enlarges the live screen on request', () => {
-    const participants = [createParticipant({ id: 'maya', name: 'Maya', screenStream: new MediaStream() })];
+    const participants = [createParticipant({ id: 'maya', name: 'Maya', screenStream: liveScreen() })];
 
-    render(<Stage participants={participants} joined />);
+    render(<Watchable participants={participants} initial="maya" />);
     fireEvent.click(screen.getByRole('button', { name: 'Enter full screen' }));
 
     expect(requestFullscreen).toHaveBeenCalledTimes(1);
   });
 
   it('leaves full screen when the broadcast it was showing ends', () => {
-    const live = [createParticipant({ id: 'maya', name: 'Maya', screenStream: new MediaStream() })];
-    const { rerender } = render(<Stage participants={live} joined />);
+    const live = [createParticipant({ id: 'maya', name: 'Maya', screenStream: liveScreen() })];
+    const { rerender } = render(<Watchable participants={live} initial="maya" />);
 
     Object.defineProperty(document, 'fullscreenElement', {
       configurable: true,
       writable: true,
       value: document.querySelector('.stage'),
     });
-    rerender(<Stage participants={[createParticipant({ id: 'maya', name: 'Maya' })]} joined />);
+    rerender(<Watchable participants={[createParticipant({ id: 'maya', name: 'Maya' })]} initial="maya" />);
 
     expect(exitFullscreen).toHaveBeenCalledTimes(1);
   });

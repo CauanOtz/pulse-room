@@ -12,6 +12,12 @@ export interface Participant {
   locallyMuted: boolean;
   microphoneStream?: MediaStream;
   screenStream?: MediaStream;
+  /**
+   * True while they have a screen on the wire, whether or not this client is
+   * receiving it. Somebody who is not watching still has to be told there is
+   * something to watch.
+   */
+  isBroadcasting: boolean;
 }
 
 export interface ConferenceSnapshot {
@@ -20,6 +26,11 @@ export interface ConferenceSnapshot {
   microphoneEnabled: boolean;
   deafened: boolean;
   screenSharing: boolean;
+  /**
+   * Whose screen this client asked to receive. Video is the expensive part of a
+   * call, so it arrives only when somebody says they want to look at it.
+   */
+  watching?: string;
   error?: string;
 }
 

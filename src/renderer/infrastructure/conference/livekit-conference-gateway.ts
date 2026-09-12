@@ -49,6 +49,10 @@ export class LiveKitConferenceGateway extends ObservableConference {
   // client renders its own, so playback levels are kept here.
   private readonly volumes = new Map<string, number>();
   private readonly locallyMuted = new Set<string>();
+  // Decoding a screen is the most expensive thing this client does, so it is
+  // asked for by name: the one being watched, and the one under the pointer.
+  private watched?: string;
+  private previewed?: string;
   private microphoneOptions?: MicrophoneOptions;
   private generation = 0;
   private joinAbort?: AbortController;
@@ -188,6 +192,53 @@ export class LiveKitConferenceGateway extends ObservableConference {
     this.microphoneOptions = undefined;
   }
 
+  public watchScreen(participantId?: string): void {
+    this.watched = participantId;
+    this.applyScreenSubscriptions();
+    this.update({ watching: participantId });
+    this.refreshParticipants();
+  }
+
+  public previewScreen(participantId?: string): void {
+    this.previewed = participantId;
+    this.applyScreenSubscriptions();
+    this.refreshParticipants();
+  }
+
+  /**
+   * A screen arrives only for the person watching it and for the one being
+   * glanced at. Everybody else's video is left on the server, which is the
+   * whole point: a machine that is not looking does not decode.
+   */
+  private applyScreenSubscriptions(): void {
+    this.room.remoteParticipants.forEach((participant) => {
+      const wanted = participant.identity === this.watched || participant.identity === this.previewed;
+      participant.trackPublications.forEach((publication) => {
+        if (publication.source !== Track.Source.ScreenShare) return;
+        const remote = publication as RemoteTrackPublication;
+        if (remote.isDesired !== wanted) remote.setSubscribed(wanted);
+      });
+    });
+  }
+
+  /** Nobody is watching a screen that has gone, and nothing should wait for it. */
+  private forgetVanishedScreens(): void {
+    const broadcasting = (identity?: string) =>
+      Boolean(identity) &&
+      [...this.room.remoteParticipants.values()].some(
+        (participant) =>
+          participant.identity === identity &&
+          [...participant.trackPublications.values()].some(
+            (publication) => publication.source === Track.Source.ScreenShare,
+          ),
+      );
+    if (this.previewed && !broadcasting(this.previewed)) this.previewed = undefined;
+    if (this.watched && !broadcasting(this.watched)) {
+      this.watched = undefined;
+      this.update({ watching: undefined });
+    }
+  }
+
   public async setDeafened(deafened: boolean): Promise<void> {
     this.room.remoteParticipants.forEach((participant) => {
       participant.audioTrackPublications.forEach((publication) => {
@@ -317,14 +368,26 @@ export class LiveKitConferenceGateway extends ObservableConference {
 
   private registerRoomEvents(): void {
     this.room
-      .on(RoomEvent.ParticipantConnected, () => this.refreshParticipants())
+      .on(RoomEvent.ParticipantConnected, () => {
+        this.applyScreenSubscriptions();
+        this.refreshParticipants();
+      })
       .on(RoomEvent.ParticipantDisconnected, (participant: RemoteParticipant) => {
         this.streams.forget(participant.identity);
         this.volumes.delete(participant.identity);
         this.locallyMuted.delete(participant.identity);
+        this.forgetVanishedScreens();
         this.refreshParticipants();
       })
       .on(RoomEvent.ActiveSpeakersChanged, () => this.refreshParticipants())
+      .on(RoomEvent.TrackPublished, () => {
+        this.applyScreenSubscriptions();
+        this.refreshParticipants();
+      })
+      .on(RoomEvent.TrackUnpublished, () => {
+        this.forgetVanishedScreens();
+        this.refreshParticipants();
+      })
       .on(
         RoomEvent.TrackSubscribed,
         (_track: RemoteTrack, _publication: RemoteTrackPublication, _participant: RemoteParticipant) =>
@@ -334,6 +397,8 @@ export class LiveKitConferenceGateway extends ObservableConference {
       .on(RoomEvent.Reconnecting, () => this.update({ connectionState: 'reconnecting' }))
       .on(RoomEvent.Reconnected, () => this.update({ connectionState: 'connected' }))
       .on(RoomEvent.Disconnected, () => {
+        this.watched = undefined;
+        this.previewed = undefined;
         this.streams.clear();
         this.update({ connectionState: 'disconnected', participants: [] });
       });
@@ -351,6 +416,7 @@ export class LiveKitConferenceGateway extends ObservableConference {
       volume: 100,
       locallyMuted: false,
       screenStream: this.createLocalScreenStream(),
+      isBroadcasting: this.screenPublications.length > 0,
     };
 
     const remote = [...this.room.remoteParticipants.values()].map((participant, index) =>
@@ -376,8 +442,12 @@ export class LiveKitConferenceGateway extends ObservableConference {
     });
 
     const accents = ['#ee8d72', '#7c98ed', '#7bc6aa', '#d0a3ea'];
+    const broadcasting = [...participant.trackPublications.values()].some(
+      (publication) => publication.source === Track.Source.ScreenShare,
+    );
     return {
       id: participant.identity,
+      isBroadcasting: broadcasting,
       name: participant.name || participant.identity,
       initials: this.getInitials(participant.name || participant.identity),
       accent: accents[index % accents.length],

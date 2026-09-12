@@ -19,6 +19,7 @@ const demoFriends: Participant[] = [
     isSpeaking: true,
     volume: 80,
     locallyMuted: false,
+    isBroadcasting: false,
   },
   {
     id: 'noah',
@@ -30,6 +31,7 @@ const demoFriends: Participant[] = [
     isSpeaking: false,
     volume: 72,
     locallyMuted: false,
+    isBroadcasting: false,
   },
   {
     id: 'leo',
@@ -41,6 +43,7 @@ const demoFriends: Participant[] = [
     isSpeaking: false,
     volume: 100,
     locallyMuted: false,
+    isBroadcasting: false,
   },
 ];
 
@@ -65,6 +68,7 @@ export class DemoConferenceGateway extends ObservableConference {
           isSpeaking: false,
           volume: 100,
           locallyMuted: false,
+          isBroadcasting: false,
         },
         ...demoFriends,
       ],
@@ -143,7 +147,9 @@ export class DemoConferenceGateway extends ObservableConference {
         screenSharing: true,
         error: undefined,
         participants: this.snapshot.participants.map((participant) =>
-          participant.isLocal ? { ...participant, screenStream: this.displayStream } : participant,
+          participant.isLocal
+            ? { ...participant, screenStream: this.displayStream, isBroadcasting: true }
+            : participant,
         ),
       });
     } catch (error) {
@@ -158,7 +164,9 @@ export class DemoConferenceGateway extends ObservableConference {
     this.update({
       screenSharing: false,
       participants: this.snapshot.participants.map((participant) =>
-        participant.isLocal ? { ...participant, screenStream: undefined } : participant,
+        participant.isLocal
+          ? { ...participant, screenStream: undefined, isBroadcasting: false }
+          : participant,
       ),
     });
   }
@@ -169,6 +177,15 @@ export class DemoConferenceGateway extends ObservableConference {
         participant.id === participantId ? { ...participant, volume } : participant,
       ),
     });
+  }
+
+  /** Nothing to subscribe to here: the demo room is made up on this machine. */
+  public watchScreen(participantId?: string): void {
+    this.update({ watching: participantId });
+  }
+
+  public previewScreen(): void {
+    // A glance costs nothing when the picture is already local.
   }
 
   public setParticipantMuted(participantId: string, muted: boolean): void {

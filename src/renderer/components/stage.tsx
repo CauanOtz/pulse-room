@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Headphones, Maximize2, Minimize2, MonitorUp, Radio, ShieldCheck, Volume2 } from 'lucide-react';
+import { Headphones, Maximize2, Minimize2, MonitorUp, Radio, ShieldCheck, Tv, Volume2, X } from 'lucide-react';
 import type { Participant } from '../domain/conference';
 import { MediaOutput } from './media-output';
 import { cn } from './ui/utils';
@@ -11,6 +11,12 @@ interface StageProps {
   speakerDeviceId?: string;
   expandLevels?: boolean;
   avatars?: ReadonlyMap<string, string | null | undefined>;
+  /** Whose screen this client asked for, if anyone's. */
+  watching?: string;
+  onWatch(participantId?: string): void;
+  /** The sound of each screen, which plays whether or not it is being watched. */
+  screenVolumes?: Record<string, number>;
+  onScreenVolume?(participantId: string, volume: number): void;
   /** The call controls, which ride along with the fading overlay. */
   children?: ReactNode;
 }
@@ -21,27 +27,23 @@ export function Stage({
   speakerDeviceId,
   expandLevels,
   avatars,
+  watching,
+  onWatch,
+  screenVolumes,
+  onScreenVolume,
   children,
 }: StageProps) {
-  const broadcasts = participants.filter((participant) => participant.screenStream);
-  // Undefined follows the room; null is a viewer who stepped back to the grid.
-  const [focusRequest, setFocusRequest] = useState<string | null>();
-  // Showing your own monitor on the monitor being captured feeds the capture
-  // back into itself, so a friend's screen is the better default view.
-  const suggested = broadcasts.find((broadcast) => !broadcast.isLocal) ?? broadcasts[0];
-  const active =
-    focusRequest === null
-      ? undefined
-      : broadcasts.find((broadcast) => broadcast.id === focusRequest) ?? suggested;
+  const broadcasts = participants.filter((participant) => participant.isBroadcasting);
+  // Nobody is shown a screen they did not ask for: decoding one is the most
+  // expensive thing in the room, and not every machine here can spare it.
+  const active = broadcasts.find((broadcast) => broadcast.id === watching);
+  const picture = active?.screenStream?.getVideoTracks().length ? active.screenStream : undefined;
 
   const stageRef = useRef<HTMLElement>(null);
   const [fullScreen, setFullScreen] = useState(false);
-  // Screen audio carries games and music, so it needs its own level, apart from
-  // the voice volume of the person sharing.
-  const [screenVolumes, setScreenVolumes] = useState<Record<string, number>>({});
   // Screen audio arrives at the level the sender's machine was playing it, so
   // half volume leaves room to push a quiet stream well past its own level.
-  const screenVolume = active ? screenVolumes[active.id] ?? 50 : 50;
+  const screenVolume = active ? screenVolumes?.[active.id] ?? 50 : 50;
   // The controls sit over the picture, so they step aside while nobody reaches
   // for them, the way a video player does.
   const [controlsVisible, setControlsVisible] = useState(true);
@@ -84,14 +86,14 @@ export function Stage({
 
   // Nothing is left to enlarge once the broadcast ends.
   useEffect(() => {
-    if (!active && document.fullscreenElement) {
+    if (!picture && document.fullscreenElement) {
       void document.exitFullscreen().catch(() => undefined);
     }
-  }, [active]);
+  }, [picture]);
 
   const focus = (participant: Participant) => {
-    if (!participant.screenStream) return;
-    setFocusRequest(participant.id === activeId ? null : participant.id);
+    if (!participant.isBroadcasting) return;
+    onWatch(participant.id === watching ? undefined : participant.id);
   };
 
   if (!joined) {
@@ -109,10 +111,52 @@ export function Stage({
     );
   }
 
-  if (!active?.screenStream) {
+  if (!active || !picture) {
     return (
       <section className="stage stage-room relative flex size-full flex-col overflow-hidden rounded-lg bg-stage" ref={stageRef}>
-        <ParticipantTiles avatars={avatars} participants={participants} layout="grid" onFocus={focus} />
+        {broadcasts.length > 0 && (
+          <div className="live-offers flex flex-none flex-wrap items-center justify-center gap-2 px-3 pt-3">
+            {broadcasts.map((broadcast) => (
+              <div
+                className="live-offer flex items-center gap-3 rounded-xl border border-border bg-card/80 px-3 py-2 text-sm"
+                key={broadcast.id}
+              >
+                <span className="live-pulse size-2 shrink-0 rounded-full bg-destructive shadow-[0_0_0_4px] shadow-destructive/20" />
+                <span className="min-w-0 truncate">
+                  {broadcast.isLocal ? 'Your screen is live' : `${broadcast.name} is sharing a screen`}
+                </span>
+                {!broadcast.isLocal && (
+                  <label className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
+                    <Volume2 size={15} />
+                    <input
+                      aria-label={`${broadcast.name} screen volume`}
+                      type="range"
+                      min="0"
+                      max="200"
+                      value={screenVolumes?.[broadcast.id] ?? 50}
+                      onChange={(event) => onScreenVolume?.(broadcast.id, Number(event.target.value))}
+                    />
+                  </label>
+                )}
+                <button
+                  className="inline-flex h-8 shrink-0 items-center gap-2 rounded-lg bg-primary px-3 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                  type="button"
+                  onClick={() => onWatch(broadcast.id)}
+                >
+                  <Tv aria-hidden="true" className="size-4" />
+                  {watching === broadcast.id ? 'Opening…' : 'Watch stream'}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <ParticipantTiles
+          avatars={avatars}
+          participants={participants}
+          watching={watching}
+          layout="grid"
+          onFocus={focus}
+        />
         {/* The controls belong under the middle of the room, not against its edge. */}
         <div className="live-overlay flex flex-col items-center gap-2 px-3 pb-3">{children}</div>
       </section>
@@ -153,9 +197,7 @@ export function Stage({
                 min="0"
                 max="200"
                 value={screenVolume}
-                onChange={(event) =>
-                  setScreenVolumes((volumes) => ({ ...volumes, [active.id]: Number(event.target.value) }))
-                }
+                onChange={(event) => onScreenVolume?.(active.id, Number(event.target.value))}
               />
               <span>{screenVolume}%</span>
             </label>
@@ -170,18 +212,29 @@ export function Stage({
             {fullScreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
             <span>{fullScreen ? 'Exit' : 'Full screen'}</span>
           </button>
+
+          <button
+            className="live-action inline-flex items-center gap-2 rounded-lg border border-border bg-card/80 px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent"
+            type="button"
+            onClick={() => onWatch(undefined)}
+            aria-label="Stop watching"
+          >
+            <X size={15} />
+            <span>Stop watching</span>
+          </button>
         </div>
       </div>
 
       <div className="live-surface absolute inset-0 flex bg-stage" onDoubleClick={toggleFullScreen}>
         <MediaOutput
           key={active.id}
-          stream={active.screenStream}
-          muted={active.isLocal}
+          stream={picture}
+          // The room plays the sound of a screen, so this element never does:
+          // one owner means leaving a stream cannot take its music away.
+          muted
           speakerDeviceId={speakerDeviceId}
           video
           className={expandLevels ? 'screen-video is-expanded' : 'screen-video'}
-          volume={screenVolume}
         />
       </div>
 
@@ -197,6 +250,7 @@ export function Stage({
         <ParticipantTiles
           avatars={avatars}
           participants={participants}
+          watching={watching}
           focusedId={active.id}
           layout="strip"
           onFocus={focus}

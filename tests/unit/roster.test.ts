@@ -12,6 +12,7 @@ const you: Participant = {
   isSpeaking: true,
   volume: 100,
   locallyMuted: false,
+      isBroadcasting: false,
 };
 
 const occupancy = [{ roomId: 'game-room', occupants: [{ identity: 'babi-77', name: 'babi' }] }];
@@ -54,5 +55,43 @@ describe('channelRoster', () => {
   it('leaves people without a picture undecorated', () => {
     const roster = channelRoster('game-room', 'lounge', [you], occupancy, new Map());
     expect(roster[0].avatarId).toBeUndefined();
+  });
+});
+
+describe('what the roster carries about a screen', () => {
+  it('passes on who is live and the picture, when this client is in the room', () => {
+    const stream = new MediaStream();
+    const entries = channelRoster(
+      'lounge',
+      'lounge',
+      [
+        {
+          id: 'babi',
+          name: 'babi',
+          initials: 'BA',
+          accent: '#ee8d72',
+          isLocal: false,
+          isMuted: false,
+          isSpeaking: false,
+          volume: 100,
+          locallyMuted: false,
+          isBroadcasting: true,
+          screenStream: stream,
+        },
+      ],
+      [],
+    );
+
+    expect(entries[0].isBroadcasting).toBe(true);
+    expect(entries[0].screenStream).toBe(stream);
+  });
+
+  it('claims nothing about a room this client has not joined', () => {
+    const entries = channelRoster('game-room', 'lounge', [], [
+      { roomId: 'game-room', occupants: [{ identity: 'babi:1', name: 'babi' }] },
+    ]);
+
+    expect(entries[0].isBroadcasting).toBe(false);
+    expect(entries[0].screenStream).toBeUndefined();
   });
 });

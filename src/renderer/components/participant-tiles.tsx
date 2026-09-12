@@ -7,6 +7,8 @@ import { cn } from './ui/utils';
 
 interface ParticipantTilesProps {
   participants: Participant[];
+  /** Whose picture this client asked for. Nobody else's tile draws one. */
+  watching?: string;
   focusedId?: string;
   layout: 'grid' | 'strip';
   avatars?: ReadonlyMap<string, string | null | undefined>;
@@ -17,7 +19,14 @@ interface ParticipantTilesProps {
  * Everybody in the channel, as tiles. A person shows their avatar; a person
  * sharing shows the picture itself, so the room is one glance.
  */
-export function ParticipantTiles({ participants, focusedId, layout, avatars, onFocus }: ParticipantTilesProps) {
+export function ParticipantTiles({
+  participants,
+  watching,
+  focusedId,
+  layout,
+  avatars,
+  onFocus,
+}: ParticipantTilesProps) {
   return (
     <div
       className={
@@ -27,7 +36,16 @@ export function ParticipantTiles({ participants, focusedId, layout, avatars, onF
       }
     >
       {participants.map((participant) => {
-        const live = Boolean(participant.screenStream);
+        // A picture is drawn only for the screen this client asked to watch.
+        // Anyone else shows the person, whether or not their video happens to
+        // be passing through for a glance somewhere else.
+        const picture =
+          participant.id === watching && participant.screenStream?.getVideoTracks().length
+            ? participant.screenStream
+            : undefined;
+        // Whether they are live is theirs to say; whether a picture is drawn
+        // depends on whether this client asked for one.
+        const live = participant.isBroadcasting;
         return (
           <button
             className={cn(
@@ -44,9 +62,9 @@ export function ParticipantTiles({ participants, focusedId, layout, avatars, onF
             disabled={!live}
             onClick={() => onFocus(participant)}
           >
-            {live ? (
+            {picture ? (
               <MediaOutput
-                stream={participant.screenStream}
+                stream={picture}
                 muted
                 video
                 className="tile-video size-full object-cover"

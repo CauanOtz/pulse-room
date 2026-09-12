@@ -17,4 +17,8 @@ export interface ConferenceGateway {
   stopScreenShare(): Promise<void>;
   setParticipantVolume(participantId: string, volume: number): void;
   setParticipantMuted(participantId: string, muted: boolean): void;
+  /** Asks for somebody's screen, or for nobody's. */
+  watchScreen(participantId?: string): void;
+  /** Borrows a screen for as long as it is being looked at in passing. */
+  previewScreen(participantId?: string): void;
 }

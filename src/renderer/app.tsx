@@ -80,6 +80,9 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus>({ state: 'idle' });
   const [devices, setDevices] = useState<AvailableMediaDevices>({ microphones: [], speakers: [] });
   const [occupancy, setOccupancy] = useState<ChannelOccupancy[]>([]);
+  // The sound of a shared screen is the room's, not the picture's, so its level
+  // is held here where both the player and the stage can reach it.
+  const [screenVolumes, setScreenVolumes] = useState<Record<string, number>>({});
   const [openParticipant, setOpenParticipant] = useState<{
     id: string;
     position: { x: number; y: number };
@@ -189,6 +192,7 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
       initials: participant.initials,
       accent: participant.accent,
       isLocal: participant.isLocal,
+      isBroadcasting: participant.isBroadcasting,
       isMuted: participant.isMuted,
       isSpeaking: participant.isSpeaking,
       volume: participant.volume,
@@ -254,6 +258,9 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
         onShare={handleShareRequest}
         onSelectChannel={handleChannelSelect}
         onOpenParticipant={(entry, position) => setOpenParticipant({ id: entry.id, position })}
+        watching={snapshot.watching}
+        onWatch={(participantId) => controller.gateway.watchScreen(participantId)}
+        onPreview={(participantId) => controller.gateway.previewScreen(participantId)}
         onCreateChannel={manager ? workspace?.onCreateChannel : undefined}
         onEditChannel={
           manager && workspace
@@ -340,6 +347,12 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
                 joined={joined}
                 speakerDeviceId={settings.speakerDeviceId}
                 expandLevels={settings.expandScreenLevels}
+                watching={snapshot.watching}
+                onWatch={(participantId) => controller.gateway.watchScreen(participantId)}
+                screenVolumes={screenVolumes}
+                onScreenVolume={(participantId, volume) =>
+                  setScreenVolumes((volumes) => ({ ...volumes, [participantId]: volume }))
+                }
               >
                 {joined && (
                   <CallControls
@@ -383,7 +396,11 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
         </div>
       </main>
 
-      <RoomAudio participants={snapshot.participants} speakerDeviceId={settings.speakerDeviceId} />
+      <RoomAudio
+        participants={snapshot.participants}
+        speakerDeviceId={settings.speakerDeviceId}
+        screenVolumes={screenVolumes}
+      />
 
       {popoverEntry && openParticipant && (
         <ParticipantPopover

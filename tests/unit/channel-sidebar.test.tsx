@@ -25,7 +25,7 @@ function renderSidebar(overrides: Partial<Parameters<typeof ChannelSidebar>[0]> 
       channels={voiceChannels}
       activeChannelId="lounge"
       participants={[
-        { id: 'you', name: 'You', initials: 'YO', accent: '#a8bdff', isLocal: true, isMuted: false, isSpeaking: false, volume: 100, locallyMuted: false },
+        { id: 'you', name: 'You', initials: 'YO', accent: '#a8bdff', isLocal: true, isMuted: false, isSpeaking: false, volume: 100, locallyMuted: false, isBroadcasting: false },
       ]}
       joined
       busy={false}
@@ -74,10 +74,24 @@ describe('ChannelSidebar', () => {
     expect(screen.getByRole('button', { name: 'babi' })).toBeInTheDocument();
   });
 
+  it('says who is live, and offers their screen to nobody who has not asked', () => {
+    renderSidebar({
+      participants: [
+        { id: 'you', name: 'You', initials: 'YO', accent: '#a8bdff', isLocal: true, isMuted: false, isSpeaking: false, volume: 100, locallyMuted: false, isBroadcasting: false },
+        { id: 'babi', name: 'babi', initials: 'BA', accent: '#ee8d72', isLocal: false, isMuted: false, isSpeaking: false, volume: 100, locallyMuted: false, isBroadcasting: true },
+      ],
+    });
+
+    expect(screen.getByLabelText('babi is live')).toBeInTheDocument();
+    expect(screen.queryByLabelText('You is live')).toBeNull();
+    // The picture itself is behind a glance, so nothing is being decoded yet.
+    expect(document.querySelector('video')).toBeNull();
+  });
+
   it('opens audio options for a friend on a right click', () => {
     const { onOpenParticipant } = renderSidebar({
       participants: [
-        { id: 'babi', name: 'babi', initials: 'BA', accent: '#ee8d72', isLocal: false, isMuted: false, isSpeaking: true, volume: 100, locallyMuted: false },
+        { id: 'babi', name: 'babi', initials: 'BA', accent: '#ee8d72', isLocal: false, isMuted: false, isSpeaking: true, volume: 100, locallyMuted: false, isBroadcasting: false },
       ],
     });
 

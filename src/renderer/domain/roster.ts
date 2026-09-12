@@ -11,6 +11,10 @@ export interface RosterEntry {
   volume: number;
   locallyMuted: boolean;
   avatarId?: string | null;
+  /** True while they have a screen on the wire, watched or not. */
+  isBroadcasting: boolean;
+  /** The picture itself, which arrives only once somebody asks for it. */
+  screenStream?: MediaStream;
   /** False for people in a channel this client has not joined. */
   detailed: boolean;
 }
@@ -65,6 +69,8 @@ export function channelRoster(
       volume: participant.volume,
       locallyMuted: participant.locallyMuted,
       avatarId: avatars.get(accountOf(participant.id)),
+      isBroadcasting: participant.isBroadcasting,
+      screenStream: participant.screenStream,
       detailed: true,
     }));
   }
@@ -81,6 +87,8 @@ export function channelRoster(
     volume: 100,
     locallyMuted: false,
     avatarId: avatars.get(accountOf(occupant.identity)),
+    // A room this client has not joined reports names and nothing else.
+    isBroadcasting: false,
     detailed: false,
   }));
 }
