@@ -68,9 +68,16 @@ test('launches the secured desktop shell and completes the join flow', async () 
     await window.keyboard.press('Escape');
 
     // Icon-only controls say what they are, without the operating system's tip.
-    await window.locator('.profile-strip').getByRole('button', { name: 'Your profile' }).hover();
-    // The call is running by now, so the status says so.
-    await expect(window.getByRole('tooltip').filter({ hasText: 'In voice' })).toBeVisible();
+    // A tooltip waits before it appears, and the room redraws underneath as
+    // people speak, so the whole gesture retries rather than the assertion.
+    const profileButton = window.locator('.profile-strip').getByRole('button', { name: 'Your profile' });
+    await expect(async () => {
+      await profileButton.hover();
+      // The call is running by now, so the status says so.
+      await expect(window.getByRole('tooltip').filter({ hasText: 'In voice' })).toBeVisible({
+        timeout: 1_500,
+      });
+    }).toPass({ timeout: 20_000 });
     await window.screenshot({ path: 'test-results/pulse-room-status-tooltip.png' });
     await window.locator('.room-header').hover();
 
