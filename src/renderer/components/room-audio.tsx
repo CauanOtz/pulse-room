@@ -4,19 +4,26 @@ import { MediaOutput } from './media-output';
 interface RoomAudioProps {
   participants: Participant[];
   speakerDeviceId?: string;
+  /** Whose screen is being watched. Only that one is heard. */
+  watching?: string;
   /** Per person, the level of the sound coming from their screen. */
   screenVolumes?: Record<string, number>;
 }
 
 /**
  * Plays everything the room can hear and shows none of it: the voices, and the
- * sound of a screen somebody is sharing.
+ * sound of the one screen being watched.
  *
- * The sound is kept here rather than with the picture so that turning the
- * picture off does not take the music with it. Video is what costs a machine
- * anything; a stream nobody is watching is still worth listening to.
+ * Leaving a stream leaves it entirely. The sound lives here rather than inside
+ * the picture so that it has one owner and can never play twice, not so that it
+ * outlives the watching.
  */
-export function RoomAudio({ participants, speakerDeviceId, screenVolumes }: RoomAudioProps) {
+export function RoomAudio({
+  participants,
+  speakerDeviceId,
+  watching,
+  screenVolumes,
+}: RoomAudioProps) {
   const others = participants.filter((participant) => !participant.isLocal);
   return (
     <div className="room-audio" hidden>
@@ -31,7 +38,10 @@ export function RoomAudio({ participants, speakerDeviceId, screenVolumes }: Room
           />
         ))}
       {others
-        .filter((participant) => participant.screenStream?.getAudioTracks().length)
+        .filter(
+          (participant) =>
+            participant.id === watching && participant.screenStream?.getAudioTracks().length,
+        )
         .map((participant) => (
           <MediaOutput
             key={`${participant.id}:screen`}

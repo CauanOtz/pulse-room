@@ -125,19 +125,6 @@ export function Stage({
                 <span className="min-w-0 truncate">
                   {broadcast.isLocal ? 'Your screen is live' : `${broadcast.name} is sharing a screen`}
                 </span>
-                {!broadcast.isLocal && (
-                  <label className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
-                    <Volume2 size={15} />
-                    <input
-                      aria-label={`${broadcast.name} screen volume`}
-                      type="range"
-                      min="0"
-                      max="200"
-                      value={screenVolumes?.[broadcast.id] ?? 50}
-                      onChange={(event) => onScreenVolume?.(broadcast.id, Number(event.target.value))}
-                    />
-                  </label>
-                )}
                 <button
                   className="inline-flex h-8 shrink-0 items-center gap-2 rounded-lg bg-primary px-3 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
                   type="button"

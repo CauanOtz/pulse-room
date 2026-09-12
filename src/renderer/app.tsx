@@ -399,6 +399,7 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
       <RoomAudio
         participants={snapshot.participants}
         speakerDeviceId={settings.speakerDeviceId}
+        watching={snapshot.watching}
         screenVolumes={screenVolumes}
       />
 

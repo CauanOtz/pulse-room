@@ -53,6 +53,7 @@ export class LiveKitConferenceGateway extends ObservableConference {
   // asked for by name: the one being watched, and the one under the pointer.
   private watched?: string;
   private previewed?: string;
+  private deafened = false;
   private microphoneOptions?: MicrophoneOptions;
   private generation = 0;
   private joinAbort?: AbortController;
@@ -206,17 +207,27 @@ export class LiveKitConferenceGateway extends ObservableConference {
   }
 
   /**
-   * A screen arrives only for the person watching it and for the one being
-   * glanced at. Everybody else's video is left on the server, which is the
-   * whole point: a machine that is not looking does not decode.
+   * A screen arrives only for the person who asked for it. Everybody else's is
+   * left on the server, which is the whole point: a machine that is not looking
+   * does not decode, and a stream nobody opened is silent.
+   *
+   * A glance borrows the picture alone. A preview that started playing sound
+   * would mean passing the pointer over a name fills the room with somebody's
+   * game.
    */
   private applyScreenSubscriptions(): void {
     this.room.remoteParticipants.forEach((participant) => {
-      const wanted = participant.identity === this.watched || participant.identity === this.previewed;
+      const watching = participant.identity === this.watched;
+      const glancing = participant.identity === this.previewed;
       participant.trackPublications.forEach((publication) => {
-        if (publication.source !== Track.Source.ScreenShare) return;
         const remote = publication as RemoteTrackPublication;
-        if (remote.isDesired !== wanted) remote.setSubscribed(wanted);
+        if (publication.source === Track.Source.ScreenShare) {
+          const wanted = watching || glancing;
+          if (remote.isDesired !== wanted) remote.setSubscribed(wanted);
+        } else if (publication.source === Track.Source.ScreenShareAudio) {
+          const wanted = watching && !this.deafened;
+          if (remote.isDesired !== wanted) remote.setSubscribed(wanted);
+        }
       });
     });
   }
@@ -240,12 +251,16 @@ export class LiveKitConferenceGateway extends ObservableConference {
   }
 
   public async setDeafened(deafened: boolean): Promise<void> {
+    this.deafened = deafened;
     this.room.remoteParticipants.forEach((participant) => {
       participant.audioTrackPublications.forEach((publication) => {
-        if (deafened) publication.setSubscribed(false);
-        else publication.setSubscribed(true);
+        // The sound of a screen follows whether it is being watched, so it is
+        // left to the rule that owns it rather than turned back on here.
+        if (publication.source === Track.Source.ScreenShareAudio) return;
+        publication.setSubscribed(!deafened);
       });
     });
+    this.applyScreenSubscriptions();
     this.update({ deafened });
   }
 

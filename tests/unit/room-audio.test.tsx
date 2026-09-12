@@ -20,9 +20,8 @@ const person = (overrides: Partial<Participant> & Pick<Participant, 'id' | 'name
 });
 
 describe('RoomAudio', () => {
-  it('plays a screen that nobody is watching', () => {
-    // The picture is what costs a machine anything. Somebody who turned it off
-    // is still in the room, and the room still has the music in it.
+  it('says nothing of a screen nobody opened', () => {
+    // Leaving a stream leaves it entirely: no picture and no sound.
     render(
       <RoomAudio
         participants={[
@@ -37,8 +36,29 @@ describe('RoomAudio', () => {
       />,
     );
 
+    expect(document.querySelectorAll('audio, video')).toHaveLength(0);
+  });
+
+  it('plays the screen that is being watched, at its own level', () => {
+    render(
+      <RoomAudio
+        participants={[
+          person({
+            id: 'maya',
+            name: 'Maya',
+            isBroadcasting: true,
+            screenStream: new MediaStream([track('audio')]),
+          }),
+        ]}
+        watching="maya"
+        screenVolumes={{ maya: 180 }}
+      />,
+    );
+
     const players = [...document.querySelectorAll('audio, video')] as HTMLMediaElement[];
     expect(players).toHaveLength(1);
+    // Past a hundred the element is at its limit; the gain beyond is the
+    // engine's, not the element's.
     expect(players[0].volume).toBeCloseTo(1);
   });
 
@@ -55,6 +75,7 @@ describe('RoomAudio', () => {
             screenStream: new MediaStream([track('audio'), track('video')]),
           }),
         ]}
+        watching="maya"
         screenVolumes={{ maya: 20 }}
       />,
     );

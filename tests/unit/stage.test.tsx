@@ -140,7 +140,7 @@ describe('Stage', () => {
     expect(document.querySelector('.tile-strip')?.querySelectorAll('.participant-tile')).toHaveLength(2);
   });
 
-  it('gives screen audio a level of its own, watched or not', () => {
+  it('gives screen audio a level of its own while it is being watched', () => {
     const participants = [createParticipant({ id: 'maya', name: 'Maya', volume: 40, screenStream: liveScreen() })];
     const onScreenVolume = vi.fn();
 
@@ -161,7 +161,8 @@ describe('Stage', () => {
     fireEvent.change(screen.getByLabelText('Maya screen volume'), { target: { value: '30' } });
     expect(onScreenVolume).toHaveBeenCalledWith('maya', 30);
 
-    // The same control is offered to somebody listening without watching.
+    // Leaving the stream leaves its sound behind too, so there is nothing left
+    // to turn down.
     rerender(
       <Stage
         participants={participants}
@@ -171,8 +172,7 @@ describe('Stage', () => {
         onScreenVolume={onScreenVolume}
       />,
     );
-    fireEvent.change(screen.getByLabelText('Maya screen volume'), { target: { value: '70' } });
-    expect(onScreenVolume).toHaveBeenCalledWith('maya', 70);
+    expect(screen.queryByLabelText('Maya screen volume')).toBeNull();
   });
 
   it('offers no screen volume for your own preview, which plays muted', () => {
