@@ -12,8 +12,8 @@ vi.mock('electron', () => ({
 const { ScreenCaptureService } = await import('../../src/main/application/screen-capture-service');
 
 /** Captures the handler the service installs, and calls it like Chromium does. */
-function install() {
-  const service = new ScreenCaptureService();
+function install(developmentUrl: string | null = 'http://localhost:5173') {
+  const service = new ScreenCaptureService(developmentUrl);
   let handler: (request: { securityOrigin: string }, callback: (result: unknown) => void) => unknown =
     () => undefined;
   service.install({
@@ -44,7 +44,22 @@ describe('ScreenCaptureService', () => {
   it('gives a page from anywhere else nothing to capture', async () => {
     const { ask } = install();
     expect(await ask('https://example.com/')).toEqual({});
+    // Another development server on this machine is still another page.
     expect(await ask('http://localhost:6006/')).toEqual({});
+  });
+
+  it('follows the development server it was pointed at, whatever its port', async () => {
+    const { ask } = install('http://localhost:5174/');
+
+    expect((await ask('http://localhost:5174/'))?.video?.id).toBe('screen:0:0');
+    expect(await ask('http://localhost:5173/')).toEqual({});
+  });
+
+  it('trusts nothing but the packaged page when there is no server', async () => {
+    const { ask } = install(null);
+
+    expect((await ask('file:///'))?.video?.id).toBe('screen:0:0');
+    expect(await ask('http://localhost:5173/')).toEqual({});
   });
 
   it('hands over the screen that was chosen, once', async () => {

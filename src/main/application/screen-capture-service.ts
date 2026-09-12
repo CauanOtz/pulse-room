@@ -2,10 +2,22 @@ import type { DesktopCapturerSource, Session } from 'electron';
 import { desktopCapturer } from 'electron';
 import type { CaptureSource } from '../../shared/desktop-api';
 
-const trustedOrigins = new Set(['http://localhost:5173', 'http://127.0.0.1:5173']);
-
 export class ScreenCaptureService {
   private preferredSourceId: string | undefined;
+  private readonly developmentOrigin?: string;
+
+  /**
+   * The packaged application loads from file://. A development build loads from
+   * whichever server it was pointed at, which is the only other origin allowed
+   * to ask for a screen, port and all.
+   */
+  public constructor(developmentUrl: string | null | undefined = process.env.VITE_DEV_SERVER_URL) {
+    try {
+      this.developmentOrigin = developmentUrl ? new URL(developmentUrl).origin : undefined;
+    } catch {
+      this.developmentOrigin = undefined;
+    }
+  }
 
   public install(targetSession: Session): void {
     targetSession.setDisplayMediaRequestHandler(async (request, callback) => {
@@ -62,6 +74,6 @@ export class ScreenCaptureService {
     // Chromium writes an origin with a trailing slash. Comparing it as given
     // refused every request from the development server, and a refusal reaches
     // the person sharing as 'Invalid capture constraints' and nothing else.
-    return trustedOrigins.has(origin.replace(/\/$/, ''));
+    return Boolean(this.developmentOrigin) && origin.replace(/\/$/, '') === this.developmentOrigin;
   }
 }
