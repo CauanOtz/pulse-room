@@ -180,8 +180,11 @@ export class DemoConferenceGateway extends ObservableConference {
   }
 
   /** Nothing to subscribe to here: the demo room is made up on this machine. */
-  public watchScreen(participantId?: string): void {
-    this.update({ watching: participantId });
+  public watchScreen(participantId: string, watching: boolean): void {
+    const watched = new Set(this.snapshot.watching);
+    if (watching) watched.add(participantId);
+    else watched.delete(participantId);
+    this.update({ watching: [...watched] });
   }
 
   public previewScreen(): void {

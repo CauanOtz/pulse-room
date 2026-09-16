@@ -50,7 +50,7 @@ describe('RoomAudio', () => {
             screenStream: new MediaStream([track('audio')]),
           }),
         ]}
-        watching="maya"
+        watching={['maya']}
         screenVolumes={{ maya: 180 }}
       />,
     );
@@ -75,7 +75,7 @@ describe('RoomAudio', () => {
             screenStream: new MediaStream([track('audio'), track('video')]),
           }),
         ]}
-        watching="maya"
+        watching={['maya']}
         screenVolumes={{ maya: 20 }}
       />,
     );

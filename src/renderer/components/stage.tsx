@@ -11,9 +11,9 @@ interface StageProps {
   speakerDeviceId?: string;
   expandLevels?: boolean;
   avatars?: ReadonlyMap<string, string | null | undefined>;
-  /** Whose screen this client asked for, if anyone's. */
-  watching?: string;
-  onWatch(participantId?: string): void;
+  /** Whose screens this client asked for. More than one may be running. */
+  watching?: string[];
+  onWatch(participantId: string, watching: boolean): void;
   /** A right click on somebody in the room. */
   onOptions?(participant: Participant, position: { x: number; y: number }): void;
   /** The sound of each screen, which plays whether or not it is being watched. */
@@ -38,17 +38,23 @@ export function Stage({
 }: StageProps) {
   const broadcasts = participants.filter((participant) => participant.isBroadcasting);
   // Nobody is shown a screen they did not ask for: decoding one is the most
-  // expensive thing in the room, and not every machine here can spare it.
-  const watched = broadcasts.find((broadcast) => broadcast.id === watching);
-  // Putting the picture away is not the same as leaving the stream. The room
-  // comes back, the stream keeps running in its tile, and only the menu on that
-  // tile hangs up on it.
-  const [minimised, setMinimised] = useState(false);
-  const active = minimised ? undefined : watched;
+  // expensive thing in the room, and not every machine here can spare it. Two
+  // can be taken at once, which is how a room watches two people play.
+  const watched = watching ?? [];
+  // One of the screens taken fills the room, and by default that is simply the
+  // first of them. Putting the picture away is not the same as leaving the
+  // stream: the room comes back, every stream taken keeps running in its tile,
+  // and only the menu on a tile hangs up on one.
+  const [openId, setOpenId] = useState<string>();
+  const [closed, setClosed] = useState(false);
+  const openedId = openId && watched.includes(openId) ? openId : watched[0];
+  const active = closed ? undefined : broadcasts.find((broadcast) => broadcast.id === openedId);
   const picture = active?.screenStream?.getVideoTracks().length ? active.screenStream : undefined;
 
-  // A different screen, or a new one, is something to look at.
-  useEffect(() => setMinimised(false), [watching]);
+  const open = (participantId: string) => {
+    setOpenId(participantId);
+    setClosed(false);
+  };
 
   const stageRef = useRef<HTMLElement>(null);
   const [fullScreen, setFullScreen] = useState(false);
@@ -104,13 +110,15 @@ export function Stage({
 
   const focus = (participant: Participant) => {
     if (!participant.isBroadcasting) return;
-    if (participant.id !== watching) {
-      setMinimised(false);
-      onWatch(participant.id);
+    if (!watched.includes(participant.id)) {
+      onWatch(participant.id, true);
+      open(participant.id);
       return;
     }
-    // Already the one being watched: this is about the picture, not the stream.
-    setMinimised((away) => !away);
+    // Already taken: this is about which picture fills the room, not about
+    // whether the stream is being received.
+    if (participant.id === active?.id) setClosed(true);
+    else open(participant.id);
   };
 
   if (!joined) {
@@ -140,7 +148,7 @@ export function Stage({
               >
                 <span className="live-pulse size-2 shrink-0 rounded-full bg-destructive shadow-[0_0_0_4px] shadow-destructive/20" />
                 <span className="min-w-0 truncate">
-                  {watching === broadcast.id
+                  {watched.includes(broadcast.id)
                     ? `Watching ${broadcast.isLocal ? 'your screen' : broadcast.name}`
                     : broadcast.isLocal
                       ? 'Your screen is live'
@@ -150,12 +158,12 @@ export function Stage({
                   className="inline-flex h-8 shrink-0 items-center gap-2 rounded-lg bg-primary px-3 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
                   type="button"
                   onClick={() => {
-                    setMinimised(false);
-                    onWatch(broadcast.id);
+                    if (!watched.includes(broadcast.id)) onWatch(broadcast.id, true);
+                    open(broadcast.id);
                   }}
                 >
                   <Tv aria-hidden="true" className="size-4" />
-                  {watching === broadcast.id ? 'Open again' : 'Watch stream'}
+                  {watched.includes(broadcast.id) ? 'Open again' : 'Watch stream'}
                 </button>
               </div>
             ))}
@@ -164,7 +172,7 @@ export function Stage({
         <ParticipantTiles
           avatars={avatars}
           participants={participants}
-          watching={watching}
+          watching={watched}
           layout="grid"
           onFocus={focus}
           onOptions={onOptions}
@@ -228,7 +236,7 @@ export function Stage({
           <button
             className="live-action inline-flex items-center gap-2 rounded-lg border border-border bg-card/80 px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent"
             type="button"
-            onClick={() => setMinimised(true)}
+            onClick={() => setClosed(true)}
             aria-label="Back to the room"
           >
             <X size={15} />
@@ -262,7 +270,7 @@ export function Stage({
         <ParticipantTiles
           avatars={avatars}
           participants={participants}
-          watching={watching}
+          watching={watched}
           focusedId={active.id}
           layout="strip"
           onFocus={focus}

@@ -10,6 +10,7 @@ export abstract class ObservableConference implements ConferenceGateway {
     microphoneEnabled: false,
     deafened: false,
     screenSharing: false,
+    watching: [],
   };
 
   private readonly listeners = new Set<() => void>();
@@ -44,6 +45,6 @@ export abstract class ObservableConference implements ConferenceGateway {
   public abstract stopScreenShare(): Promise<void>;
   public abstract setParticipantVolume(participantId: string, volume: number): void;
   public abstract setParticipantMuted(participantId: string, muted: boolean): void;
-  public abstract watchScreen(participantId?: string): void;
+  public abstract watchScreen(participantId: string, watching: boolean): void;
   public abstract previewScreen(participantId?: string): void;
 }

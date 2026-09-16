@@ -4,8 +4,8 @@ import { MediaOutput } from './media-output';
 interface RoomAudioProps {
   participants: Participant[];
   speakerDeviceId?: string;
-  /** Whose screen is being watched. Only that one is heard. */
-  watching?: string;
+  /** Whose screens are being watched. Only those are heard. */
+  watching?: string[];
   /** Per person, the level of the sound coming from their screen. */
   screenVolumes?: Record<string, number>;
 }
@@ -40,7 +40,7 @@ export function RoomAudio({
       {others
         .filter(
           (participant) =>
-            participant.id === watching && participant.screenStream?.getAudioTracks().length,
+            watching?.includes(participant.id) && participant.screenStream?.getAudioTracks().length,
         )
         .map((participant) => (
           <MediaOutput

@@ -31,13 +31,17 @@ function Watchable({
   initial,
   ...props
 }: { participants: Participant[]; initial?: string } & Record<string, unknown>) {
-  const [watching, setWatching] = useState<string | undefined>(initial);
+  const [watching, setWatching] = useState<string[]>(initial ? [initial] : []);
   return (
     <Stage
       participants={participants}
       joined
       watching={watching}
-      onWatch={setWatching}
+      onWatch={(participantId, watch) =>
+        setWatching((taken) =>
+          watch ? [...new Set([...taken, participantId])] : taken.filter((id) => id !== participantId),
+        )
+      }
       {...props}
     />
   );
@@ -103,7 +107,7 @@ describe('Stage', () => {
       <Stage
         participants={participants}
         joined
-        watching="maya"
+        watching={['maya']}
         onWatch={onWatch}
       />,
     );
@@ -122,7 +126,7 @@ describe('Stage', () => {
   it('opens the picture again from the card that says it is being watched', () => {
     const participants = [createParticipant({ id: 'maya', name: 'Maya', screenStream: liveScreen() })];
 
-    render(<Stage participants={participants} joined watching="maya" onWatch={() => undefined} />);
+    render(<Stage participants={participants} joined watching={['maya']} onWatch={() => undefined} />);
     fireEvent.click(screen.getByRole('button', { name: 'Back to the room' }));
     fireEvent.click(screen.getByRole('button', { name: 'Open again' }));
 
@@ -137,7 +141,7 @@ describe('Stage', () => {
       <Stage
         participants={participants}
         joined
-        watching="maya"
+        watching={['maya']}
         onWatch={() => undefined}
         onOptions={onOptions}
       />,
@@ -149,6 +153,27 @@ describe('Stage', () => {
       expect.objectContaining({ id: 'maya' }),
       expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }),
     );
+  });
+
+  it('lets two screens be taken at once', () => {
+    const participants = [
+      createParticipant({ id: 'maya', name: 'Maya', screenStream: liveScreen() }),
+      createParticipant({ id: 'noah', name: 'Noah', screenStream: liveScreen() }),
+    ];
+
+    render(<Watchable participants={participants} initial="maya" />);
+    // One fills the room, and only that one is being received.
+    expect(screen.getByText('Live from Maya')).toBeInTheDocument();
+    expect(document.querySelectorAll('.tile-video')).toHaveLength(1);
+
+    // The other is taken from the strip along the bottom, where they are all
+    // standing.
+    fireEvent.click(screen.getByRole('button', { name: 'Watch Noah' }));
+
+    // Both are being received now: Noah fills the room, and Maya's tile keeps
+    // playing rather than falling back to her face.
+    expect(screen.getByText('Live from Noah')).toBeInTheDocument();
+    expect(document.querySelectorAll('.tile-video')).toHaveLength(2);
   });
 
   it('lets a viewer switch between two live screens', () => {
@@ -191,7 +216,7 @@ describe('Stage', () => {
       <Stage
         participants={participants}
         joined
-        watching="maya"
+        watching={['maya']}
         onWatch={() => undefined}
         screenVolumes={{ maya: 180 }}
         onScreenVolume={onScreenVolume}

@@ -51,7 +51,7 @@ export class LiveKitConferenceGateway extends ObservableConference {
   private readonly locallyMuted = new Set<string>();
   // Decoding a screen is the most expensive thing this client does, so it is
   // asked for by name: the one being watched, and the one under the pointer.
-  private watched?: string;
+  private readonly watched = new Set<string>();
   private previewed?: string;
   private deafened = false;
   private microphoneOptions?: MicrophoneOptions;
@@ -193,10 +193,11 @@ export class LiveKitConferenceGateway extends ObservableConference {
     this.microphoneOptions = undefined;
   }
 
-  public watchScreen(participantId?: string): void {
-    this.watched = participantId;
+  public watchScreen(participantId: string, watching: boolean): void {
+    if (watching) this.watched.add(participantId);
+    else this.watched.delete(participantId);
     this.applyScreenSubscriptions();
-    this.update({ watching: participantId });
+    this.update({ watching: [...this.watched] });
     this.refreshParticipants();
   }
 
@@ -217,7 +218,7 @@ export class LiveKitConferenceGateway extends ObservableConference {
    */
   private applyScreenSubscriptions(): void {
     this.room.remoteParticipants.forEach((participant) => {
-      const watching = participant.identity === this.watched;
+      const watching = this.watched.has(participant.identity);
       const glancing = participant.identity === this.previewed;
       participant.trackPublications.forEach((publication) => {
         const remote = publication as RemoteTrackPublication;
@@ -244,9 +245,10 @@ export class LiveKitConferenceGateway extends ObservableConference {
           ),
       );
     if (this.previewed && !broadcasting(this.previewed)) this.previewed = undefined;
-    if (this.watched && !broadcasting(this.watched)) {
-      this.watched = undefined;
-      this.update({ watching: undefined });
+    const gone = [...this.watched].filter((identity) => !broadcasting(identity));
+    if (gone.length > 0) {
+      gone.forEach((identity) => this.watched.delete(identity));
+      this.update({ watching: [...this.watched] });
     }
   }
 
@@ -412,8 +414,9 @@ export class LiveKitConferenceGateway extends ObservableConference {
       .on(RoomEvent.Reconnecting, () => this.update({ connectionState: 'reconnecting' }))
       .on(RoomEvent.Reconnected, () => this.update({ connectionState: 'connected' }))
       .on(RoomEvent.Disconnected, () => {
-        this.watched = undefined;
+        this.watched.clear();
         this.previewed = undefined;
+        this.update({ watching: [] });
         this.streams.clear();
         this.update({ connectionState: 'disconnected', participants: [] });
       });

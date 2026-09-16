@@ -12,6 +12,7 @@ function createGateway(): ConferenceGateway {
     microphoneEnabled: true,
     deafened: false,
     screenSharing: false,
+    watching: [],
   };
   return {
     subscribe: vi.fn(() => () => undefined),
@@ -39,6 +40,7 @@ describe('ConferenceController', () => {
       microphoneEnabled: true,
       deafened: false,
       screenSharing: false,
+    watching: [],
     });
     const settingsRepository: SettingsRepository = { load: () => defaultSettings, save: vi.fn() };
     const controller = new ConferenceController(gateway, settingsRepository);
@@ -95,6 +97,7 @@ describe('ConferenceController', () => {
       microphoneEnabled: true,
       deafened: false,
       screenSharing: false,
+    watching: [],
     };
     vi.mocked(gateway.getSnapshot).mockReturnValue(connectedSnapshot);
     const settingsRepository: SettingsRepository = {
@@ -140,6 +143,7 @@ describe('entering voice channels', () => {
       microphoneEnabled: true,
       deafened: false,
       screenSharing: false,
+    watching: [],
     });
     const save = vi.fn();
     const controller = new ConferenceController(gateway, { load: () => defaultSettings, save });

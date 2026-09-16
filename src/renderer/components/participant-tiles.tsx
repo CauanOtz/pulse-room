@@ -7,8 +7,8 @@ import { cn } from './ui/utils';
 
 interface ParticipantTilesProps {
   participants: Participant[];
-  /** Whose picture this client asked for. Nobody else's tile draws one. */
-  watching?: string;
+  /** Whose pictures this client asked for. Nobody else's tile draws one. */
+  watching?: string[];
   focusedId?: string;
   layout: 'grid' | 'strip';
   avatars?: ReadonlyMap<string, string | null | undefined>;
@@ -43,7 +43,7 @@ export function ParticipantTiles({
         // Anyone else shows the person, whether or not their video happens to
         // be passing through for a glance somewhere else.
         const picture =
-          participant.id === watching && participant.screenStream?.getVideoTracks().length
+          watching?.includes(participant.id) && participant.screenStream?.getVideoTracks().length
             ? participant.screenStream
             : undefined;
         // Whether they are live is theirs to say; whether a picture is drawn

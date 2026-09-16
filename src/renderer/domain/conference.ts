@@ -27,10 +27,11 @@ export interface ConferenceSnapshot {
   deafened: boolean;
   screenSharing: boolean;
   /**
-   * Whose screen this client asked to receive. Video is the expensive part of a
-   * call, so it arrives only when somebody says they want to look at it.
+   * Whose screens this client asked to receive. Video is the expensive part of
+   * a call, so one arrives only when somebody says they want to look at it, and
+   * two arrive only when somebody wants both.
    */
-  watching?: string;
+  watching: string[];
   error?: string;
 }
 

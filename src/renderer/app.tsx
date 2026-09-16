@@ -259,7 +259,7 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
         onSelectChannel={handleChannelSelect}
         onOpenParticipant={(entry, position) => setOpenParticipant({ id: entry.id, position })}
         watching={snapshot.watching}
-        onWatch={(participantId) => controller.gateway.watchScreen(participantId)}
+        onWatch={(participantId, watching) => controller.gateway.watchScreen(participantId, watching)}
         onPreview={(participantId) => controller.gateway.previewScreen(participantId)}
         onCreateChannel={manager ? workspace?.onCreateChannel : undefined}
         onEditChannel={
@@ -348,7 +348,9 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
                 speakerDeviceId={settings.speakerDeviceId}
                 expandLevels={settings.expandScreenLevels}
                 watching={snapshot.watching}
-                onWatch={(participantId) => controller.gateway.watchScreen(participantId)}
+                onWatch={(participantId, watching) =>
+                  controller.gateway.watchScreen(participantId, watching)
+                }
                 onOptions={(participant, position) =>
                   setOpenParticipant({ id: participant.id, position })
                 }
@@ -412,8 +414,8 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
           position={openParticipant.position}
           onVolumeChange={(volume) => controller.gateway.setParticipantVolume(popoverEntry.id, volume)}
           onMutedChange={(muted) => controller.gateway.setParticipantMuted(popoverEntry.id, muted)}
-          watching={snapshot.watching === popoverEntry.id}
-          onStopWatching={() => controller.gateway.watchScreen(undefined)}
+          watching={snapshot.watching.includes(popoverEntry.id)}
+          onStopWatching={() => controller.gateway.watchScreen(popoverEntry.id, false)}
           onClose={() => setOpenParticipant(undefined)}
         />
       )}

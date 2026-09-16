@@ -48,9 +48,9 @@ interface ChannelSidebarProps {
   /** Absent for anyone who may not shape the server, which hides the controls. */
   onCreateChannel?(type: 'text' | 'voice'): void;
   onEditChannel?(channelId: string): void;
-  /** Whose screen this client asked for, and how to ask for another. */
-  watching?: string;
-  onWatch?(participantId?: string): void;
+  /** Whose screens this client asked for, and how to ask for another. */
+  watching?: string[];
+  onWatch?(participantId: string, watching: boolean): void;
   /** Borrows a screen while it is being glanced at, and gives it back. */
   onPreview?(participantId?: string): void;
 }
@@ -278,9 +278,9 @@ function ChannelRoster({
   onPreview,
 }: {
   entries: RosterEntry[];
-  watching?: string;
+  watching?: string[];
   onOpenParticipant(entry: RosterEntry, position: { x: number; y: number }): void;
-  onWatch?(participantId?: string): void;
+  onWatch?(participantId: string, watching: boolean): void;
   onPreview?(participantId?: string): void;
 }) {
   if (entries.length === 0) return null;
@@ -335,8 +335,8 @@ function LiveBadge({
   onPreview,
 }: {
   entry: RosterEntry;
-  watching?: string;
-  onWatch?(participantId?: string): void;
+  watching?: string[];
+  onWatch?(participantId: string, watching: boolean): void;
   onPreview?(participantId?: string): void;
 }) {
   const picture = entry.screenStream?.getVideoTracks().length ? entry.screenStream : undefined;
@@ -373,10 +373,10 @@ function LiveBadge({
         <button
           className="inline-flex h-8 w-full items-center justify-center gap-2 rounded-lg bg-primary px-3 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           type="button"
-          onClick={() => onWatch?.(watching === entry.id ? undefined : entry.id)}
+          onClick={() => onWatch?.(entry.id, !watching?.includes(entry.id))}
         >
           <Tv aria-hidden="true" className="size-4" />
-          {watching === entry.id ? 'Stop watching' : 'Watch stream'}
+          {watching?.includes(entry.id) ? 'Stop watching' : 'Watch stream'}
         </button>
       </HoverCardContent>
     </HoverCard>
