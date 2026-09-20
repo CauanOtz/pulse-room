@@ -20,6 +20,7 @@ function renderSidebar(overrides: Partial<Parameters<typeof ChannelSidebar>[0]> 
   const onLeave = vi.fn();
   const onShare = vi.fn();
   render(
+    <TooltipProvider>
     <ChannelSidebar
       connectionState="connected"
       channels={voiceChannels}
@@ -36,7 +37,8 @@ function renderSidebar(overrides: Partial<Parameters<typeof ChannelSidebar>[0]> 
       onLeave={onLeave}
       onShare={onShare}
       {...overrides}
-    />,
+    />
+    </TooltipProvider>,
   );
   return { onSelectChannel, onOpenParticipant, onLeave, onShare };
 }
@@ -54,7 +56,10 @@ describe('ChannelSidebar', () => {
     renderSidebar();
 
     expect(screen.getByRole('button', { name: 'Lounge' })).toHaveAttribute('aria-current', 'true');
-    expect(screen.getByText('Lounge · 1 people')).toBeInTheDocument();
+    // The voice block says where you are and how many of you there are.
+    const voice = screen.getByLabelText('Voice status');
+    expect(voice).toHaveTextContent('Lounge');
+    expect(voice).toHaveTextContent('1 person');
     expect(screen.getByRole('complementary').querySelector('.roster-entry')).toHaveTextContent('You');
   });
 
@@ -82,8 +87,8 @@ describe('ChannelSidebar', () => {
       ],
     });
 
-    expect(screen.getByLabelText('babi is live')).toBeInTheDocument();
-    expect(screen.queryByLabelText('You is live')).toBeNull();
+    expect(screen.getByLabelText('babi is sharing a screen')).toBeInTheDocument();
+    expect(screen.queryByLabelText(/You is/)).toBeNull();
     // The picture itself is behind a glance, so nothing is being decoded yet.
     expect(document.querySelector('video')).toBeNull();
   });

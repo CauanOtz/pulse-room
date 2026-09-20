@@ -34,7 +34,7 @@ export function MemberSidebar({
             const speaking = voiceIds.has(member.id);
             return (
               <div
-                className="member-entry flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-accent/60"
+                className="member-entry flex items-center gap-2.5 rounded-lg px-2 py-1 transition-colors hover:bg-accent/60"
                 key={member.id}
               >
                 <span className="relative shrink-0">
@@ -44,20 +44,24 @@ export function MemberSidebar({
                     imageId={member.avatarId}
                   />
                   {speaking && (
-                    <span
-                      className="absolute -bottom-0.5 -right-0.5 grid size-3.5 place-items-center rounded-full border-2 border-background bg-primary text-primary-foreground"
-                      title="In a voice channel"
-                    >
-                      <Mic aria-hidden="true" className="size-2" strokeWidth={3} />
-                    </span>
+                    <Tooltip label="In a voice channel">
+                      <span
+                        className="absolute -bottom-0.5 -right-0.5 grid size-3.5 place-items-center rounded-full border-2 border-sidebar bg-primary text-primary-foreground"
+                        aria-label="In a voice channel"
+                      >
+                        <Mic aria-hidden="true" className="size-2" strokeWidth={3} />
+                      </span>
+                    </Tooltip>
                   )}
                 </span>
-                <span
-                  className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground"
-                  title={`@${member.username}`}
-                >
-                  {member.displayName}
-                  {member.id === userId && <span className="text-muted-foreground"> (you)</span>}
+                <span className="flex min-w-0 flex-1 flex-col leading-tight">
+                  <span className="truncate text-[13px] font-medium text-foreground">
+                    {member.displayName}
+                    {member.id === userId && <span className="text-muted-foreground"> (you)</span>}
+                  </span>
+                  {/* The handle is what you type to find somebody, so the list
+                      carries it rather than hiding it behind a pointer. */}
+                  <span className="truncate text-[11px] text-muted-foreground">@{member.username}</span>
                 </span>
                 {member.role !== 'member' && (
                   <Tooltip label={member.role === 'owner' ? 'Owner' : 'Administrator'}>

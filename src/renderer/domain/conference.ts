@@ -1,5 +1,12 @@
 export type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
 
+/**
+ * How well somebody's audio is getting through, as the server sees it. It is
+ * worth drawing because a bad call is nearly always one person's line, and the
+ * room can only stop blaming itself once it can see whose.
+ */
+export type SignalQuality = 'excellent' | 'good' | 'poor' | 'lost' | 'unknown';
+
 export interface Participant {
   id: string;
   name: string;
@@ -18,6 +25,8 @@ export interface Participant {
    * something to watch.
    */
   isBroadcasting: boolean;
+  /** Absent until the server has said something about their line. */
+  signal?: SignalQuality;
 }
 
 export interface ConferenceSnapshot {

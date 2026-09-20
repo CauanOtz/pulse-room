@@ -2,6 +2,7 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Stage } from '../../src/renderer/components/stage';
+import { TooltipProvider } from '../../src/renderer/components/ui/tooltip';
 import type { Participant } from '../../src/renderer/domain/conference';
 
 function createParticipant(overrides: Partial<Participant> & Pick<Participant, 'id' | 'name'>): Participant {
@@ -33,6 +34,9 @@ function Watchable({
 }: { participants: Participant[]; initial?: string } & Record<string, unknown>) {
   const [watching, setWatching] = useState<string[]>(initial ? [initial] : []);
   return (
+    // The application wraps the whole window in one provider so that sweeping
+    // across a row of controls does not wait for each hint in turn.
+    <TooltipProvider>
     <Stage
       participants={participants}
       joined
@@ -44,6 +48,7 @@ function Watchable({
       }
       {...props}
     />
+    </TooltipProvider>
   );
 }
 
@@ -96,6 +101,54 @@ describe('Stage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Watch Maya' }));
 
     expect(screen.getByText('Live from Maya')).toBeInTheDocument();
+  });
+
+  it('marks who is live, and which of them this machine took', () => {
+    const participants = [
+      createParticipant({ id: 'you', name: 'You', isLocal: true }),
+      createParticipant({ id: 'maya', name: 'Maya', screenStream: liveScreen() }),
+      createParticipant({ id: 'ari', name: 'Ari', screenStream: liveScreen() }),
+    ];
+
+    render(<Watchable participants={participants} />);
+
+    // Two people are sharing and nobody has been taken, so the room says Live
+    // twice and claims to be watching none of it.
+    expect(document.querySelectorAll('.tile-live')).toHaveLength(2);
+    expect(document.querySelectorAll('.tile-taken')).toHaveLength(0);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Watch Maya' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Back to the room' }));
+
+    expect(document.querySelectorAll('.tile-taken')).toHaveLength(1);
+  });
+
+  it('draws a ring around whoever is talking, and around nobody else', () => {
+    const participants = [
+      createParticipant({ id: 'you', name: 'You', isLocal: true }),
+      createParticipant({ id: 'maya', name: 'Maya', isSpeaking: true }),
+    ];
+
+    render(<Watchable participants={participants} />);
+
+    const rings = [...document.querySelectorAll('.tile-face')].filter((face) =>
+      face.className.includes('shadow-['),
+    );
+    expect(rings).toHaveLength(1);
+    expect(rings[0].closest('.participant-tile')).toHaveTextContent('Maya');
+  });
+
+  it('shows a struggling line on the tile of whoever owns it', () => {
+    const participants = [
+      createParticipant({ id: 'you', name: 'You', isLocal: true, signal: 'excellent' }),
+      createParticipant({ id: 'maya', name: 'Maya', signal: 'poor' }),
+    ];
+
+    render(<Watchable participants={participants} />);
+
+    const bars = [...document.querySelectorAll('.signal-bars')];
+    expect(bars).toHaveLength(1);
+    expect(bars[0].closest('.participant-tile')).toHaveTextContent('Maya');
   });
 
   it('puts the picture away without leaving the stream', () => {

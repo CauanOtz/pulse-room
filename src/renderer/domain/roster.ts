@@ -1,4 +1,4 @@
-import type { Participant } from './conference';
+import type { Participant, SignalQuality } from './conference';
 
 export interface RosterEntry {
   id: string;
@@ -17,6 +17,8 @@ export interface RosterEntry {
   screenStream?: MediaStream;
   /** False for people in a channel this client has not joined. */
   detailed: boolean;
+  /** Only known for the channel this client is in. */
+  signal?: SignalQuality;
 }
 
 /** A voice identity is the account it belongs to, then its session. */
@@ -74,6 +76,7 @@ export function channelRoster(
       isBroadcasting: participant.isBroadcasting,
       screenStream: participant.screenStream,
       detailed: true,
+      signal: participant.signal,
     }));
   }
 

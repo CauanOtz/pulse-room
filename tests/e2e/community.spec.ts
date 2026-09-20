@@ -239,6 +239,11 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
     await expect(roster).toContainText('Owner — 1');
     await expect(roster.getByText('Owner (you)')).toBeVisible();
     await window.screenshot({ path: 'test-results/community-chat.png' });
+    // The list is the first thing a narrow window gives up, so it folds away.
+    await window.getByRole('button', { name: 'Hide members' }).click();
+    await expect(roster).toHaveCount(0);
+    await window.getByRole('button', { name: 'Show members' }).click();
+    await expect(roster).toBeVisible();
     await application.close();
     application = await electron.launch({ args: [path.resolve('.')], env });
     window = await application.firstWindow();
@@ -246,7 +251,7 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
     await expect(window.getByRole('heading', { name: 'Welcome back' })).toHaveCount(0);
     // The picture opens the person; the person's own picture offers its actions.
     await window.getByRole('button', { name: 'Your profile' }).click();
-    await expect(window.getByText('@owner')).toBeVisible();
+    await expect(window.locator('.profile-card').getByText('@owner')).toBeVisible();
     await window.getByRole('button', { name: 'Your picture' }).click();
     await expect(window.getByRole('menuitem', { name: /photo/ })).toBeVisible();
     await window.keyboard.press('Escape');

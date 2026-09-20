@@ -14,11 +14,21 @@ import type {
   MicrophoneOptions,
   Participant,
   ScreenShareOptions,
+  SignalQuality,
 } from '../../domain/conference';
 import { ObservableConference } from './observable-conference';
 import { createDisplayMediaOptions } from '../media/display-media-options';
 import { ParticipantStreamRegistry } from '../media/participant-stream-registry';
 import { MicrophoneTrackFactory, type ProcessedMicrophoneTrack } from '../media/microphone-track-factory';
+
+const grades: SignalQuality[] = ['excellent', 'good', 'poor', 'lost', 'unknown'];
+
+// LiveKit names the grades the room wants to draw, but it is free to add to
+// them, so anything unrecognised is simply not spoken about.
+function signalOf(quality: string | undefined): SignalQuality | undefined {
+  const grade = grades.find((known) => known === quality);
+  return grade === 'unknown' ? undefined : grade;
+}
 
 interface TokenResponse {
   serverUrl: string;
@@ -397,6 +407,7 @@ export class LiveKitConferenceGateway extends ObservableConference {
         this.refreshParticipants();
       })
       .on(RoomEvent.ActiveSpeakersChanged, () => this.refreshParticipants())
+      .on(RoomEvent.ConnectionQualityChanged, () => this.refreshParticipants())
       .on(RoomEvent.TrackPublished, () => {
         this.applyScreenSubscriptions();
         this.refreshParticipants();
@@ -435,6 +446,7 @@ export class LiveKitConferenceGateway extends ObservableConference {
       locallyMuted: false,
       screenStream: this.createLocalScreenStream(),
       isBroadcasting: this.screenPublications.length > 0,
+      signal: signalOf(this.room.localParticipant.connectionQuality),
     };
 
     const remote = [...this.room.remoteParticipants.values()].map((participant, index) =>
@@ -476,6 +488,7 @@ export class LiveKitConferenceGateway extends ObservableConference {
       locallyMuted: this.locallyMuted.has(participant.identity),
       microphoneStream: this.streams.sync(participant.identity, 'microphone', microphoneTracks),
       screenStream: this.streams.sync(participant.identity, 'screen', screenTracks),
+      signal: signalOf(participant.connectionQuality),
     };
   }
 

@@ -1,7 +1,36 @@
+import { Hash, Trash2 } from 'lucide-react';
 import { Avatar } from './avatar';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Tooltip } from './ui/tooltip';
+import { cn } from './ui/utils';
 import type { Account, ChatMessage, CommunityChannel } from '../../shared/community';
 import type { CommunityClient } from '../infrastructure/community-client';
+
+const clock = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' });
+const calendar = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
+
+/** Today and yesterday are said in words; everything older gets its date. */
+export function dayOf(when: Date): string {
+  const midnight = new Date();
+  midnight.setHours(0, 0, 0, 0);
+  const days = Math.floor((midnight.getTime() - when.getTime()) / 86_400_000);
+  if (days < 0) return 'Today';
+  if (days < 1) return 'Yesterday';
+  return calendar.format(when);
+}
+
+/**
+ * Whether a message carries its own heading, or joins the one above it.
+ *
+ * A run of messages from the same person inside a few minutes is one person
+ * talking, and repeating their face and name four times says nothing that the
+ * first one did not.
+ */
+export function startsRun(message: ChatMessage, previous: ChatMessage | undefined): boolean {
+  if (!previous || previous.authorId !== message.authorId) return true;
+  const gap = new Date(message.createdAt).getTime() - new Date(previous.createdAt).getTime();
+  return !(gap >= 0 && gap < 5 * 60_000);
+}
 
 export function TextChat({
   api,
@@ -79,7 +108,7 @@ export function TextChat({
   return (
     <section className="text-chat flex min-h-0 min-w-0 flex-1 flex-col" aria-label={`${channel.name} chat`}>
       <div
-        className="chat-history flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-4"
+        className="chat-history flex min-h-0 flex-1 flex-col overflow-y-auto px-2 py-4"
         onScroll={(e) => {
           const el = e.currentTarget;
           scrollToEnd.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
@@ -87,6 +116,8 @@ export function TextChat({
       >
         {messages.length >= 50 && more && (
           <button
+            className="mx-auto mb-2 rounded-lg px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            type="button"
             onClick={() =>
               void api
                 .request<{ messages: ChatMessage[] }>(`${base}?before=${messages[0].id}`)
@@ -101,48 +132,108 @@ export function TextChat({
             Load older messages
           </button>
         )}
-        {!messages.length && !error && (
-          <div className="chat-welcome mx-auto max-w-md py-10 text-center text-sm text-muted-foreground">
-            <span>#</span>
-            <h2>This is #{channel.name}</h2>
-            <p>The start of your conversation. Only members with access can read it.</p>
+        {/* Once the whole history is in hand, the top of the channel is the
+            beginning of it, and says so the way a first page would. */}
+        {!error && !(messages.length >= 50 && more) && (
+          <div
+            className={cn(
+              'chat-welcome flex flex-col items-start gap-2 px-2 py-8',
+              messages.length ? 'pb-4' : 'mt-auto',
+            )}
+          >
+            <span className="grid size-12 place-items-center rounded-2xl bg-secondary text-muted-foreground">
+              <Hash aria-hidden="true" className="size-6" />
+            </span>
+            <h2 className="text-2xl font-bold tracking-tight">Welcome to #{channel.name}</h2>
+            <p className="text-sm text-muted-foreground">
+              This is the beginning of the channel. Only members with access can read it.
+            </p>
           </div>
         )}
-        {messages.map((message) => (
-          <article className="chat-message flex items-start gap-3 text-sm" key={message.id}>
-            <Avatar
-              className="profile-avatar grid size-9 shrink-0 place-items-center rounded-xl bg-secondary text-[11px] font-bold text-secondary-foreground"
-              name={message.authorName}
-              imageId={avatars?.get(message.authorId)}
-            />
-            <div className="min-w-0 flex-1">
-              <header className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                <strong className="text-sm font-semibold">{message.authorName}</strong>
-                <time className="text-[11px] text-muted-foreground" dateTime={message.createdAt}>
-                  {new Date(message.createdAt).toLocaleString()}
-                </time>
-                {(manager || message.authorId === user.id) && (
-                  <button
-                    className="ml-auto text-[11px] text-muted-foreground transition-colors hover:text-destructive"
-                    aria-label={`Delete message from ${message.authorName}`}
-                    onClick={() =>
-                      void api
-                        .request(`${base}/${message.id}`, 'DELETE')
-                        .then(() => {
-                          setLatest((previous) => previous.filter((m) => m.id !== message.id));
-                          setHistory((previous) => previous.filter((m) => m.id !== message.id));
-                        })
-                        .catch((e) => setError(e.message))
-                    }
-                  >
-                    Delete
-                  </button>
+        {messages.map((message, index) => {
+          const previous = messages[index - 1];
+          const when = new Date(message.createdAt);
+          const dayBreak = !previous || dayOf(new Date(previous.createdAt)) !== dayOf(when);
+          const heading = dayBreak || startsRun(message, previous);
+          const mine = manager || message.authorId === user.id;
+          return (
+            <div key={message.id}>
+              {dayBreak && (
+                // A rule with the day sitting in it, so a night of talking is
+                // read as nights rather than as one column.
+                <div className="chat-day my-4 flex items-center gap-3" role="separator">
+                  <span className="h-px flex-1 bg-border" />
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                    {dayOf(when)}
+                  </span>
+                  <span className="h-px flex-1 bg-border" />
+                </div>
+              )}
+              <article
+                className={cn(
+                  'chat-message group/message relative flex items-start gap-3 rounded-lg px-2 text-sm transition-colors hover:bg-accent/40',
+                  heading ? 'mt-3 py-1 first:mt-0' : 'py-px',
                 )}
-              </header>
-              <p>{message.content}</p>
+              >
+                {heading ? (
+                  <Avatar
+                    className="profile-avatar mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl bg-secondary text-[11px] font-bold text-secondary-foreground"
+                    name={message.authorName}
+                    imageId={avatars?.get(message.authorId)}
+                  />
+                ) : (
+                  // The gutter keeps its width, and only gives up the hour to
+                  // somebody who reaches for it.
+                  <time
+                    className="mt-0.5 w-9 shrink-0 pt-px text-right text-[10px] text-muted-foreground opacity-0 transition-opacity group-hover/message:opacity-100"
+                    dateTime={message.createdAt}
+                  >
+                    {clock.format(when)}
+                  </time>
+                )}
+                <div className="min-w-0 flex-1">
+                  {heading && (
+                    <header className="flex flex-wrap items-baseline gap-x-2">
+                      <strong className="text-sm font-semibold text-foreground">{message.authorName}</strong>
+                      <time className="text-[11px] text-muted-foreground" dateTime={message.createdAt}>
+                        {dayOf(when)} at {clock.format(when)}
+                      </time>
+                    </header>
+                  )}
+                  <p className="whitespace-pre-wrap break-words text-[14.5px] leading-[1.45] text-foreground/90">
+                    {message.content}
+                  </p>
+                </div>
+                {mine && (
+                  // The one destructive thing in the channel waits to be
+                  // looked for, and says what it is when it is.
+                  <Tooltip label="Delete message">
+                    <button
+                      className={cn(
+                        'chat-delete absolute right-1 top-0 grid size-7 -translate-y-1/2 place-items-center rounded-md bg-popover text-muted-foreground opacity-0 shadow-[var(--gloss)]',
+                        'transition-opacity hover:text-destructive group-hover/message:opacity-100 focus-visible:opacity-100',
+                        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                      )}
+                      type="button"
+                      aria-label={`Delete message from ${message.authorName}`}
+                      onClick={() =>
+                        void api
+                          .request(`${base}/${message.id}`, 'DELETE')
+                          .then(() => {
+                            setLatest((rest) => rest.filter((m) => m.id !== message.id));
+                            setHistory((rest) => rest.filter((m) => m.id !== message.id));
+                          })
+                          .catch((e) => setError(e.message))
+                      }
+                    >
+                      <Trash2 aria-hidden="true" className="size-3.5" />
+                    </button>
+                  </Tooltip>
+                )}
+              </article>
             </div>
-          </article>
-        ))}
+          );
+        })}
         <div ref={bottom} />
       </div>
       {error && (

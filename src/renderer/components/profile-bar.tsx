@@ -9,6 +9,7 @@ import { Button } from './ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { GooeyFilter, StatusTooltip } from './status-tooltip';
 import { Tooltip } from './ui/tooltip';
+import { cn } from './ui/utils';
 
 interface ProfileBarProps {
   displayName: string;
@@ -57,11 +58,22 @@ export function ProfileBar(props: ProfileBarProps) {
               type="button"
               aria-label="Your profile"
             >
-              <Avatar
-                className="grid size-9 shrink-0 place-items-center rounded-xl bg-secondary text-[11px] font-bold text-secondary-foreground"
-                name={props.displayName}
-                imageId={props.avatarId}
-              />
+              <span className="relative shrink-0">
+                <Avatar
+                  className="grid size-9 place-items-center rounded-xl bg-secondary text-[11px] font-bold text-secondary-foreground"
+                  name={props.displayName}
+                  imageId={props.avatarId}
+                />
+                {/* The only presence this application can honestly claim is
+                    its own, so the light is drawn for you and nobody else. */}
+                <span
+                  className={cn(
+                    'presence-dot absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-sidebar',
+                    props.joined ? 'bg-success' : 'bg-muted-foreground',
+                  )}
+                  aria-hidden="true"
+                />
+              </span>
               <span className="flex min-w-0 flex-col leading-tight">
                 <strong className="truncate text-[13px] font-semibold" title={props.displayName}>
                   {props.displayName}

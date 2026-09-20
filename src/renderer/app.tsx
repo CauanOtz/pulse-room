@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { Hash, Users, Volume2 } from 'lucide-react';
 import type { UpdateStatus } from '../shared/desktop-api';
 import { ConferenceController } from './application/conference-controller';
 import { emptyPresence, presenceSounds, type RoomPresence } from './application/room-presence';
@@ -14,6 +15,8 @@ import { ServerRail } from './components/server-rail';
 import { SettingsDialog } from './components/settings-dialog';
 import { SourcePicker } from './components/source-picker';
 import { Stage } from './components/stage';
+import { Tooltip } from './components/ui/tooltip';
+import { cn } from './components/ui/utils';
 import { ConferenceGatewayFactory } from './infrastructure/conference/conference-gateway-factory';
 import {
   MediaDevicesService,
@@ -74,6 +77,9 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
   );
   const [settings, setSettings] = useState(controller.getSettings());
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // The list of people beside a channel is the first thing to go on a narrow
+  // window, so it is something the reader can put away.
+  const [membersOpen, setMembersOpen] = useState(true);
   const [sourcePickerOpen, setSourcePickerOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [version, setVersion] = useState(__APP_VERSION__);
@@ -306,18 +312,48 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
       />
 
       <main className="room-main col-start-3 row-span-2 row-start-1 flex min-w-0 flex-col bg-background">
-        <header className="room-header flex h-12 flex-none items-center gap-2 border-b border-border px-4 text-sm">
-          <div className="room-title flex min-w-0 items-center gap-2">
-            <span>#</span>
-            <strong>{textChannel?.name ?? activeChannel?.name ?? 'Choose a channel'}</strong>
-            <i />
-            <span className="room-description min-w-0 truncate border-l border-border pl-2 text-xs text-muted-foreground">
+        <header className="room-header flex h-12 flex-none items-center gap-2.5 border-b border-border px-4 text-sm">
+          <div className="room-title flex min-w-0 flex-1 items-center gap-2">
+            {textChannel ? (
+              <Hash aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+            ) : (
+              <Volume2 aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+            )}
+            <strong className="shrink-0 font-semibold">
+              {textChannel?.name ?? activeChannel?.name ?? 'Choose a channel'}
+            </strong>
+            <span className="room-description min-w-0 truncate border-l border-border pl-2.5 text-xs text-muted-foreground">
               {workspace ? workspace.detail.server.name : 'A room for games, films, and unfinished stories.'}
             </span>
-            {joined && textChannel && (
-              <button onClick={() => setViewId(settings.roomId)}>Return to call</button>
-            )}
           </div>
+          {joined && textChannel && (
+            // Somebody reading a channel while a call runs is one click from
+            // the call, and the button says which call it is.
+            <button
+              className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-lg bg-secondary px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              type="button"
+              onClick={() => setViewId(settings.roomId)}
+            >
+              <span className="size-1.5 rounded-full bg-success" />
+              Return to call
+            </button>
+          )}
+          {textChannel && (
+            <Tooltip label={membersOpen ? 'Hide members' : 'Show members'}>
+              <button
+                className={cn(
+                  'grid size-8 shrink-0 place-items-center rounded-lg transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  membersOpen ? 'text-foreground' : 'text-muted-foreground',
+                )}
+                type="button"
+                aria-pressed={membersOpen}
+                aria-label={membersOpen ? 'Hide members' : 'Show members'}
+                onClick={() => setMembersOpen((open) => !open)}
+              >
+                <Users aria-hidden="true" className="size-4" />
+              </button>
+            </Tooltip>
+          )}
         </header>
 
         <div className="room-content relative grid min-h-0 flex-1 grid-cols-1 grid-rows-1 place-items-stretch overflow-hidden">
@@ -332,11 +368,13 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
                 manager={manager}
                 avatars={avatars}
               />
-              <MemberSidebar
-                members={workspace.detail.members}
-                userId={workspace.user.id}
-                voiceIds={inVoice}
-              />
+              {membersOpen && (
+                <MemberSidebar
+                  members={workspace.detail.members}
+                  userId={workspace.user.id}
+                  voiceIds={inVoice}
+                />
+              )}
             </div>
           ) : (
             // The room is a card of its own, inset from the window.

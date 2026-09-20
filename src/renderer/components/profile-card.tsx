@@ -53,7 +53,7 @@ export function ProfileCard({
   );
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="profile-card flex flex-col gap-3">
       <div className="flex items-center gap-3">
         {canEditPicture ? (
           <DropdownMenu>

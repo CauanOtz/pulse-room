@@ -57,6 +57,6 @@ describe('MemberSidebar', () => {
     expect(within(list).getByText('Members — 1')).toBeInTheDocument();
     expect(within(list).getByText('babi')).toBeInTheDocument();
     expect(within(list).getByText('(you)')).toBeInTheDocument();
-    expect(within(list).getAllByTitle('In a voice channel')).toHaveLength(1);
+    expect(within(list).getAllByLabelText('In a voice channel')).toHaveLength(1);
   });
 });

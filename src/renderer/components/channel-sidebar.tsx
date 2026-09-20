@@ -16,6 +16,7 @@ import {
 import type { ConnectionState, Participant, VoiceChannel } from '../domain/conference';
 import { channelRoster, type ChannelOccupancy, type RosterEntry } from '../domain/roster';
 import { Avatar } from './avatar';
+import { SignalBars } from './signal-bars';
 import { MediaOutput } from './media-output';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from './ui/hover-card';
 import type { AvailableMediaDevices } from '../infrastructure/media/media-devices-service';
@@ -155,7 +156,10 @@ export function ChannelSidebar(props: ChannelSidebarProps) {
       {isConnected && (
         <VoicePanel
           connectionState={props.connectionState}
-          channelName={`${activeChannel?.name ?? props.activeChannelId} · ${props.participants.length} people`}
+          channelName={activeChannel?.name ?? props.activeChannelId}
+          serverName={props.serverName}
+          headcount={props.participants.length}
+          signal={props.participants.find((participant) => participant.isLocal)?.signal}
           screenSharing={props.screenSharing}
           busy={props.busy}
           onLeave={props.onLeave}
@@ -288,35 +292,45 @@ function ChannelRoster({
   return (
     <div className="voice-roster mb-2 ml-6 flex flex-col gap-1">
       {entries.map((entry) => (
-        <div className="roster-row flex min-w-0 items-center gap-1" key={entry.id}>
-        <button
-          className={cn(
-            'roster-entry flex min-w-0 flex-1 items-center gap-2 rounded-lg px-1.5 py-1 text-left text-xs text-muted-foreground transition-colors',
-            'enabled:hover:bg-accent enabled:hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-            entry.isSpeaking && 'is-speaking text-foreground',
-          )}
-          type="button"
-          disabled={!entry.detailed || entry.isLocal}
-          aria-label={entry.detailed && !entry.isLocal ? `Audio options for ${entry.name}` : entry.name}
-          onContextMenu={(event) => {
-            event.preventDefault();
-            onOpenParticipant(entry, { x: event.clientX, y: event.clientY });
-          }}
-        >
-          <Avatar
-            className="mini-avatar grid size-5 shrink-0 place-items-center overflow-hidden rounded-md text-[8px] font-extrabold text-background"
-            name={entry.name}
-            initials={entry.initials}
-            imageId={entry.avatarId}
-            accent={entry.accent}
-          />
-          <span className="roster-name min-w-0 truncate">{entry.name}</span>
-          {entry.isMuted && <MicOff size={13} className="roster-flag" />}
-          {entry.locallyMuted && <VolumeX size={13} className="roster-flag" />}
-        </button>
-        {entry.isBroadcasting && (
-          <LiveBadge entry={entry} watching={watching} />
-        )}
+        <div className="roster-row flex min-w-0 items-center gap-1.5" key={entry.id}>
+          <button
+            className={cn(
+              'roster-entry flex min-w-0 flex-1 items-center gap-2 rounded-lg px-1.5 py-1 text-left text-xs text-muted-foreground transition-colors',
+              'enabled:hover:bg-accent enabled:hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              entry.isSpeaking && 'is-speaking text-foreground',
+            )}
+            type="button"
+            disabled={!entry.detailed || entry.isLocal}
+            aria-label={entry.detailed && !entry.isLocal ? `Audio options for ${entry.name}` : entry.name}
+            onContextMenu={(event) => {
+              event.preventDefault();
+              onOpenParticipant(entry, { x: event.clientX, y: event.clientY });
+            }}
+          >
+            {/* The ring, not the colour of the name, is what carries across a
+                glance: a row is small, and a name changing shade is not. */}
+            <span
+              className={cn(
+                'roster-face grid size-5 shrink-0 place-items-center rounded-md transition-shadow duration-150',
+                entry.isSpeaking && 'shadow-[0_0_0_1px_var(--sidebar),0_0_0_2.5px_var(--foreground)]',
+              )}
+            >
+              <Avatar
+                className="mini-avatar grid size-full place-items-center overflow-hidden rounded-md text-[8px] font-extrabold text-background"
+                name={entry.name}
+                initials={entry.initials}
+                imageId={entry.avatarId}
+                accent={entry.accent}
+              />
+            </span>
+            <span className="roster-name min-w-0 flex-1 truncate">{entry.name}</span>
+            {entry.isMuted && <MicOff aria-label={`${entry.name} is muted`} size={13} className="roster-flag shrink-0" />}
+            {entry.locallyMuted && (
+              <VolumeX aria-label={`${entry.name} is silenced for you`} size={13} className="roster-flag shrink-0" />
+            )}
+            <SignalBars signal={entry.signal} />
+          </button>
+          {entry.isBroadcasting && <LiveBadge entry={entry} watching={watching} />}
         </div>
       ))}
     </div>
@@ -324,19 +338,33 @@ function ChannelRoster({
 }
 
 /**
- * Says that somebody is sharing, and nothing more. The picture and the choice
- * live on the person in the room; a list that also carried them would be two
- * places to look for the same thing.
+ * Says that somebody is sharing, and whether this machine took it. The picture
+ * and the choice live on the person in the room; a list that also carried them
+ * would be two places to look for the same thing.
  */
 function LiveBadge({ entry, watching }: { entry: RosterEntry; watching?: string[] }) {
-  const taken = watching?.includes(entry.id);
+  // Your own screen is never something you are watching: it is something you
+  // are sending, and the room should not tell you that you tuned into it.
+  const taken = !entry.isLocal && watching?.includes(entry.id);
+  const hint = entry.isLocal
+    ? 'You are sharing your screen'
+    : taken
+      ? `You are watching ${entry.name}`
+      : `${entry.name} is sharing a screen`;
   return (
-    <span
-      className={cn(
-        'roster-live size-1.5 shrink-0 rounded-full',
-        taken ? 'bg-muted-foreground' : 'bg-destructive',
-      )}
-      aria-label={taken ? `You are watching ${entry.name}` : `${entry.name} is live`}
-    />
+    <Tooltip label={hint}>
+      <span
+        className={cn(
+          'roster-live inline-flex shrink-0 items-center gap-1 rounded px-1 py-px text-[8.5px] font-bold uppercase tracking-[0.12em]',
+          taken
+            ? 'bg-secondary text-muted-foreground'
+            : 'bg-destructive text-destructive-foreground',
+        )}
+        aria-label={hint}
+      >
+        {taken ? <Tv aria-hidden="true" className="size-2.5" /> : <span className="size-1 rounded-full bg-current" />}
+        Live
+      </span>
+    </Tooltip>
   );
 }

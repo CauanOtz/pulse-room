@@ -1,8 +1,9 @@
-import { MicOff, MonitorUp, Tv } from 'lucide-react';
+import { Eye, MicOff, MonitorUp, Tv } from 'lucide-react';
 import type { Participant } from '../domain/conference';
 import { accountOf } from '../domain/roster';
 import { Avatar } from './avatar';
 import { MediaOutput } from './media-output';
+import { SignalBars } from './signal-bars';
 import { cn } from './ui/utils';
 
 interface ParticipantTilesProps {
@@ -20,6 +21,11 @@ interface ParticipantTilesProps {
 /**
  * Everybody in the channel, as tiles. A person shows their avatar; a person
  * sharing shows the picture itself, so the room is one glance.
+ *
+ * A tile is meant to answer every question about somebody without being asked:
+ * whether they are talking, whether their microphone is off, whether their line
+ * is struggling, whether they have a screen running and whether this machine
+ * took it. All of that is drawn at once, quietly, and none of it moves.
  */
 export function ParticipantTiles({
   participants,
@@ -52,6 +58,8 @@ export function ParticipantTiles({
         // Whether they are live is theirs to say; whether a picture is drawn
         // depends on whether this client asked for one.
         const live = participant.isBroadcasting;
+        const taken = Boolean(picture) && !participant.isLocal;
+        const small = layout === 'strip';
         return (
           <button
             className={cn(
@@ -83,13 +91,45 @@ export function ParticipantTiles({
                 label={`${participant.name} screen preview`}
               />
             ) : (
-              <Avatar
-                className="tile-avatar grid aspect-square w-[30%] max-w-20 place-items-center rounded-full text-sm font-extrabold text-background"
-                name={participant.name}
-                initials={participant.initials}
-                imageId={avatars?.get(accountOf(participant.id))}
-                accent={participant.accent}
-              />
+              // The ring is the loudest thing a quiet tile does, so it is the
+              // one thing that says who is talking from across the room.
+              <span
+                className={cn(
+                  'tile-face grid aspect-square w-[30%] max-w-20 place-items-center rounded-full transition-shadow duration-150',
+                  participant.isSpeaking && 'shadow-[0_0_0_2px_var(--background),0_0_0_4px_var(--foreground)]',
+                )}
+              >
+                <Avatar
+                  className="tile-avatar grid size-full place-items-center rounded-full text-sm font-extrabold text-background"
+                  name={participant.name}
+                  initials={participant.initials}
+                  imageId={avatars?.get(accountOf(participant.id))}
+                  accent={participant.accent}
+                />
+              </span>
+            )}
+
+            {/* What is true about this tile, said in the corner and left there. */}
+            {live && !small && (
+              <span className="tile-flags absolute left-2.5 top-2.5 flex items-center gap-1.5">
+                <span
+                  className={cn(
+                    'tile-live inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-[0.12em]',
+                    picture
+                      ? 'bg-black/55 text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.18)]'
+                      : 'bg-destructive text-destructive-foreground',
+                  )}
+                >
+                  <span className={cn('size-1 rounded-full', picture ? 'bg-destructive' : 'bg-current')} />
+                  Live
+                </span>
+                {taken && (
+                  <span className="tile-taken inline-flex items-center gap-1 rounded-md bg-black/55 px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-[0.12em] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.18)]">
+                    <Eye aria-hidden="true" className="size-2.5" />
+                    Watching
+                  </span>
+                )}
+              </span>
             )}
 
             {live && !participant.isLocal && (
@@ -116,10 +156,14 @@ export function ParticipantTiles({
             )}
 
             <span className="tile-name absolute inset-x-0 bottom-0 flex items-center gap-2 truncate bg-gradient-to-t from-black/75 to-transparent px-3 py-2.5 text-[11.5px] font-medium text-white">
-              {live && <span className="tile-live size-1.5 shrink-0 rounded-full bg-destructive" aria-label="Live" />}
-              {participant.isMuted && <MicOff size={12} />}
-              {picture && !participant.isMuted && <MonitorUp size={12} />}
-              {participant.isLocal ? `${participant.name} (you)` : participant.name}
+              {/* A tile this small has no room for a word, so it keeps the dot. */}
+              {live && small && <span className="tile-live size-1.5 shrink-0 rounded-full bg-destructive" aria-label="Live" />}
+              {participant.isMuted && <MicOff aria-label="Muted" size={12} className="shrink-0 text-destructive" />}
+              {picture && !participant.isMuted && <MonitorUp aria-hidden="true" size={12} className="shrink-0" />}
+              <span className="min-w-0 truncate">
+                {participant.isLocal ? `${participant.name} (you)` : participant.name}
+              </span>
+              <SignalBars className="ml-auto text-white" signal={participant.signal} />
             </span>
           </button>
         );
