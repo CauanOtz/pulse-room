@@ -254,10 +254,18 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
     await expectContainedDialog(window);
     await expect(window.getByRole('heading', { name: 'Password & security' })).toBeVisible();
     const changeButton = window.getByRole('button', { name: 'Change password', exact: true });
-    // The primary action wears the theme's primary colour, whatever it is set to.
-    const primary = await window.evaluate(() =>
-      getComputedStyle(document.documentElement).getPropertyValue('--primary').trim(),
-    );
+    // The primary action wears the theme's primary colour, whatever it is set
+    // to. The token is resolved by the browser rather than compared as written,
+    // since a colour reads back in the form the engine prefers, not the one the
+    // stylesheet spelled.
+    const primary = await window.evaluate(() => {
+      const probe = document.createElement('div');
+      probe.style.backgroundColor = 'var(--primary)';
+      document.body.append(probe);
+      const value = getComputedStyle(probe).backgroundColor;
+      probe.remove();
+      return value;
+    });
     expect(primary).not.toBe('');
     await expect(changeButton).toHaveCSS('background-color', primary);
     const changeBounds = await changeButton.boundingBox();
@@ -285,21 +293,29 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
     await expect(appearance).toBeVisible();
     await appearance.getByRole('radio', { name: 'Light' }).click();
     await expect(window.locator('html')).toHaveClass(/theme-light/);
-    // The whole window repaints, panels included, once the colours settle.
+    // The whole window repaints, panels included, once the colours settle: the
+    // panel wears the theme's own secondary, and the page is on paper rather
+    // than on the black it was a moment ago.
     await expect
       .poll(async () =>
         window.evaluate(() => {
           const account = [...document.querySelectorAll('button')].find((button) =>
             button.textContent?.includes('Account settings'),
           );
-          const style = getComputedStyle(document.documentElement);
+          const probe = document.createElement('div');
+          probe.style.backgroundColor = 'var(--secondary)';
+          document.body.append(probe);
+          const secondary = getComputedStyle(probe).backgroundColor;
+          probe.remove();
+          const ground = getComputedStyle(document.body).backgroundColor;
+          const lightness = (ground.match(/\d+/g) ?? ['0']).slice(0, 3).map(Number);
           return {
-            account: account && getComputedStyle(account).backgroundColor,
-            secondary: style.getPropertyValue('--secondary').trim(),
+            matches: account ? getComputedStyle(account).backgroundColor === secondary : false,
+            onPaper: lightness.every((channel) => channel > 200),
           };
         }),
       )
-      .toEqual({ account: 'oklch(0.955 0 0)', secondary: 'oklch(0.955 0 0)' });
+      .toEqual({ matches: true, onPaper: true });
     await window.screenshot({ path: 'test-results/community-light.png' });
     await appearance.getByRole('radio', { name: 'Dark' }).click();
     await expect(window.locator('html')).not.toHaveClass(/theme-light/);

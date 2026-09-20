@@ -315,7 +315,7 @@ function ChannelRoster({
           {entry.locallyMuted && <VolumeX size={13} className="roster-flag" />}
         </button>
         {entry.isBroadcasting && (
-          <LiveBadge entry={entry} watching={watching} onWatch={onWatch} onPreview={onPreview} />
+          <LiveBadge entry={entry} watching={watching} />
         )}
         </div>
       ))}
@@ -324,61 +324,19 @@ function ChannelRoster({
 }
 
 /**
- * Says that somebody is sharing, and shows what, for as long as the pointer
- * rests on it. The picture is borrowed for the glance and given back after, so
- * a machine that only looked in passing goes back to decoding nothing.
+ * Says that somebody is sharing, and nothing more. The picture and the choice
+ * live on the person in the room; a list that also carried them would be two
+ * places to look for the same thing.
  */
-function LiveBadge({
-  entry,
-  watching,
-  onWatch,
-  onPreview,
-}: {
-  entry: RosterEntry;
-  watching?: string[];
-  onWatch?(participantId: string, watching: boolean): void;
-  onPreview?(participantId?: string): void;
-}) {
-  const picture = entry.screenStream?.getVideoTracks().length ? entry.screenStream : undefined;
+function LiveBadge({ entry, watching }: { entry: RosterEntry; watching?: string[] }) {
+  const taken = watching?.includes(entry.id);
   return (
-    <HoverCard
-      openDelay={250}
-      closeDelay={120}
-      onOpenChange={(open) => onPreview?.(open ? entry.id : undefined)}
-    >
-      <HoverCardTrigger asChild>
-        <span
-          className="roster-live shrink-0 rounded-md bg-destructive px-1 py-px text-[9px] font-bold uppercase tracking-wide text-destructive-foreground"
-          aria-label={`${entry.name} is live`}
-        >
-          Live
-        </span>
-      </HoverCardTrigger>
-      <HoverCardContent className="w-64" side="right" align="start">
-        <div className="mb-2 aspect-video overflow-hidden rounded-lg bg-stage">
-          {picture ? (
-            <MediaOutput
-              stream={picture}
-              muted
-              video
-              className="size-full object-cover"
-              label={`${entry.name} screen preview`}
-            />
-          ) : (
-            <div className="grid size-full place-items-center text-[11px] text-muted-foreground">
-              Asking for the picture…
-            </div>
-          )}
-        </div>
-        <button
-          className="inline-flex h-8 w-full items-center justify-center gap-2 rounded-lg bg-primary px-3 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-          type="button"
-          onClick={() => onWatch?.(entry.id, !watching?.includes(entry.id))}
-        >
-          <Tv aria-hidden="true" className="size-4" />
-          {watching?.includes(entry.id) ? 'Stop watching' : 'Watch stream'}
-        </button>
-      </HoverCardContent>
-    </HoverCard>
+    <span
+      className={cn(
+        'roster-live size-1.5 shrink-0 rounded-full',
+        taken ? 'bg-muted-foreground' : 'bg-destructive',
+      )}
+      aria-label={taken ? `You are watching ${entry.name}` : `${entry.name} is live`}
+    />
   );
 }

@@ -27,7 +27,9 @@ export interface ChannelOccupancy {
   occupants: { identity: string; name: string }[];
 }
 
-const accents = ['#ee8d72', '#7c98ed', '#7bc6aa', '#d0a3ea', '#e5c07b'];
+// Faces are told apart by value, not by hue: the room keeps its one colour for
+// saying that something is live.
+const accents = ['#E8E8E8', '#B8B8B8', '#8F8F8F', '#6E6E6E', '#9E9E9E'];
 
 export function initialsOf(name: string): string {
   return name

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Headphones, Maximize2, Minimize2, MonitorUp, Radio, ShieldCheck, Tv, Volume2, X } from 'lucide-react';
+import { Headphones, Maximize2, Minimize2, MonitorUp, Radio, ShieldCheck, Volume2, X } from 'lucide-react';
 import type { Participant } from '../domain/conference';
 import { MediaOutput } from './media-output';
 import { cn } from './ui/utils';
@@ -139,36 +139,6 @@ export function Stage({
   if (!active || !picture) {
     return (
       <section className="stage stage-room relative flex size-full flex-col overflow-hidden rounded-lg bg-stage" ref={stageRef}>
-        {broadcasts.length > 0 && (
-          <div className="live-offers flex flex-none flex-wrap items-center justify-center gap-2 px-3 pt-3">
-            {broadcasts.map((broadcast) => (
-              <div
-                className="live-offer flex items-center gap-3 rounded-xl border border-border bg-card/80 px-3 py-2 text-sm"
-                key={broadcast.id}
-              >
-                <span className="live-pulse size-2 shrink-0 rounded-full bg-destructive shadow-[0_0_0_4px] shadow-destructive/20" />
-                <span className="min-w-0 truncate">
-                  {watched.includes(broadcast.id)
-                    ? `Watching ${broadcast.isLocal ? 'your screen' : broadcast.name}`
-                    : broadcast.isLocal
-                      ? 'Your screen is live'
-                      : `${broadcast.name} is sharing a screen`}
-                </span>
-                <button
-                  className="inline-flex h-8 shrink-0 items-center gap-2 rounded-lg bg-primary px-3 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-                  type="button"
-                  onClick={() => {
-                    if (!watched.includes(broadcast.id)) onWatch(broadcast.id, true);
-                    open(broadcast.id);
-                  }}
-                >
-                  <Tv aria-hidden="true" className="size-4" />
-                  {watched.includes(broadcast.id) ? 'Open again' : 'Watch stream'}
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
         <ParticipantTiles
           avatars={avatars}
           participants={participants}
@@ -196,15 +166,15 @@ export function Stage({
     >
       <div
         className={cn(
-            'live-toolbar absolute inset-x-0 top-0 z-2 flex items-center justify-between gap-3 px-3 py-2.5 transition-opacity duration-200',
-            'bg-gradient-to-b from-black/85 via-black/55 to-transparent',
+            'live-toolbar absolute inset-x-0 top-0 z-2 flex items-center justify-between gap-3 px-4 py-3 transition-opacity duration-200',
+            'bg-gradient-to-b from-black/80 to-transparent',
             controlsVisible ? 'opacity-100' : 'is-hidden pointer-events-none opacity-0',
           )}
         onMouseEnter={holdControls}
         onMouseMove={holdControls}
       >
         <div className="live-source flex min-w-0 items-center gap-2 truncate text-xs font-medium text-foreground">
-          <span className="live-pulse size-2 shrink-0 rounded-full bg-destructive shadow-[0_0_0_4px] shadow-destructive/20" /> Live from {active.isLocal ? 'your screen' : active.name}
+          <span className="live-pulse size-1.5 shrink-0 rounded-full bg-destructive" /> Live from {active.isLocal ? 'your screen' : active.name}
         </div>
 
         <div className="live-tools flex items-center gap-3">
@@ -224,7 +194,7 @@ export function Stage({
           )}
 
           <button
-            className="live-action inline-flex items-center gap-2 rounded-lg border border-border bg-card/80 px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent"
+            className="live-action inline-flex items-center gap-2 rounded-lg bg-card px-3 py-2 text-xs font-medium text-muted-foreground shadow-[var(--gloss)] transition-colors hover:bg-secondary hover:text-foreground"
             type="button"
             onClick={toggleFullScreen}
             aria-label={fullScreen ? 'Exit full screen' : 'Enter full screen'}
@@ -234,7 +204,7 @@ export function Stage({
           </button>
 
           <button
-            className="live-action inline-flex items-center gap-2 rounded-lg border border-border bg-card/80 px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent"
+            className="live-action inline-flex items-center gap-2 rounded-lg bg-card px-3 py-2 text-xs font-medium text-muted-foreground shadow-[var(--gloss)] transition-colors hover:bg-secondary hover:text-foreground"
             type="button"
             onClick={() => setClosed(true)}
             aria-label="Back to the room"

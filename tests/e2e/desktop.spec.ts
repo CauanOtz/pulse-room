@@ -135,11 +135,11 @@ test('launches the secured desktop shell and completes the join flow', async () 
     await shareDialog.getByRole('button', { name: 'Share full screen' }).click();
     await expect(window.locator('.voice-panel').getByRole('button', { name: 'Stop sharing' })).toBeVisible();
 
-    // A screen is offered, never forced: until somebody asks for it, no video
-    // is being decoded on this machine, including the machine sharing it.
-    await expect(window.getByText('Your screen is live')).toBeVisible();
-    expect(await window.locator('video').count()).toBe(0);
-    await window.getByRole('button', { name: 'Watch stream' }).click();
+    // Your own capture shows on your own tile without asking, since it is
+    // already on this machine and it is how you check the monitor.
+    await expect(window.locator('.tile-video')).toBeVisible();
+    // Opening it into the room is still a choice.
+    await window.getByRole('button', { name: /^Watch / }).click();
     await expect(window.getByLabel('Shared screen')).toBeVisible();
     await expect(window.getByLabel('Shared screen')).toHaveClass(/is-expanded/);
     await window.screenshot({ path: 'test-results/pulse-room-stage.png', fullPage: true });
@@ -162,9 +162,8 @@ test('launches the secured desktop shell and completes the join flow', async () 
     await window.locator('.stage-live').hover();
     await window.getByRole('button', { name: 'Back to the room' }).click();
     await expect(window.getByLabel('Shared screen')).toHaveCount(0);
-    await expect(window.getByText('Watching your screen')).toBeVisible();
     await expect(window.locator('.tile-video')).toBeVisible();
-    await window.getByRole('button', { name: 'Open again' }).click();
+    await window.getByRole('button', { name: /^Watch / }).click();
     await expect(window.getByLabel('Shared screen')).toBeVisible();
 
     // The stream quality menu rides on the caret beside the share button.

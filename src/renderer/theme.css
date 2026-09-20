@@ -1,73 +1,85 @@
 /*
  * The design system: shadcn tokens over Tailwind, in two themes.
  *
- * Dark is the room's real theme and it is black, not slate, so a shared screen
- * or a photograph is the only bright thing on the display. Light exists for
- * daylight and is a plain paper equivalent. Every colour below is a token: no
- * component names a colour of its own.
+ * Dark is the room's real theme and its ground is true black. Everything above
+ * the ground is white at a few per cent laid over it, so the black stays black
+ * instead of turning into grey panels, and a shared screen or a photograph is
+ * the only bright thing on the display. There is no blue in the palette.
+ *
+ * One colour carries meaning: red, and red only ever means live or lost. What
+ * you can act on is white. Light exists for daylight and inverts the same set.
+ * Every colour below is a token: no component names a colour of its own.
  */
 @import 'tailwindcss';
 
 @theme {
-  --font-sans: 'Manrope Variable', 'Segoe UI', system-ui, sans-serif;
+  --font-sans: 'Schibsted Grotesk Variable', 'Segoe UI', system-ui, sans-serif;
+  /* Numbers only: levels, latency, times and codes, so digits line up. */
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
   --radius-lg: 0.75rem;
   --radius-xl: 1rem;
 }
 
 :root {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.185 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.72 0.13 275);
-  --primary-foreground: oklch(0.16 0.02 275);
-  --secondary: oklch(0.245 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.245 0 0);
-  --muted-foreground: oklch(0.72 0 0);
-  /* Bright enough that the row under the pointer is plain on a dark panel. */
-  --accent: oklch(0.305 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.62 0.19 20);
-  --destructive-foreground: oklch(0.985 0 0);
-  --success: oklch(0.75 0.15 155);
-  --border: oklch(0.28 0 0);
-  --input: oklch(0.3 0 0);
-  --ring: oklch(0.72 0.13 275);
-  --sidebar: oklch(0.115 0 0);
-  --sidebar-foreground: oklch(0.92 0 0);
-  --rail: oklch(0.09 0 0);
-  --stage: oklch(0.06 0 0);
+  --background: #000000;
+  --foreground: #f7f7f7;
+  /* Surfaces are white laid over the black, never grey paint. */
+  --card: rgba(255, 255, 255, 0.035);
+  --card-foreground: #f7f7f7;
+  --popover: #0a0a0a;
+  --popover-foreground: #f7f7f7;
+  /* What you can act on is white. */
+  --primary: #f7f7f7;
+  --primary-foreground: #000000;
+  --secondary: rgba(255, 255, 255, 0.06);
+  --secondary-foreground: #f7f7f7;
+  --muted: rgba(255, 255, 255, 0.06);
+  --muted-foreground: #8a8a8a;
+  /* The step a row takes under the pointer: brightness, nothing else. */
+  --accent: rgba(255, 255, 255, 0.06);
+  --accent-foreground: #f7f7f7;
+  --destructive: #ff4438;
+  --destructive-foreground: #0a0000;
+  --success: #f7f7f7;
+  --border: rgba(255, 255, 255, 0.07);
+  --input: rgba(255, 255, 255, 0.09);
+  --ring: rgba(255, 255, 255, 0.55);
+  --sidebar: #060606;
+  --sidebar-foreground: #f7f7f7;
+  --rail: #000000;
+  --stage: #000000;
+  /* The one-pixel highlight along the top of a lifted surface. */
+  --gloss: inset 0 1px 0 rgba(255, 255, 255, 0.055);
   color-scheme: dark;
 }
 
 .theme-light {
-  --background: oklch(0.985 0 0);
-  --foreground: oklch(0.16 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.16 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.16 0 0);
-  --primary: oklch(0.52 0.19 275);
-  --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.955 0 0);
-  --secondary-foreground: oklch(0.22 0 0);
-  --muted: oklch(0.955 0 0);
-  --muted-foreground: oklch(0.48 0 0);
-  --accent: oklch(0.94 0 0);
-  --accent-foreground: oklch(0.18 0 0);
-  --destructive: oklch(0.55 0.2 20);
-  --destructive-foreground: oklch(0.99 0 0);
-  --success: oklch(0.58 0.14 155);
-  --border: oklch(0.9 0 0);
-  --input: oklch(0.88 0 0);
-  --ring: oklch(0.52 0.19 275);
-  --sidebar: oklch(0.96 0 0);
-  --sidebar-foreground: oklch(0.2 0 0);
-  --rail: oklch(0.93 0 0);
-  --stage: oklch(0.9 0 0);
+  /* The same system turned over: paper, with black laid on it. */
+  --background: #ffffff;
+  --foreground: #0a0a0a;
+  --card: rgba(0, 0, 0, 0.035);
+  --card-foreground: #0a0a0a;
+  --popover: #ffffff;
+  --popover-foreground: #0a0a0a;
+  --primary: #0a0a0a;
+  --primary-foreground: #ffffff;
+  --secondary: rgba(0, 0, 0, 0.06);
+  --secondary-foreground: #0a0a0a;
+  --muted: rgba(0, 0, 0, 0.05);
+  --muted-foreground: #6b6b6b;
+  --accent: rgba(0, 0, 0, 0.055);
+  --accent-foreground: #0a0a0a;
+  --destructive: #d8342a;
+  --destructive-foreground: #ffffff;
+  --success: #0a0a0a;
+  --border: rgba(0, 0, 0, 0.1);
+  --input: rgba(0, 0, 0, 0.14);
+  --ring: rgba(0, 0, 0, 0.45);
+  --sidebar: #f7f7f7;
+  --sidebar-foreground: #0a0a0a;
+  --rail: #f0f0f0;
+  --stage: #ebebeb;
+  --gloss: inset 0 1px 0 rgba(255, 255, 255, 0.6);
   color-scheme: light;
 }
 

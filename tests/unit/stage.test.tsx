@@ -90,11 +90,10 @@ describe('Stage', () => {
     render(<Watchable participants={participants} />);
 
     // Decoding a screen is the most expensive thing in the room, so a machine
-    // that is not looking never starts.
+    // that is not looking never starts. The offer lives on the person.
     expect(document.querySelector('video')).toBeNull();
-    expect(screen.getByText('Maya is sharing a screen')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Watch stream' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Watch Maya' }));
 
     expect(screen.getByText('Live from Maya')).toBeInTheDocument();
   });
@@ -115,20 +114,19 @@ describe('Stage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Back to the room' }));
 
-    // The room is back and the stream is still running: its tile keeps the
-    // picture, the card says so, and nothing was unsubscribed.
+    // The room is back and the stream is still running: her tile keeps the
+    // picture, and nothing was unsubscribed.
     expect(screen.queryByText('Live from Maya')).not.toBeInTheDocument();
-    expect(screen.getByText('Watching Maya')).toBeInTheDocument();
     expect(document.querySelector('.tile-video')).toBeInTheDocument();
     expect(onWatch).not.toHaveBeenCalled();
   });
 
-  it('opens the picture again from the card that says it is being watched', () => {
+  it('opens the picture again from the tile it belongs to', () => {
     const participants = [createParticipant({ id: 'maya', name: 'Maya', screenStream: liveScreen() })];
 
     render(<Stage participants={participants} joined watching={['maya']} onWatch={() => undefined} />);
     fireEvent.click(screen.getByRole('button', { name: 'Back to the room' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Open again' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Watch Maya' }));
 
     expect(screen.getByText('Live from Maya')).toBeInTheDocument();
   });
