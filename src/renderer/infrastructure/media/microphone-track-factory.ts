@@ -34,25 +34,31 @@ export class MicrophoneTrackFactory {
 
     const source = context.createMediaStreamSource(inputStream);
     // Desk rumble and handling noise live below speech and only waste bitrate.
+    // A biquad reads one sample at a time and costs the chain nothing.
     const highPass = context.createBiquadFilter();
-    const gain = context.createGain();
-    const limiter = context.createDynamicsCompressor();
     const output = context.createMediaStreamDestination();
 
     highPass.type = 'highpass';
     highPass.frequency.value = 90;
-    gain.gain.value = this.boundedGain(options.gain);
-    limiter.threshold.value = -3;
-    limiter.knee.value = 3;
-    limiter.ratio.value = 20;
-    limiter.attack.value = 0.003;
-    limiter.release.value = 0.12;
 
+    // The gate, the gain and the limiter are one pass on the audio thread. As
+    // separate nodes the limiter alone was a DynamicsCompressorNode, which
+    // holds the signal back about six milliseconds so it can see a peak
+    // coming, and spends that on every syllable whether or not one does.
     const gate = await this.createNoiseGate(context, options);
+    const fallbackGain = gate ? undefined : context.createGain();
+    const fallbackLimiter = gate ? undefined : context.createDynamicsCompressor();
+
     if (gate) {
-      source.connect(highPass).connect(gate).connect(gain).connect(limiter).connect(output);
-    } else {
-      source.connect(highPass).connect(gain).connect(limiter).connect(output);
+      source.connect(highPass).connect(gate).connect(output);
+    } else if (fallbackGain && fallbackLimiter) {
+      fallbackGain.gain.value = this.boundedGain(options.gain);
+      fallbackLimiter.threshold.value = -3;
+      fallbackLimiter.knee.value = 3;
+      fallbackLimiter.ratio.value = 20;
+      fallbackLimiter.attack.value = 0.003;
+      fallbackLimiter.release.value = 0.12;
+      source.connect(highPass).connect(fallbackGain).connect(fallbackLimiter).connect(output);
     }
 
     const processedTrack = output.stream.getAudioTracks()[0];
@@ -62,7 +68,9 @@ export class MicrophoneTrackFactory {
     }
 
     const apply = (next: MicrophoneOptions) => {
-      gain.gain.value = this.boundedGain(next.gain);
+      const wanted = this.boundedGain(next.gain);
+      if (fallbackGain) fallbackGain.gain.value = wanted;
+      gate?.parameters.get('gain')?.setValueAtTime(wanted, context.currentTime);
       gate?.parameters.get('threshold')?.setValueAtTime(next.noiseGateThreshold, context.currentTime);
       gate?.parameters.get('enabled')?.setValueAtTime(next.noiseSuppression ? 1 : 0, context.currentTime);
     };
@@ -88,10 +96,13 @@ export class MicrophoneTrackFactory {
    * cannot serve makes the constructor throw instead of resampling.
    */
   private createContext(): AudioContext {
+    // 'interactive' asks the platform for the smallest buffer it can serve,
+    // which is the difference between a chain that adds a few milliseconds and
+    // one that adds a few tens of them.
     try {
-      return new AudioContext({ sampleRate: 48_000 });
+      return new AudioContext({ sampleRate: 48_000, latencyHint: 'interactive' });
     } catch {
-      return new AudioContext();
+      return new AudioContext({ latencyHint: 'interactive' });
     }
   }
 
@@ -147,6 +158,7 @@ export class MicrophoneTrackFactory {
     try {
       await context.audioWorklet.addModule(noiseGateProcessorUrl);
       const gate = new AudioWorkletNode(context, 'noise-gate');
+      gate.parameters.get('gain')?.setValueAtTime(this.boundedGain(options.gain), context.currentTime);
       gate.parameters.get('threshold')?.setValueAtTime(options.noiseGateThreshold, context.currentTime);
       gate.parameters.get('enabled')?.setValueAtTime(options.noiseSuppression ? 1 : 0, context.currentTime);
       return gate;

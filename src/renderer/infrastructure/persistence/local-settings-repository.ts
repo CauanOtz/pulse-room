@@ -11,6 +11,9 @@ export const defaultSettings: UserSettings = {
   expandScreenLevels: false,
   roomSounds: true,
   screenSharePreset: 'balanced',
+  // Five friends on home connections: hold nothing back, and let anybody whose
+  // line cannot take it say so in the settings.
+  voiceDelay: 'lowest',
 };
 
 export class LocalSettingsRepository implements SettingsRepository {

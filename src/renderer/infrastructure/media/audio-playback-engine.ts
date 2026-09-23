@@ -47,7 +47,9 @@ export class AudioPlaybackEngine {
 
   private ensureContext(): AudioContext {
     if (!this.context || this.context.state === 'closed') {
-      this.context = new AudioContext();
+      // The shortest buffer the output device will serve. Everything a voice
+      // waits in on this machine is delay the talker hears back.
+      this.context = new AudioContext({ latencyHint: 'interactive' });
       void this.applySink();
     }
     return this.context;

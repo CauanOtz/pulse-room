@@ -15,6 +15,9 @@ export class ConferenceController {
 
   public async saveSettings(settings: UserSettings): Promise<void> {
     this.settingsRepository.save(settings);
+    // The buffer is retuned on the live call rather than on the next one: it
+    // is the setting somebody reaches for while the call is going badly.
+    this.gateway.setVoiceDelay(settings.voiceDelay);
     const snapshot = this.gateway.getSnapshot();
     if (snapshot.connectionState === 'connected') {
       await this.gateway.applyMicrophoneOptions(this.microphoneOptions(settings));
@@ -23,6 +26,7 @@ export class ConferenceController {
 
   public async join(roomId?: string): Promise<void> {
     const settings = this.getSettings();
+    this.gateway.setVoiceDelay(settings.voiceDelay);
     await this.gateway.join({
       roomId: roomId ?? settings.roomId,
       participantName: settings.displayName,

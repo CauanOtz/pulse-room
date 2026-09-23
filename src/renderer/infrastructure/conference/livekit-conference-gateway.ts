@@ -15,11 +15,14 @@ import type {
   Participant,
   ScreenShareOptions,
   SignalQuality,
+  VoiceDelayName,
 } from '../../domain/conference';
+import { voiceDelayPresets } from '../../domain/conference';
 import { ObservableConference } from './observable-conference';
 import { createDisplayMediaOptions } from '../media/display-media-options';
 import { ParticipantStreamRegistry } from '../media/participant-stream-registry';
 import { MicrophoneTrackFactory, type ProcessedMicrophoneTrack } from '../media/microphone-track-factory';
+import { reuseParticipants } from './snapshot-diff';
 
 const grades: SignalQuality[] = ['excellent', 'good', 'poor', 'lost', 'unknown'];
 
@@ -64,6 +67,8 @@ export class LiveKitConferenceGateway extends ObservableConference {
   private readonly watched = new Set<string>();
   private previewed?: string;
   private deafened = false;
+  // How much of a voice this machine is willing to hold back before playing it.
+  private voiceDelay: VoiceDelayName = 'lowest';
   private microphoneOptions?: MicrophoneOptions;
   private generation = 0;
   private joinAbort?: AbortController;
@@ -142,7 +147,11 @@ export class LiveKitConferenceGateway extends ObservableConference {
         new LocalAudioTrack(this.processedMicrophone.track),
         {
           source: Track.Source.Microphone,
-          audioPreset: { maxBitrate: 64_000 },
+          // Mono speech through a high pass and a gate is transparent well
+          // below this; the rest was bitrate to encode, send and decode that
+          // nobody in the room could hear. Redundancy is kept, because it
+          // costs packets rather than delay and this is a home connection.
+          audioPreset: { maxBitrate: 32_000 },
           dtx: true,
           red: true,
         },
@@ -418,8 +427,10 @@ export class LiveKitConferenceGateway extends ObservableConference {
       })
       .on(
         RoomEvent.TrackSubscribed,
-        (_track: RemoteTrack, _publication: RemoteTrackPublication, _participant: RemoteParticipant) =>
-          this.refreshParticipants(),
+        (track: RemoteTrack, _publication: RemoteTrackPublication, _participant: RemoteParticipant) => {
+          this.applyVoiceDelay(track);
+          this.refreshParticipants();
+        },
       )
       .on(RoomEvent.TrackUnsubscribed, () => this.refreshParticipants())
       .on(RoomEvent.Reconnecting, () => this.update({ connectionState: 'reconnecting' }))
@@ -431,6 +442,28 @@ export class LiveKitConferenceGateway extends ObservableConference {
         this.streams.clear();
         this.update({ connectionState: 'disconnected', participants: [] });
       });
+  }
+
+  /**
+   * Asks the receiver to hold a voice for as little as the line allows.
+   *
+   * Only voices: a shared screen is watched rather than talked to, and the
+   * smoothness of its sound is worth more than a tenth of a second of it.
+   */
+  public setVoiceDelay(delay: VoiceDelayName): void {
+    this.voiceDelay = delay;
+    this.room.remoteParticipants.forEach((participant) => {
+      participant.trackPublications.forEach((publication) => {
+        if (publication.track) this.applyVoiceDelay(publication.track);
+      });
+    });
+  }
+
+  private applyVoiceDelay(track: RemoteTrack): void {
+    if (track.source !== Track.Source.Microphone) return;
+    // Older runtimes have no say over the buffer, and a call is worth more
+    // than the setting.
+    track.setPlayoutDelay?.(voiceDelayPresets[this.voiceDelay].seconds);
   }
 
   private refreshParticipants(): void {
@@ -452,7 +485,9 @@ export class LiveKitConferenceGateway extends ObservableConference {
     const remote = [...this.room.remoteParticipants.values()].map((participant, index) =>
       this.mapRemoteParticipant(participant, index),
     );
-    this.update({ participants: [local, ...remote] });
+    // Whoever did not change keeps the object they had, so a list can skip
+    // them and the snapshot can tell that nothing happened at all.
+    this.update({ participants: reuseParticipants(this.snapshot.participants, [local, ...remote]) });
   }
 
   private mapRemoteParticipant(participant: RemoteParticipant, index: number): Participant {

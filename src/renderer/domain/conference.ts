@@ -92,6 +92,23 @@ export function noiseGateThresholdDb(strength: number): number {
   return -80 + (bounded / 100) * 50;
 }
 
+/**
+ * How long a voice is allowed to wait on this machine before it is played.
+ *
+ * Everything that crosses a network arrives unevenly, and the receiver holds a
+ * little of it back so a late packet still has somewhere to go. That buffer is
+ * the largest part of the delay a room can actually control, and how much of
+ * it is worth having depends entirely on the line: a friend on a cable wants
+ * none of it, and a friend on a phone in the garden wants all of it.
+ */
+export const voiceDelayPresets = {
+  lowest: { seconds: 0, label: 'Lowest delay' },
+  balanced: { seconds: 0.08, label: 'Balanced' },
+  smooth: { seconds: 0.2, label: 'Smoothest' },
+} as const;
+
+export type VoiceDelayName = keyof typeof voiceDelayPresets;
+
 export const screenSharePresets = {
   balanced: { width: 1920, height: 1080, frameRate: 30, maxBitrate: 4_500_000, contentHint: 'detail' },
   motion: { width: 1920, height: 1080, frameRate: 60, maxBitrate: 7_000_000, contentHint: 'motion' },

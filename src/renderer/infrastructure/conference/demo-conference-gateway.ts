@@ -191,6 +191,10 @@ export class DemoConferenceGateway extends ObservableConference {
     // A glance costs nothing when the picture is already local.
   }
 
+  public setVoiceDelay(): void {
+    // Nothing here crosses a network, so nothing is waiting to be played.
+  }
+
   public setParticipantMuted(participantId: string, muted: boolean): void {
     this.update({
       participants: this.snapshot.participants.map((participant) =>

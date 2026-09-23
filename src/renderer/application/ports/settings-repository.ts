@@ -1,4 +1,4 @@
-import type { ScreenSharePresetName } from '../../domain/conference';
+import type { ScreenSharePresetName, VoiceDelayName } from '../../domain/conference';
 
 export interface UserSettings {
   displayName: string;
@@ -13,6 +13,7 @@ export interface UserSettings {
   expandScreenLevels: boolean;
   roomSounds: boolean;
   screenSharePreset: ScreenSharePresetName;
+  voiceDelay: VoiceDelayName;
 }
 
 export interface SettingsRepository {

@@ -5,6 +5,9 @@ import { MediaOutput } from './media-output';
 import { cn } from './ui/utils';
 import { ParticipantTiles } from './participant-tiles';
 
+/** One empty list, so "nobody is being watched" is the same value each time. */
+const nobody: string[] = [];
+
 interface StageProps {
   participants: Participant[];
   joined: boolean;
@@ -40,7 +43,7 @@ export function Stage({
   // Nobody is shown a screen they did not ask for: decoding one is the most
   // expensive thing in the room, and not every machine here can spare it. Two
   // can be taken at once, which is how a room watches two people play.
-  const watched = watching ?? [];
+  const watched = watching ?? nobody;
   // One of the screens taken fills the room, and by default that is simply the
   // first of them. Putting the picture away is not the same as leaving the
   // stream: the room comes back, every stream taken keeps running in its tile,
@@ -51,10 +54,10 @@ export function Stage({
   const active = closed ? undefined : broadcasts.find((broadcast) => broadcast.id === openedId);
   const picture = active?.screenStream?.getVideoTracks().length ? active.screenStream : undefined;
 
-  const open = (participantId: string) => {
+  const open = useCallback((participantId: string) => {
     setOpenId(participantId);
     setClosed(false);
-  };
+  }, []);
 
   const stageRef = useRef<HTMLElement>(null);
   const [fullScreen, setFullScreen] = useState(false);
@@ -108,18 +111,21 @@ export function Stage({
     }
   }, [picture]);
 
-  const focus = (participant: Participant) => {
-    if (!participant.isBroadcasting) return;
-    if (!watched.includes(participant.id)) {
-      onWatch(participant.id, true);
-      open(participant.id);
-      return;
-    }
-    // Already taken: this is about which picture fills the room, not about
-    // whether the stream is being received.
-    if (participant.id === active?.id) setClosed(true);
-    else open(participant.id);
-  };
+  const focus = useCallback(
+    (participant: Participant) => {
+      if (!participant.isBroadcasting) return;
+      if (!watched.includes(participant.id)) {
+        onWatch(participant.id, true);
+        open(participant.id);
+        return;
+      }
+      // Already taken: this is about which picture fills the room, not about
+      // whether the stream is being received.
+      if (participant.id === activeId) setClosed(true);
+      else open(participant.id);
+    },
+    [activeId, onWatch, open, watched],
+  );
 
   if (!joined) {
     return (

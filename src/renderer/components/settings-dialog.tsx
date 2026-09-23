@@ -198,6 +198,38 @@ export function SettingsDialog(props: SettingsDialogProps) {
             />
           </fieldset>
 
+          <fieldset className="delay-field field-span col-span-2 flex flex-col gap-2 rounded-xl border border-border bg-background/60 p-3">
+            <legend className="px-1 text-xs font-semibold text-muted-foreground">Voice delay</legend>
+            <p className="px-1 pb-1 text-[11px] text-muted-foreground">
+              How long a voice may wait here before it is played. Holding none of it back is the
+              shortest round trip and the least forgiving of a line that stutters.
+            </p>
+            <QualityOption
+              id="lowest"
+              group="delay"
+              label="Lowest delay"
+              detail="Nothing held back · best on a cable"
+              selected={settings.voiceDelay === 'lowest'}
+              onSelect={() => setSettings({ ...settings, voiceDelay: 'lowest' })}
+            />
+            <QualityOption
+              id="balanced"
+              group="delay"
+              label="Balanced"
+              detail="80 ms held back · survives a hiccup"
+              selected={settings.voiceDelay === 'balanced'}
+              onSelect={() => setSettings({ ...settings, voiceDelay: 'balanced' })}
+            />
+            <QualityOption
+              id="smooth"
+              group="delay"
+              label="Smoothest"
+              detail="200 ms held back · for a bad connection"
+              selected={settings.voiceDelay === 'smooth'}
+              onSelect={() => setSettings({ ...settings, voiceDelay: 'smooth' })}
+            />
+          </fieldset>
+
           <div className="update-row field-span col-span-2 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4 text-xs">
             <div className="flex min-w-0 flex-col gap-0.5">
               <strong className="text-[13px] font-semibold text-foreground">Application updates</strong>
@@ -308,12 +340,14 @@ function Toggle({
 
 function QualityOption({
   id,
+  group = 'quality',
   label,
   detail,
   selected,
   onSelect,
 }: {
   id: string;
+  group?: string;
   label: string;
   detail: string;
   selected: boolean;
@@ -325,13 +359,13 @@ function QualityOption({
         'quality-option flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 transition-colors',
         selected ? 'is-selected border-primary bg-primary/10' : 'border-border hover:bg-accent',
       )}
-      htmlFor={`quality-${id}`}
+      htmlFor={`${group}-${id}`}
     >
       <input
-        id={`quality-${id}`}
+        id={`${group}-${id}`}
         className="peer sr-only"
         type="radio"
-        name="quality"
+        name={group}
         checked={selected}
         onChange={onSelect}
       />

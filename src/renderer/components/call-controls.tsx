@@ -24,7 +24,10 @@ export function CallControls(props: CallControlsProps) {
 
   return (
     <div
-      className="call-dock flex items-center gap-2 rounded-[26px] bg-card/90 p-2 shadow-lg backdrop-blur-sm"
+      // A blurred backdrop is recomputed by the GPU on every frame of whatever
+      // is behind it, and what is behind this is somebody's game at sixty
+      // frames a second. An opaque panel costs nothing and reads the same.
+      className="call-dock flex items-center gap-2 rounded-[26px] bg-popover p-2 shadow-lg shadow-black/40"
       aria-label="Call controls"
     >
       <Tooltip label={props.microphoneEnabled ? 'Mute' : 'Unmute'}>

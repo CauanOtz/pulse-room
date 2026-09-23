@@ -3,6 +3,7 @@ import type {
   JoinRoomCommand,
   MicrophoneOptions,
   ScreenShareOptions,
+  VoiceDelayName,
 } from '../../domain/conference';
 
 export interface ConferenceGateway {
@@ -21,4 +22,6 @@ export interface ConferenceGateway {
   watchScreen(participantId: string, watching: boolean): void;
   /** Borrows a screen for as long as it is being looked at in passing. */
   previewScreen(participantId?: string): void;
+  /** How long a voice may wait on this machine before it is played. */
+  setVoiceDelay(delay: VoiceDelayName): void;
 }

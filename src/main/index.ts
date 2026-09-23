@@ -11,6 +11,20 @@ if (process.env.NODE_ENV === 'test' && process.env.PULSE_TEST_USER_DATA) {
   app.setPath('userData', process.env.PULSE_TEST_USER_DATA);
 }
 
+/*
+ * Chromium runs audio in a process of its own so that a crashing sound driver
+ * cannot take a browser down with it. This is not a browser: it is one window
+ * whose entire purpose is the call, and a call whose audio has died is over
+ * either way. Moving audio in with the main process is worth about seventy
+ * megabytes of the five hundred this application costs, and takes one
+ * inter-process hop out of the path a voice walks to the speakers.
+ *
+ * Measured on this machine: 501 MB across six processes before, 426 MB across
+ * five after. The video capture service is the other large one and it stays,
+ * because it is what screen sharing is served by.
+ */
+app.commandLine.appendSwitch("disable-features", "AudioServiceOutOfProcess");
+
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 // Closing the window would end a call the room is still in, so the application
@@ -27,7 +41,9 @@ function createMainWindow(): BrowserWindow {
     minHeight: 680,
     show: false,
     title: 'Pulse Room',
-    backgroundColor: '#0b1018',
+    // The room is black, and a window that paints slate for the first frame
+    // announces itself before it has drawn anything.
+    backgroundColor: '#000000',
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
       contextIsolation: true,
@@ -132,6 +148,9 @@ app.whenReady().then(() => {
   // above it belongs to a document editor. Editing shortcuts are the browser's
   // own and survive this, which the end-to-end test holds to.
   Menu.setApplicationMenu(null);
+  // The only text typed here is a chat line, and a spell checker pulls a
+  // dictionary down and keeps it resident for the life of the call.
+  session.defaultSession.setSpellCheckerEnabled(false);
   screenCaptureService.install(session.defaultSession);
   registerIpcHandlers();
   mainWindow = createMainWindow();
