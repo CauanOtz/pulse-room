@@ -13,6 +13,7 @@ export interface PlaybackHandle {
 export class AudioPlaybackEngine {
   private context?: AudioContext;
   private sinkId?: string;
+  private latencyHint: AudioContextLatencyCategory | number = 0;
 
   public attach(stream: MediaStream): PlaybackHandle | undefined {
     if (stream.getAudioTracks().length === 0) return undefined;
@@ -40,6 +41,15 @@ export class AudioPlaybackEngine {
     }
   }
 
+  /**
+   * How much slack the output buffer may keep. It is read when the graph is
+   * built, so a change takes hold on the next call rather than interrupting
+   * this one: rebuilding the context under a live room would drop its sound.
+   */
+  public useLatency(hint: AudioContextLatencyCategory | number): void {
+    this.latencyHint = hint;
+  }
+
   public async useOutputDevice(deviceId?: string): Promise<void> {
     this.sinkId = deviceId;
     await this.applySink();
@@ -47,9 +57,9 @@ export class AudioPlaybackEngine {
 
   private ensureContext(): AudioContext {
     if (!this.context || this.context.state === 'closed') {
-      // The shortest buffer the output device will serve. Everything a voice
-      // waits in on this machine is delay the talker hears back.
-      this.context = new AudioContext({ latencyHint: 'interactive' });
+      // Everything a voice waits in on this machine is delay the talker hears
+      // back, and this buffer was the largest of those by a wide margin.
+      this.context = new AudioContext({ latencyHint: this.latencyHint });
       void this.applySink();
     }
     return this.context;

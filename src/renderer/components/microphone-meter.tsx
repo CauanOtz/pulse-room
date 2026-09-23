@@ -28,7 +28,9 @@ export function MicrophoneMeter({ deviceId, gateThresholdDb }: MicrophoneMeterPr
         });
         if (stopped) return;
 
-        context = new AudioContext();
+        // Only a meter, but it shares the device with the call while the
+        // settings are open, so it must not ask for more slack than the call.
+        context = new AudioContext({ latencyHint: 0 });
         const analyser = context.createAnalyser();
         analyser.fftSize = 1024;
         context.createMediaStreamSource(stream).connect(analyser);

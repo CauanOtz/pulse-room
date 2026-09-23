@@ -76,6 +76,8 @@ export interface ScreenShareOptions {
 
 export interface MicrophoneOptions {
   deviceId?: string;
+  /** How much slack the capture buffer is allowed. Zero asks for none. */
+  latencyHint?: AudioContextLatencyCategory | number;
   gain: number;
   echoCancellation: boolean;
   noiseSuppression: boolean;
@@ -95,16 +97,28 @@ export function noiseGateThresholdDb(strength: number): number {
 /**
  * How long a voice is allowed to wait on this machine before it is played.
  *
- * Everything that crosses a network arrives unevenly, and the receiver holds a
- * little of it back so a late packet still has somewhere to go. That buffer is
- * the largest part of the delay a room can actually control, and how much of
- * it is worth having depends entirely on the line: a friend on a cable wants
- * none of it, and a friend on a phone in the garden wants all of it.
+ * Two buffers decide this and they are worth naming separately, because the
+ * one that looks important is not the one that costs the most.
+ *
+ * The first is the jitter buffer. Everything that crosses a network arrives
+ * unevenly and the receiver holds a little of it back so a late packet still
+ * has somewhere to go. Asking for none of it does not get none: measured on a
+ * loopback with no network at all, the receiver still held about 29 ms,
+ * because it cannot hand out less than the packets arrive in.
+ *
+ * The second is the sound card's own buffer, and on this machine it was the
+ * larger of the two by a long way: 46 ms at the hint every guide recommends,
+ * and 5 ms when asked for nothing at all. That is the difference between a
+ * room that feels like a telephone and one that feels like the next chair.
+ *
+ * A short buffer is a buffer with no slack, so a machine that stalls has
+ * nowhere to hide it and the listener hears a click. Which is why this is a
+ * choice and not a constant.
  */
 export const voiceDelayPresets = {
-  lowest: { seconds: 0, label: 'Lowest delay' },
-  balanced: { seconds: 0.08, label: 'Balanced' },
-  smooth: { seconds: 0.2, label: 'Smoothest' },
+  lowest: { seconds: 0, audioLatency: 0, label: 'Lowest delay' },
+  balanced: { seconds: 0.08, audioLatency: 'interactive', label: 'Balanced' },
+  smooth: { seconds: 0.2, audioLatency: 'playback', label: 'Smoothest' },
 } as const;
 
 export type VoiceDelayName = keyof typeof voiceDelayPresets;

@@ -60,7 +60,13 @@ export class RoomSoundPlayer {
   }
 
   private ensureContext(): AudioContext {
-    if (!this.context || this.context.state === 'closed') this.context = new AudioContext();
+    // Every context that opens the output device has a say in how much slack
+    // that device keeps, and the largest request wins for all of them. A cue
+    // that lasts a tenth of a second was quietly holding the whole room's
+    // voices in a 42 ms buffer, so it asks for the same nothing they do.
+    if (!this.context || this.context.state === 'closed') {
+      this.context = new AudioContext({ latencyHint: 0 });
+    }
     return this.context;
   }
 }

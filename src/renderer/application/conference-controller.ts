@@ -1,6 +1,7 @@
 import type { ConferenceGateway } from './ports/conference-gateway';
 import type { SettingsRepository, UserSettings } from './ports/settings-repository';
-import { noiseGateThresholdDb, screenSharePresets } from '../domain/conference';
+import { audioPlayback } from '../infrastructure/media/audio-playback-engine';
+import { noiseGateThresholdDb, screenSharePresets, voiceDelayPresets } from '../domain/conference';
 import type { MicrophoneOptions, ScreenSharePresetName } from '../domain/conference';
 
 export class ConferenceController {
@@ -18,6 +19,7 @@ export class ConferenceController {
     // The buffer is retuned on the live call rather than on the next one: it
     // is the setting somebody reaches for while the call is going badly.
     this.gateway.setVoiceDelay(settings.voiceDelay);
+    audioPlayback.useLatency(voiceDelayPresets[settings.voiceDelay].audioLatency);
     const snapshot = this.gateway.getSnapshot();
     if (snapshot.connectionState === 'connected') {
       await this.gateway.applyMicrophoneOptions(this.microphoneOptions(settings));
@@ -27,6 +29,7 @@ export class ConferenceController {
   public async join(roomId?: string): Promise<void> {
     const settings = this.getSettings();
     this.gateway.setVoiceDelay(settings.voiceDelay);
+    audioPlayback.useLatency(voiceDelayPresets[settings.voiceDelay].audioLatency);
     await this.gateway.join({
       roomId: roomId ?? settings.roomId,
       participantName: settings.displayName,
@@ -85,6 +88,9 @@ export class ConferenceController {
       noiseSuppression: settings.noiseSuppression,
       autoGainControl: settings.autoGainControl,
       noiseGateThreshold: noiseGateThresholdDb(settings.noiseGate),
+      // One dial moves both buffers, because a person asking for less delay
+      // does not care which of them was holding their voice.
+      latencyHint: voiceDelayPresets[settings.voiceDelay].audioLatency,
     };
   }
 }
