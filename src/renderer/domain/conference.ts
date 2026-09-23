@@ -111,14 +111,20 @@ export function noiseGateThresholdDb(strength: number): number {
  * and 5 ms when asked for nothing at all. That is the difference between a
  * room that feels like a telephone and one that feels like the next chair.
  *
+ * The third thing this moves is the Opus frame. Every packet carries a fixed
+ * slice of time, twenty milliseconds by default, and those are spent before a
+ * byte leaves. Asking for ten was measured at seventeen milliseconds off the
+ * whole trip, paid for in twice as many packets.
+ *
  * A short buffer is a buffer with no slack, so a machine that stalls has
- * nowhere to hide it and the listener hears a click. Which is why this is a
- * choice and not a constant.
+ * nowhere to hide it and the listener hears a click; and twice the packets on
+ * a line that is already losing them is the wrong way round. Which is why this
+ * is a choice and not a constant.
  */
 export const voiceDelayPresets = {
-  lowest: { seconds: 0, audioLatency: 0, label: 'Lowest delay' },
-  balanced: { seconds: 0.08, audioLatency: 'interactive', label: 'Balanced' },
-  smooth: { seconds: 0.2, audioLatency: 'playback', label: 'Smoothest' },
+  lowest: { seconds: 0, audioLatency: 0, opusFrameMs: 10, label: 'Lowest delay' },
+  balanced: { seconds: 0.08, audioLatency: 'interactive', opusFrameMs: undefined, label: 'Balanced' },
+  smooth: { seconds: 0.2, audioLatency: 'playback', opusFrameMs: undefined, label: 'Smoothest' },
 } as const;
 
 export type VoiceDelayName = keyof typeof voiceDelayPresets;

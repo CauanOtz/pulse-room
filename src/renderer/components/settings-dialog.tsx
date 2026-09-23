@@ -202,9 +202,10 @@ export function SettingsDialog(props: SettingsDialogProps) {
             <legend className="px-1 text-xs font-semibold text-muted-foreground">Voice delay</legend>
             <p className="px-1 pb-1 text-[11px] text-muted-foreground">
               How much slack the sound card and the network buffer are allowed. Measured on a
-              loopback here, the whole trip took 69 ms holding nothing back and 110 ms at
-              Balanced. A buffer with no slack has nowhere to hide a machine that stalls, which
-              a listener hears as a click. The sound card half takes hold on the next call.
+              loopback here, the whole trip took 50 ms holding nothing back and 110 ms at
+              Balanced. Lowest also halves the Opus frame, which costs twice the packets. A
+              buffer with no slack has nowhere to hide a machine that stalls, which a listener
+              hears as a click. The sound card half takes hold on the next call.
             </p>
             <QualityOption
               id="lowest"

@@ -1,6 +1,7 @@
 import type { ConferenceGateway } from './ports/conference-gateway';
 import type { SettingsRepository, UserSettings } from './ports/settings-repository';
 import { audioPlayback } from '../infrastructure/media/audio-playback-engine';
+import { useOpusFrameSize } from '../infrastructure/media/opus-frame-size';
 import { noiseGateThresholdDb, screenSharePresets, voiceDelayPresets } from '../domain/conference';
 import type { MicrophoneOptions, ScreenSharePresetName } from '../domain/conference';
 
@@ -20,6 +21,7 @@ export class ConferenceController {
     // is the setting somebody reaches for while the call is going badly.
     this.gateway.setVoiceDelay(settings.voiceDelay);
     audioPlayback.useLatency(voiceDelayPresets[settings.voiceDelay].audioLatency);
+    useOpusFrameSize(voiceDelayPresets[settings.voiceDelay].opusFrameMs);
     const snapshot = this.gateway.getSnapshot();
     if (snapshot.connectionState === 'connected') {
       await this.gateway.applyMicrophoneOptions(this.microphoneOptions(settings));
@@ -30,6 +32,7 @@ export class ConferenceController {
     const settings = this.getSettings();
     this.gateway.setVoiceDelay(settings.voiceDelay);
     audioPlayback.useLatency(voiceDelayPresets[settings.voiceDelay].audioLatency);
+    useOpusFrameSize(voiceDelayPresets[settings.voiceDelay].opusFrameMs);
     await this.gateway.join({
       roomId: roomId ?? settings.roomId,
       participantName: settings.displayName,
