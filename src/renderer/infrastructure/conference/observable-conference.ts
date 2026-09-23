@@ -57,4 +57,7 @@ export abstract class ObservableConference implements ConferenceGateway {
   public abstract setVoiceDelay(
     delay: import('../../domain/conference').VoiceDelayName,
   ): void;
+  public abstract readHealth(): Promise<
+    import('../../domain/conference').ParticipantHealth[]
+  >;
 }

@@ -2,6 +2,7 @@ import type {
   ConferenceSnapshot,
   JoinRoomCommand,
   MicrophoneOptions,
+  ParticipantHealth,
   ScreenShareOptions,
   VoiceDelayName,
 } from '../../domain/conference';
@@ -24,4 +25,6 @@ export interface ConferenceGateway {
   previewScreen(participantId?: string): void;
   /** How long a voice may wait on this machine before it is played. */
   setVoiceDelay(delay: VoiceDelayName): void;
+  /** What it is costing this machine to keep everybody else audible. */
+  readHealth(): Promise<ParticipantHealth[]>;
 }

@@ -22,6 +22,7 @@ function createGateway(): ConferenceGateway {
     watchScreen: vi.fn(),
     previewScreen: vi.fn(),
     setVoiceDelay: vi.fn(),
+    readHealth: vi.fn(async () => []),
     setMicrophoneEnabled: vi.fn(async () => undefined),
     applyMicrophoneOptions: vi.fn(async () => undefined),
     setDeafened: vi.fn(async () => undefined),

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { RefreshCw, X } from 'lucide-react';
 import { noiseGateThresholdDb } from '../domain/conference';
+import type { ParticipantHealth } from '../domain/conference';
+import { CallHealth } from './call-health';
 import { MicrophoneMeter } from './microphone-meter';
 import { Switch } from './ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
@@ -21,6 +23,8 @@ interface SettingsDialogProps {
   updateStatus: UpdateStatus;
   microphoneLive: boolean;
   microphoneProblem?: string;
+  /** Absent outside a call, where there is nothing to report on. */
+  readHealth?(): Promise<ParticipantHealth[]>;
   onClose(): void;
   onSave(settings: UserSettings): void;
   onCheckUpdates(): void;
@@ -197,6 +201,8 @@ export function SettingsDialog(props: SettingsDialogProps) {
               onSelect={() => setSettings({ ...settings, screenSharePreset: 'motion' })}
             />
           </fieldset>
+
+          {props.readHealth && <CallHealth read={props.readHealth} />}
 
           <fieldset className="delay-field field-span col-span-2 flex flex-col gap-2 rounded-xl border border-border bg-background/60 p-3">
             <legend className="px-1 text-xs font-semibold text-muted-foreground">Voice delay</legend>

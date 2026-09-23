@@ -195,6 +195,11 @@ export class DemoConferenceGateway extends ObservableConference {
     // Nothing here crosses a network, so nothing is waiting to be played.
   }
 
+  public async readHealth(): Promise<[]> {
+    // Nothing crossed a network, so nothing had to be invented to cover it.
+    return [];
+  }
+
   public setParticipantMuted(participantId: string, muted: boolean): void {
     this.update({
       participants: this.snapshot.participants.map((participant) =>

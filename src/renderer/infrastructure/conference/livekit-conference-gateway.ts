@@ -13,6 +13,7 @@ import type {
   JoinRoomCommand,
   MicrophoneOptions,
   Participant,
+  ParticipantHealth,
   ScreenShareOptions,
   SignalQuality,
   VoiceDelayName,
@@ -466,11 +467,54 @@ export class LiveKitConferenceGateway extends ObservableConference {
     });
   }
 
+  /**
+   * Asks the receiver what it has had to invent lately.
+   *
+   * Concealment is the number that matters: samples played to cover packets
+   * that were late or never came. It is the difference between a microphone
+   * that sounds wrong and a line that is not delivering, which are two
+   * completely different things to go and fix.
+   */
+  public async readHealth(): Promise<ParticipantHealth[]> {
+    const people = [...this.room.remoteParticipants.values()];
+    const readings = await Promise.all(
+      people.map(async (participant) => {
+        const voice = [...participant.trackPublications.values()].find(
+          (publication) => publication.source === Track.Source.Microphone,
+        )?.track;
+        const health: ParticipantHealth = {
+          id: participant.identity,
+          name: participant.name || participant.identity,
+        };
+        const report = await voice?.getRTCStatsReport?.().catch(() => undefined);
+        report?.forEach((entry) => {
+          const stat = entry as Record<string, number | string>;
+          if (stat.type !== 'inbound-rtp' || stat.kind !== 'audio') return;
+          const played = Number(stat.totalSamplesReceived ?? 0);
+          const concealed = Number(stat.concealedSamples ?? 0);
+          if (played > 0) health.concealedPercent = (concealed / played) * 100;
+          health.packetsLost = Number(stat.packetsLost ?? 0);
+          health.jitterMs = Number(stat.jitter ?? 0) * 1000;
+          const emitted = Number(stat.jitterBufferEmittedCount ?? 0);
+          if (emitted > 0) {
+            health.jitterBufferMs = (Number(stat.jitterBufferDelay ?? 0) / emitted) * 1000;
+          }
+        });
+        return health;
+      }),
+    );
+    return readings;
+  }
+
   private applyVoiceDelay(track: RemoteTrack): void {
     if (track.source !== Track.Source.Microphone) return;
+    const seconds = voiceDelayPresets[this.voiceDelay].seconds;
+    // Undefined means the receiver keeps its own judgement, which is the right
+    // answer whenever the line is the thing that cannot be relied on.
+    if (seconds === undefined) return;
     // Older runtimes have no say over the buffer, and a call is worth more
     // than the setting.
-    track.setPlayoutDelay?.(voiceDelayPresets[this.voiceDelay].seconds);
+    track.setPlayoutDelay?.(seconds);
   }
 
   private refreshParticipants(): void {

@@ -29,6 +29,26 @@ export interface Participant {
   signal?: SignalQuality;
 }
 
+/**
+ * What the receiver had to do to keep somebody's voice playing.
+ *
+ * A voice that sounds like wind is almost never the microphone. It is the
+ * receiver inventing audio to cover a packet that did not arrive in time, and
+ * that invention is counted, so the room can say whose line it is rather than
+ * everybody guessing at each other's headphones.
+ */
+export interface ParticipantHealth {
+  id: string;
+  name: string;
+  /** Share of the audio played that nobody sent: the receiver made it up. */
+  concealedPercent?: number;
+  packetsLost?: number;
+  /** How unevenly their packets arrive. */
+  jitterMs?: number;
+  /** How long their voice is actually being held before it is played. */
+  jitterBufferMs?: number;
+}
+
 export interface ConferenceSnapshot {
   connectionState: ConnectionState;
   participants: Participant[];
@@ -122,7 +142,13 @@ export function noiseGateThresholdDb(strength: number): number {
  * is a choice and not a constant.
  */
 export const voiceDelayPresets = {
-  lowest: { seconds: 0, audioLatency: 0, opusFrameMs: 10, label: 'Lowest delay' },
+  // Nothing is asked of the jitter buffer here, deliberately. Asking for zero
+  // was measured as worth about five milliseconds, because the buffer cannot
+  // hand out less than the packets arrive in and floors near 29 ms anyway. All
+  // it really does is stop an unsteady line from growing itself the slack it
+  // needs, and an unsteady line that cannot have that slack conceals the gap
+  // instead, which is heard as a wind in somebody's headphones.
+  lowest: { seconds: undefined, audioLatency: 0, opusFrameMs: 10, label: 'Lowest delay' },
   balanced: { seconds: 0.08, audioLatency: 'interactive', opusFrameMs: undefined, label: 'Balanced' },
   smooth: { seconds: 0.2, audioLatency: 'playback', opusFrameMs: undefined, label: 'Smoothest' },
 } as const;

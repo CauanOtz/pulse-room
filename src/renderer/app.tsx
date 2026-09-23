@@ -80,6 +80,8 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
   // The list of people beside a channel is the first thing to go on a narrow
   // window, so it is something the reader can put away.
   const [membersOpen, setMembersOpen] = useState(true);
+  // Held still, so the panel that polls it is not restarted on every render.
+  const readHealth = useCallback(() => controller.gateway.readHealth(), [controller]);
   const [sourcePickerOpen, setSourcePickerOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [version, setVersion] = useState(__APP_VERSION__);
@@ -472,6 +474,7 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
         updateStatus={updateStatus}
         microphoneLive={joined && snapshot.microphoneEnabled}
         microphoneProblem={snapshot.error}
+        readHealth={joined ? readHealth : undefined}
         onClose={() => setSettingsOpen(false)}
         onSave={handleSettingsSaved}
         onCheckUpdates={() => window.desktop && void window.desktop.updates.check().then(setUpdateStatus)}
