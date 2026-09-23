@@ -136,20 +136,25 @@ export function noiseGateThresholdDb(strength: number): number {
  * byte leaves. Asking for ten was measured at seventeen milliseconds off the
  * whole trip, paid for in twice as many packets.
  *
- * A short buffer is a buffer with no slack, so a machine that stalls has
- * nowhere to hide it and the listener hears a click; and twice the packets on
- * a line that is already losing them is the wrong way round. Which is why this
- * is a choice and not a constant.
+ * The sound card is where the risk is, and it is all or nothing: measured on
+ * this machine, asking for zero gives 6 ms and asking for anything at all
+ * gives 42 ms, with nothing in between on offer. Six milliseconds at 96 kHz is
+ * seven hundred and fifty callbacks a second and no slack to absorb a machine
+ * that stalls, which a listener hears as wind, or as a voice that has gone
+ * thin and quiet. That is a bet on the machine, so it is the one thing Lowest
+ * has that Balanced does not, and the default does not take it.
+ *
+ * The jitter buffer is left to its own judgement in both, because asking it
+ * for less was measured at about five milliseconds and it is what keeps an
+ * unsteady line intelligible. Only Smoothest names a floor.
  */
 export const voiceDelayPresets = {
-  // Nothing is asked of the jitter buffer here, deliberately. Asking for zero
-  // was measured as worth about five milliseconds, because the buffer cannot
-  // hand out less than the packets arrive in and floors near 29 ms anyway. All
-  // it really does is stop an unsteady line from growing itself the slack it
-  // needs, and an unsteady line that cannot have that slack conceals the gap
-  // instead, which is heard as a wind in somebody's headphones.
+  // The only thing separating these two is the sound card, and it is the one
+  // knob here that is a bet on the machine rather than on the line.
   lowest: { seconds: undefined, audioLatency: 0, opusFrameMs: 10, label: 'Lowest delay' },
-  balanced: { seconds: 0.08, audioLatency: 'interactive', opusFrameMs: undefined, label: 'Balanced' },
+  balanced: { seconds: undefined, audioLatency: 'interactive', opusFrameMs: 10, label: 'Balanced' },
+  // For a line that is genuinely bad, where a floor under the jitter buffer
+  // and fewer, longer packets are both worth more than the time they cost.
   smooth: { seconds: 0.2, audioLatency: 'playback', opusFrameMs: undefined, label: 'Smoothest' },
 } as const;
 

@@ -207,11 +207,11 @@ export function SettingsDialog(props: SettingsDialogProps) {
           <fieldset className="delay-field field-span col-span-2 flex flex-col gap-2 rounded-xl border border-border bg-background/60 p-3">
             <legend className="px-1 text-xs font-semibold text-muted-foreground">Voice delay</legend>
             <p className="px-1 pb-1 text-[11px] text-muted-foreground">
-              How much slack the sound card and the network buffer are allowed. Measured on a
-              loopback here, the whole trip took 50 ms holding nothing back and 110 ms at
-              Balanced. Lowest also halves the Opus frame, which costs twice the packets. A
-              buffer with no slack has nowhere to hide a machine that stalls, which a listener
-              hears as a click. The sound card half takes hold on the next call.
+              How much slack the sound card is allowed. Lowest asks it for none, which on this
+              machine meant 6 ms of output buffer against 42 ms, and there is nothing in
+              between on offer. No slack means nothing to absorb a machine that stalls, and a
+              listener hears that as wind, or as a voice gone thin and quiet. It is a bet on
+              the machine, which is why it is not the default. Takes hold on the next call.
             </p>
             <QualityOption
               id="lowest"
@@ -233,7 +233,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
               id="smooth"
               group="delay"
               label="Smoothest"
-              detail="~230 ms here · for a bad connection"
+              detail="~230 ms here · for a line that is genuinely bad"
               selected={settings.voiceDelay === 'smooth'}
               onSelect={() => setSettings({ ...settings, voiceDelay: 'smooth' })}
             />

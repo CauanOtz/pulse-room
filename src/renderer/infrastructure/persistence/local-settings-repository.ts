@@ -11,9 +11,11 @@ export const defaultSettings: UserSettings = {
   expandScreenLevels: false,
   roomSounds: true,
   screenSharePreset: 'balanced',
-  // Five friends on home connections: hold nothing back, and let anybody whose
-  // line cannot take it say so in the settings.
-  voiceDelay: 'lowest',
+  // A default that sounds wrong on one machine in five is the wrong default,
+  // whatever it measures. Balanced keeps the shorter Opus frame and the
+  // receiver's own judgement, and leaves only the sound card's own buffer to
+  // whoever wants to gamble their machine can keep up with it.
+  voiceDelay: 'balanced',
 };
 
 export class LocalSettingsRepository implements SettingsRepository {
