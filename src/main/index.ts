@@ -41,6 +41,7 @@ function createMainWindow(): BrowserWindow {
     minHeight: 680,
     show: false,
     title: 'Pulse Room',
+    icon: path.join(__dirname, '../../assets/app-icon.png'),
     // The room is black, and a window that paints slate for the first frame
     // announces itself before it has drawn anything.
     backgroundColor: '#000000',
@@ -94,7 +95,10 @@ function revealWindow(): void {
 }
 
 function createTray(): void {
-  const icon = nativeImage.createFromPath(path.join(__dirname, '../../assets/tray.png'));
+  // Windows draws the notification-area icon at 16 or 32 physical pixels.
+  // Feeding it the prepared small asset keeps the mark crisp and avoids
+  // decoding the full-size source image in the main process.
+  const icon = nativeImage.createFromPath(path.join(__dirname, '../../assets/tray-32.png'));
   tray = new Tray(icon.isEmpty() ? nativeImage.createEmpty() : icon);
   tray.setToolTip('Pulse Room');
   tray.setContextMenu(

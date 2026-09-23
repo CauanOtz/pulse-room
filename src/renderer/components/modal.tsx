@@ -7,6 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from './ui/dialog';
+import { cn } from './ui/utils';
 
 /**
  * One dialog for the whole application. Radix owns the focus trap, the escape
@@ -17,10 +18,16 @@ export function Modal({
   title,
   children,
   onClose,
+  contentClassName,
+  headerClassName,
+  bodyClassName,
 }: {
   title: string;
   children: ReactNode;
   onClose(): void;
+  contentClassName?: string;
+  headerClassName?: string;
+  bodyClassName?: string;
 }) {
   // The dialog is unmounted by whoever opened it, which can outrun the focus
   // restoration inside the primitive, so the caller's focus is kept here.
@@ -32,12 +39,12 @@ export function Modal({
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="community-modal" aria-label={title}>
-        <DialogHeader>
-          <DialogTitle className="text-lg font-semibold">{title}</DialogTitle>
+      <DialogContent className={cn('community-modal', contentClassName)} aria-label={title}>
+        <DialogHeader className={headerClassName}>
+          <DialogTitle className="min-w-0 flex-1 truncate text-lg font-semibold">{title}</DialogTitle>
           <DialogCloseButton />
         </DialogHeader>
-        <DialogBody className="modal-body">{children}</DialogBody>
+        <DialogBody className={cn('modal-body', bodyClassName)}>{children}</DialogBody>
       </DialogContent>
     </Dialog>
   );

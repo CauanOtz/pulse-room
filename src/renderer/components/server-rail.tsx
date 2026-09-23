@@ -1,4 +1,5 @@
 import { Compass, Plus, UserRound } from 'lucide-react';
+import appIconUrl from '../../../assets/app-icon.png';
 import type { Community } from '../../shared/community';
 import { Avatar } from './avatar';
 import { cn } from './ui/utils';
@@ -41,20 +42,20 @@ export function ServerRail({
       active: s.id === activeId,
     })) ?? demoServers.slice(1);
   return (
-    <nav className="server-rail flex h-full flex-col items-center gap-2 overflow-y-auto bg-rail py-3" aria-label="Servers">
+    <nav className="server-rail flex h-full flex-col items-center gap-1.5 overflow-y-auto border-r border-border/70 bg-rail py-2.5" aria-label="Servers">
       <div
-        className="brand-mark grid size-11 shrink-0 place-items-center rounded-2xl bg-primary text-lg font-bold text-primary-foreground"
+        className="brand-mark grid size-9.5 shrink-0 place-items-center overflow-hidden rounded-[11px] bg-secondary shadow-[var(--gloss)]"
         aria-label="Pulse Room"
       >
-        P
+        <img aria-hidden="true" className="size-full object-contain" src={appIconUrl} />
       </div>
-      <div className="rail-rule my-0.5 h-0.5 w-6 rounded-full bg-border" />
+      <div className="rail-rule my-1 h-px w-7 bg-border" />
       {items.map((server) => (
         <button
           className={cn(
-            'server-button grid size-11 shrink-0 place-items-center overflow-hidden rounded-2xl bg-secondary text-xs font-bold text-secondary-foreground transition-all duration-150',
-            'hover:rounded-xl hover:bg-primary hover:text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-            server.active && 'is-active rounded-xl bg-primary text-primary-foreground shadow-[-18px_0_0_-15px_var(--foreground)]',
+            'server-button grid size-9.5 shrink-0 place-items-center rounded-[13px] bg-secondary text-[10px] font-bold text-secondary-foreground transition-[border-radius,background-color,color] duration-150',
+            'hover:rounded-[10px] hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            server.active && 'is-active rounded-[10px] bg-accent text-foreground ring-1 ring-inset ring-white/10',
           )}
           key={server.id}
           type="button"
@@ -63,26 +64,27 @@ export function ServerRail({
           aria-current={server.active}
           onClick={() => onSelect?.(server.id)}
         >
-          <Avatar className="server-picture size-full rounded-2xl" name={server.label} initials={server.mark} imageId={server.iconId} />
+          <span className="server-indicator" aria-hidden="true" />
+          <Avatar className="server-picture size-full overflow-hidden rounded-[inherit]" name={server.label} initials={server.mark} imageId={server.iconId} />
         </button>
       ))}
-      <button className="server-button server-action grid size-11 shrink-0 place-items-center rounded-2xl bg-secondary text-success transition-all duration-150 hover:rounded-xl hover:bg-success hover:text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" type="button" aria-label="Add server" onClick={onAdd}>
-        <Plus size={20} />
+      <button className="server-button server-action grid size-9.5 shrink-0 place-items-center rounded-[13px] bg-secondary text-success transition-[border-radius,background-color,color] duration-150 hover:rounded-[10px] hover:bg-success hover:text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" type="button" aria-label="Add server" onClick={onAdd}>
+        <Plus size={17} />
       </button>
       {servers === undefined && (
-        <button className="server-button server-action grid size-11 shrink-0 place-items-center rounded-2xl bg-secondary text-success transition-all duration-150 hover:rounded-xl hover:bg-success hover:text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" type="button" aria-label="Explore servers">
-          <Compass size={19} />
+        <button className="server-button server-action grid size-9.5 shrink-0 place-items-center rounded-[13px] bg-secondary text-success transition-[border-radius,background-color,color] duration-150 hover:rounded-[10px] hover:bg-success hover:text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" type="button" aria-label="Explore servers">
+          <Compass size={17} />
         </button>
       )}
       {/* Only where there is no profile bar to hold it: the account lives there. */}
       {onAccount && showAccount && (
         <button
-          className="server-button account-rail-button mt-auto grid size-11 shrink-0 place-items-center rounded-2xl bg-secondary text-secondary-foreground transition-all duration-150 hover:rounded-xl hover:bg-primary hover:text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="server-button account-rail-button mt-auto grid size-9.5 shrink-0 place-items-center rounded-[13px] bg-secondary text-secondary-foreground transition-[border-radius,background-color,color] duration-150 hover:rounded-[10px] hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           title="Your account"
           aria-label="Your account"
           onClick={onAccount}
         >
-          <UserRound size={20} />
+          <UserRound size={17} />
         </button>
       )}
     </nav>

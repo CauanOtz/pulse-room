@@ -238,7 +238,7 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
   };
 
   return (
-    <div className="app-shell grid h-full w-full grid-cols-[72px_240px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)_auto] bg-background text-foreground">
+    <div className="app-shell grid h-full w-full grid-cols-[60px_246px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)_auto] bg-background text-foreground">
       <VideoLevelFilter />
       <ServerRail
         servers={workspace?.servers}
@@ -314,12 +314,12 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
       />
 
       <main className="room-main col-start-3 row-span-2 row-start-1 flex min-w-0 flex-col bg-background">
-        <header className="room-header flex h-12 flex-none items-center gap-2.5 border-b border-border px-4 text-sm">
+        <header className="room-header flex h-13 flex-none items-center gap-2.5 border-b border-border bg-card/35 px-5 text-sm">
           <div className="room-title flex min-w-0 flex-1 items-center gap-2">
             {textChannel ? (
-              <Hash aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+              <Hash aria-hidden="true" className="size-4 shrink-0 text-primary" />
             ) : (
-              <Volume2 aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+              <Volume2 aria-hidden="true" className="size-4 shrink-0 text-primary" />
             )}
             <strong className="shrink-0 font-semibold">
               {textChannel?.name ?? activeChannel?.name ?? 'Choose a channel'}
@@ -332,7 +332,7 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
             // Somebody reading a channel while a call runs is one click from
             // the call, and the button says which call it is.
             <button
-              className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-lg bg-secondary px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md border border-border bg-secondary px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               type="button"
               onClick={() => setViewId(settings.roomId)}
             >
@@ -344,7 +344,7 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
             <Tooltip label={membersOpen ? 'Hide members' : 'Show members'}>
               <button
                 className={cn(
-                  'grid size-8 shrink-0 place-items-center rounded-lg transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  'grid size-8 shrink-0 place-items-center rounded-md transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                   membersOpen ? 'text-foreground' : 'text-muted-foreground',
                 )}
                 type="button"
@@ -380,7 +380,7 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
             </div>
           ) : (
             // The room is a card of its own, inset from the window.
-            <div className="flex min-h-0 min-w-0 p-2">
+            <div className="flex min-h-0 min-w-0 p-2.5">
               <Stage
                 avatars={avatars}
                 participants={snapshot.participants}

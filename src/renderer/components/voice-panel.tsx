@@ -31,7 +31,7 @@ export function VoicePanel(props: VoicePanelProps) {
         : 'Voice connected';
 
   return (
-    <section className="voice-panel flex flex-col gap-2 border-t border-border bg-card/60 p-2" aria-label="Voice status">
+    <section className="voice-panel mx-2 mb-2 flex flex-col gap-2 rounded-lg border border-border bg-secondary/45 p-2.5 shadow-[var(--gloss)]" aria-label="Voice status">
       <div className="voice-status flex items-center gap-2.5 px-1">
         <SignalBars
           always
@@ -61,20 +61,20 @@ export function VoicePanel(props: VoicePanelProps) {
         </div>
         <Tooltip label="Disconnect">
           <button
-            className="grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+            className="grid size-7.5 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
             type="button"
             aria-label="Leave call"
             disabled={props.busy}
             onClick={props.onLeave}
           >
-            <PhoneOff size={17} />
+            <PhoneOff size={15} />
           </button>
         </Tooltip>
       </div>
 
       <button
         className={cn(
-          'voice-share flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-border bg-secondary text-xs font-semibold text-foreground transition-colors',
+          'voice-share flex h-8 w-full items-center justify-center gap-2 rounded-md border border-border bg-card/70 text-xs font-semibold text-foreground transition-colors',
           'hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
           props.screenSharing && 'is-sharing border-destructive/40 bg-destructive/12 text-destructive',
         )}
@@ -85,7 +85,7 @@ export function VoicePanel(props: VoicePanelProps) {
         {props.screenSharing ? (
           <span className="size-1.5 shrink-0 rounded-full bg-destructive" />
         ) : (
-          <MonitorUp size={16} />
+          <MonitorUp size={14} />
         )}
         {props.screenSharing ? 'Stop sharing' : 'Share screen'}
       </button>

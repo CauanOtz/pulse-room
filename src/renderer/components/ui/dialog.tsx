@@ -20,7 +20,7 @@ export function DialogContent({
       <Primitive.Content
         className={cn(
           'fixed left-1/2 top-1/2 z-50 flex max-h-[min(90vh,44rem)] w-[min(34rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 flex-col',
-          'rounded-2xl border border-border bg-card text-card-foreground shadow-2xl outline-none',
+          'rounded-xl border border-border bg-card text-card-foreground shadow-2xl outline-none',
           className,
         )}
         {...props}
@@ -34,14 +34,14 @@ export function DialogContent({
 export function DialogHeader({ className, ...props }: ComponentProps<'header'>) {
   return (
     <header
-      className={cn('flex items-center gap-3 border-b border-border px-5 py-4', className)}
+      className={cn('flex items-center gap-3 border-b border-border px-5 py-3.5', className)}
       {...props}
     />
   );
 }
 
 export function DialogBody({ className, ...props }: ComponentProps<'div'>) {
-  return <div className={cn('flex-1 space-y-5 overflow-y-auto px-5 py-5', className)} {...props} />;
+  return <div className={cn('min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5', className)} {...props} />;
 }
 
 export function DialogCloseButton({ label = 'Close dialog' }: { label?: string }) {

@@ -129,8 +129,8 @@ export function Stage({
 
   if (!joined) {
     return (
-      <section className="stage stage-empty relative flex size-full flex-col items-center justify-center overflow-hidden rounded-lg bg-stage p-8 text-center" ref={stageRef}>
-        <div className="stage-symbol mb-4 grid size-13 place-items-center rounded-full bg-secondary text-primary"><Radio size={22} /></div>
+      <section className="stage stage-empty relative flex size-full flex-col items-center justify-center overflow-hidden rounded-xl border border-border bg-stage p-8 text-center shadow-[var(--gloss)]" ref={stageRef}>
+        <div className="stage-symbol mb-4 grid size-12 place-items-center rounded-xl border border-border bg-secondary text-primary shadow-[var(--gloss)]"><Radio size={20} /></div>
         <h1>Come as you are</h1>
         <p>A quiet place for loud nights. Pick a voice channel on the left to join.</p>
         <div className="stage-facts flex flex-wrap justify-center gap-4 text-xs text-muted-foreground [&>span]:flex [&>span]:items-center [&>span]:gap-1.5">
@@ -144,7 +144,7 @@ export function Stage({
 
   if (!active || !picture) {
     return (
-      <section className="stage stage-room relative flex size-full flex-col overflow-hidden rounded-lg bg-stage" ref={stageRef}>
+      <section className="stage stage-room relative flex size-full flex-col overflow-hidden rounded-xl border border-border bg-stage shadow-[var(--gloss)]" ref={stageRef}>
         <ParticipantTiles
           avatars={avatars}
           participants={participants}
@@ -162,7 +162,7 @@ export function Stage({
   return (
     <section
       className={cn(
-        'stage stage-live relative size-full overflow-hidden rounded-lg bg-stage',
+        'stage stage-live relative size-full overflow-hidden rounded-xl border border-border bg-stage shadow-[var(--gloss)]',
         !controlsVisible && 'is-idle cursor-none',
       )}
       ref={stageRef}
@@ -200,7 +200,7 @@ export function Stage({
           )}
 
           <button
-            className="live-action inline-flex items-center gap-2 rounded-lg bg-card px-3 py-2 text-xs font-medium text-muted-foreground shadow-[var(--gloss)] transition-colors hover:bg-secondary hover:text-foreground"
+            className="live-action inline-flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground shadow-[var(--gloss)] transition-colors hover:bg-secondary hover:text-foreground"
             type="button"
             onClick={toggleFullScreen}
             aria-label={fullScreen ? 'Exit full screen' : 'Enter full screen'}
@@ -210,7 +210,7 @@ export function Stage({
           </button>
 
           <button
-            className="live-action inline-flex items-center gap-2 rounded-lg bg-card px-3 py-2 text-xs font-medium text-muted-foreground shadow-[var(--gloss)] transition-colors hover:bg-secondary hover:text-foreground"
+            className="live-action inline-flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground shadow-[var(--gloss)] transition-colors hover:bg-secondary hover:text-foreground"
             type="button"
             onClick={() => setClosed(true)}
             aria-label="Back to the room"

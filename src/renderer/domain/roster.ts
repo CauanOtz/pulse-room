@@ -31,7 +31,9 @@ export interface ChannelOccupancy {
 
 // Faces are told apart by value, not by hue: the room keeps its one colour for
 // saying that something is live.
-const accents = ['#E8E8E8', '#B8B8B8', '#8F8F8F', '#6E6E6E', '#9E9E9E'];
+// Identity colour is deliberately softer than status colour. It adds enough
+// variation to scan a busy room without competing with speaking/live states.
+const accents = ['#F0AAA8', '#A8D7B9', '#E5C987', '#C6B4E3', '#A8CDD0'];
 
 export function initialsOf(name: string): string {
   return name

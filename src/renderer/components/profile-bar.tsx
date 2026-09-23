@@ -47,20 +47,20 @@ export function ProfileBar(props: ProfileBarProps) {
   };
 
   return (
-    <div className="profile-strip col-span-2 col-start-1 row-start-2 flex items-center gap-1.5 border-t border-border bg-sidebar px-2 py-2">
+    <div className="profile-strip col-span-2 col-start-1 row-start-2 flex h-[61px] items-center gap-1.5 border-r border-t border-border bg-sidebar px-2 py-1.5">
       <GooeyFilter />
       {/* One person, one panel: the picture and the name open the same card. */}
       <Popover>
         <StatusTooltip label={props.joined ? 'In voice' : 'Ready'} tone={props.joined ? 'live' : 'idle'}>
           <PopoverTrigger asChild>
             <button
-              className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg px-1.5 py-1 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-1.5 py-1 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               type="button"
               aria-label="Your profile"
             >
               <span className="relative shrink-0">
                 <Avatar
-                  className="grid size-9 place-items-center rounded-xl bg-secondary text-[11px] font-bold text-secondary-foreground"
+                  className="grid size-8 place-items-center rounded-[10px] bg-secondary text-[10px] font-bold text-secondary-foreground"
                   name={props.displayName}
                   imageId={props.avatarId}
                 />
@@ -68,7 +68,7 @@ export function ProfileBar(props: ProfileBarProps) {
                     its own, so the light is drawn for you and nobody else. */}
                 <span
                   className={cn(
-                    'presence-dot absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-sidebar',
+                    'presence-dot absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-2 border-sidebar',
                     props.joined ? 'bg-success' : 'bg-muted-foreground',
                   )}
                   aria-hidden="true"
@@ -96,12 +96,12 @@ export function ProfileBar(props: ProfileBarProps) {
         </PopoverContent>
       </Popover>
 
-      <span className="device-control flex items-center rounded-lg bg-secondary/70">
+      <span className="device-control flex items-center rounded-md bg-secondary/70">
         <Tooltip label={props.microphoneEnabled ? 'Mute' : 'Unmute'}>
           <Button
             variant="ghost"
             size="icon-sm"
-            className="size-8 rounded-r-none"
+            className="size-7.5 rounded-r-none"
             disabled={!props.joined || props.busy}
             aria-label={props.microphoneEnabled ? 'Mute microphone' : 'Unmute microphone'}
             onClick={props.onToggleMicrophone}
@@ -122,12 +122,12 @@ export function ProfileBar(props: ProfileBarProps) {
         />
       </span>
 
-      <span className="device-control flex items-center rounded-lg bg-secondary/70">
+      <span className="device-control flex items-center rounded-md bg-secondary/70">
         <Tooltip label={props.deafened ? 'Undeafen' : 'Deafen'}>
           <Button
             variant="ghost"
             size="icon-sm"
-            className="size-8 rounded-r-none"
+            className="size-7.5 rounded-r-none"
             disabled={!props.joined || props.busy}
             aria-label="Toggle deafen"
             onClick={props.onToggleDeafen}
@@ -149,7 +149,7 @@ export function ProfileBar(props: ProfileBarProps) {
           <Button
             variant="ghost"
             size="icon-sm"
-            className="size-8"
+            className="size-7.5"
             aria-label="Open audio settings"
             onClick={props.onOpenSettings}
           >

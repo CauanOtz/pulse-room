@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import logoUrl from '../../../assets/logo-ui.png';
 import type { AccountSession } from '../../shared/community';
 import type { CommunityClient } from '../infrastructure/community-client';
 
@@ -48,8 +49,8 @@ export function AccountScreen({
   };
   return (
     <main className="account-screen grid h-full grid-cols-1 overflow-auto lg:grid-cols-2">
-      <div className="account-story hidden flex-col justify-center bg-sidebar p-[clamp(2.5rem,7vw,6rem)] lg:flex">
-        <div className="brand-mark grid size-11 shrink-0 place-items-center rounded-2xl bg-primary text-lg font-bold text-primary-foreground">P</div>
+      <div className="account-story hidden flex-col justify-center bg-black p-[clamp(2.5rem,7vw,6rem)] lg:flex">
+        <img className="brand-logo h-auto w-44 object-contain" src={logoUrl} alt="Pulse Room" />
         <h1>
           Your people.
           <br />

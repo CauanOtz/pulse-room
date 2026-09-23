@@ -1,4 +1,4 @@
-import { Hash, Trash2 } from 'lucide-react';
+import { Hash, SendHorizontal, Trash2 } from 'lucide-react';
 import { Avatar } from './avatar';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Tooltip } from './ui/tooltip';
@@ -108,7 +108,7 @@ export function TextChat({
   return (
     <section className="text-chat flex min-h-0 min-w-0 flex-1 flex-col" aria-label={`${channel.name} chat`}>
       <div
-        className="chat-history flex min-h-0 flex-1 flex-col overflow-y-auto px-2 py-4"
+        className="chat-history flex min-h-0 flex-1 flex-col overflow-y-auto px-5 py-4"
         onScroll={(e) => {
           const el = e.currentTarget;
           scrollToEnd.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
@@ -137,14 +137,14 @@ export function TextChat({
         {!error && !(messages.length >= 50 && more) && (
           <div
             className={cn(
-              'chat-welcome flex flex-col items-start gap-2 px-2 py-8',
+              'chat-welcome flex flex-col items-start gap-2 px-2 py-9',
               messages.length ? 'pb-4' : 'mt-auto',
             )}
           >
-            <span className="grid size-12 place-items-center rounded-2xl bg-secondary text-muted-foreground">
-              <Hash aria-hidden="true" className="size-6" />
+            <span className="grid size-10 place-items-center rounded-lg border border-border bg-secondary text-primary shadow-[var(--gloss)]">
+              <Hash aria-hidden="true" className="size-5" />
             </span>
-            <h2 className="text-2xl font-bold tracking-tight">Welcome to #{channel.name}</h2>
+            <h2 className="text-[22px] font-bold tracking-[-0.025em]">Welcome to #{channel.name}</h2>
             <p className="text-sm text-muted-foreground">
               This is the beginning of the channel. Only members with access can read it.
             </p>
@@ -171,13 +171,13 @@ export function TextChat({
               )}
               <article
                 className={cn(
-                  'chat-message group/message relative flex items-start gap-3 rounded-lg px-2 text-sm transition-colors hover:bg-accent/40',
+                  'chat-message group/message relative flex items-start gap-3 rounded-md px-2 text-sm transition-colors hover:bg-accent/55',
                   heading ? 'mt-3 py-1 first:mt-0' : 'py-px',
                 )}
               >
                 {heading ? (
                   <Avatar
-                    className="profile-avatar mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl bg-secondary text-[11px] font-bold text-secondary-foreground"
+                    className="profile-avatar mt-0.5 grid size-8.5 shrink-0 place-items-center rounded-[10px] bg-secondary text-[11px] font-bold text-secondary-foreground"
                     name={message.authorName}
                     imageId={avatars?.get(message.authorId)}
                   />
@@ -251,7 +251,7 @@ export function TextChat({
         <textarea
           // Typing here is the ordinary thing to do in a channel, so the box
           // only warms a shade when it takes the keys. The caret says the rest.
-          className="min-h-10 max-h-40 w-full flex-1 resize-none rounded-xl border border-input bg-background px-3 py-2 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus:border-ring/40 focus:bg-secondary/40 focus-visible:outline-none disabled:opacity-60"
+          className="min-h-10 max-h-40 w-full flex-1 resize-none rounded-lg border border-input bg-secondary/45 px-3 py-2 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus:border-primary/70 focus:bg-secondary focus-visible:outline-none disabled:opacity-60"
           rows={1}
           aria-label="Message"
           placeholder={
@@ -268,8 +268,8 @@ export function TextChat({
             }
           }}
         />
-        <button className="primary-action inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50" disabled={busy || !draft.trim() || (channel.readOnly && !manager)}>
-          Send
+        <button className="primary-action grid size-10 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50" aria-label="Send" disabled={busy || !draft.trim() || (channel.readOnly && !manager)}>
+          <SendHorizontal aria-hidden="true" className="size-4" />
         </button>
       </form>
     </section>

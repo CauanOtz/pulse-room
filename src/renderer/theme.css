@@ -1,13 +1,11 @@
 /*
  * The design system: shadcn tokens over Tailwind, in two themes.
  *
- * Dark is the room's real theme and its ground is true black. Everything above
- * the ground is white at a few per cent laid over it, so the black stays black
- * instead of turning into grey panels, and a shared screen or a photograph is
- * the only bright thing on the display. There is no blue in the palette.
- *
- * One colour carries meaning: red, and red only ever means live or lost. What
- * you can act on is white. Light exists for daylight and inverts the same set.
+ * Dark is the room's real theme. It stays genuinely black: hierarchy comes
+ * from small changes in luminance, spacing and one-pixel dividers rather than
+ * blue-grey panels. White identifies navigation and focus, green identifies
+ * healthy voice, and coral is reserved for live/destructive states. Light
+ * inverts the same neutral hierarchy.
  * Every colour below is a token: no component names a colour of its own.
  */
 @import 'tailwindcss';
@@ -16,70 +14,65 @@
   --font-sans: 'Schibsted Grotesk Variable', 'Segoe UI', system-ui, sans-serif;
   /* Numbers only: levels, latency, times and codes, so digits line up. */
   --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
-  --radius-lg: 0.75rem;
-  --radius-xl: 1rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
 }
 
 :root {
-  --background: #000000;
-  --foreground: #f7f7f7;
-  /* Surfaces are white laid over the black, never grey paint. */
-  --card: rgba(255, 255, 255, 0.035);
-  --card-foreground: #f7f7f7;
-  --popover: #0a0a0a;
-  --popover-foreground: #f7f7f7;
-  /* What you can act on is white. */
-  --primary: #f7f7f7;
-  --primary-foreground: #000000;
-  --secondary: rgba(255, 255, 255, 0.06);
-  --secondary-foreground: #f7f7f7;
-  --muted: rgba(255, 255, 255, 0.06);
-  --muted-foreground: #8a8a8a;
-  /* The step a row takes under the pointer: brightness, nothing else. */
-  --accent: rgba(255, 255, 255, 0.06);
-  --accent-foreground: #f7f7f7;
-  --destructive: #ff4438;
-  --destructive-foreground: #0a0000;
-  --success: #f7f7f7;
-  --border: rgba(255, 255, 255, 0.07);
-  --input: rgba(255, 255, 255, 0.09);
-  --ring: rgba(255, 255, 255, 0.55);
-  --sidebar: #060606;
-  --sidebar-foreground: #f7f7f7;
-  --rail: #000000;
-  --stage: #000000;
-  /* The one-pixel highlight along the top of a lifted surface. */
-  --gloss: inset 0 1px 0 rgba(255, 255, 255, 0.055);
+  --background: #050506;
+  --foreground: #f5f5f5;
+  --card: #0e0f11;
+  --card-foreground: #f5f5f5;
+  --popover: #111214;
+  --popover-foreground: #f5f5f5;
+  --primary: #f4f4f5;
+  --primary-foreground: #080809;
+  --secondary: #15171a;
+  --secondary-foreground: #ededee;
+  --muted: #111214;
+  --muted-foreground: #929397;
+  --accent: #1b1d20;
+  --accent-foreground: #fafafa;
+  --destructive: #f05b67;
+  --destructive-foreground: #ffffff;
+  --success: #45cf8a;
+  --border: rgba(255, 255, 255, 0.085);
+  --input: rgba(255, 255, 255, 0.13);
+  --ring: rgba(255, 255, 255, 0.72);
+  --sidebar: #0a0b0d;
+  --sidebar-foreground: #f1f1f2;
+  --rail: #050506;
+  --stage: #07080a;
+  --gloss: inset 0 1px 0 rgba(255, 255, 255, 0.05);
   color-scheme: dark;
 }
 
 .theme-light {
-  /* The same system turned over: paper, with black laid on it. */
-  --background: #ffffff;
-  --foreground: #0a0a0a;
-  --card: rgba(0, 0, 0, 0.035);
-  --card-foreground: #0a0a0a;
+  --background: #fafafa;
+  --foreground: #111111;
+  --card: #ffffff;
+  --card-foreground: #111111;
   --popover: #ffffff;
-  --popover-foreground: #0a0a0a;
-  --primary: #0a0a0a;
+  --popover-foreground: #111111;
+  --primary: #151515;
   --primary-foreground: #ffffff;
-  --secondary: rgba(0, 0, 0, 0.06);
-  --secondary-foreground: #0a0a0a;
-  --muted: rgba(0, 0, 0, 0.05);
-  --muted-foreground: #6b6b6b;
-  --accent: rgba(0, 0, 0, 0.055);
-  --accent-foreground: #0a0a0a;
-  --destructive: #d8342a;
+  --secondary: #efefef;
+  --secondary-foreground: #202020;
+  --muted: #f1f1f1;
+  --muted-foreground: #696969;
+  --accent: #e8e8e8;
+  --accent-foreground: #111111;
+  --destructive: #d94854;
   --destructive-foreground: #ffffff;
-  --success: #0a0a0a;
-  --border: rgba(0, 0, 0, 0.1);
-  --input: rgba(0, 0, 0, 0.14);
-  --ring: rgba(0, 0, 0, 0.45);
-  --sidebar: #f7f7f7;
-  --sidebar-foreground: #0a0a0a;
-  --rail: #f0f0f0;
-  --stage: #ebebeb;
-  --gloss: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  --success: #238b5d;
+  --border: #dedede;
+  --input: #c9c9c9;
+  --ring: rgba(0, 0, 0, 0.58);
+  --sidebar: #f2f2f2;
+  --sidebar-foreground: #111111;
+  --rail: #eaeaea;
+  --stage: #e8e8e8;
+  --gloss: inset 0 1px 0 rgba(255, 255, 255, 0.78);
   color-scheme: light;
 }
 
@@ -132,6 +125,7 @@
     background: var(--background);
     font-synthesis: none;
     text-rendering: optimizeLegibility;
+    font-feature-settings: 'ss01' 1, 'cv02' 1;
   }
   h1, h2, h3, h4, p, figure, blockquote, dl, dd {
     margin: 0;
@@ -154,17 +148,86 @@
     outline-offset: 2px;
   }
   ::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
+    width: 8px;
+    height: 8px;
   }
   ::-webkit-scrollbar-thumb {
-    border: 3px solid transparent;
+    border: 2px solid transparent;
     background-clip: content-box;
     border-radius: 999px;
     background-color: color-mix(in oklab, var(--foreground) 22%, transparent);
   }
   ::-webkit-scrollbar-track {
     background: transparent;
+  }
+}
+
+@layer components {
+  .room-main {
+    border-left: 1px solid var(--border);
+  }
+
+  .server-rail,
+  .channel-sidebar,
+  .profile-strip,
+  .room-header,
+  .member-sidebar,
+  .chat-composer {
+    contain: paint;
+  }
+
+  .server-button {
+    position: relative;
+  }
+
+  .server-indicator {
+    position: absolute;
+    left: -11px;
+    width: 3px;
+    height: 0;
+    border-radius: 0 4px 4px 0;
+    background: var(--primary);
+    transition: height 140ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .server-button:hover .server-indicator {
+    height: 18px;
+  }
+
+  .server-button.is-active .server-indicator {
+    height: 28px;
+  }
+
+  .channel-row.is-selected::before {
+    content: '';
+    position: absolute;
+    inset-block: 8px;
+    left: 0;
+    width: 2px;
+    border-radius: 0 3px 3px 0;
+    background: var(--primary);
+  }
+
+  .chat-history > * {
+    width: min(100%, 58rem);
+    margin-inline: auto;
+  }
+
+  .chat-composer {
+    background: color-mix(in oklab, var(--background) 82%, var(--sidebar));
+  }
+
+  .member-sidebar {
+    background: color-mix(in oklab, var(--sidebar) 84%, var(--background));
+  }
+
+  @media (max-width: 68rem) {
+    .app-shell {
+      grid-template-columns: 56px 220px minmax(0, 1fr) !important;
+    }
+    .member-sidebar {
+      display: none;
+    }
   }
 }
 
@@ -226,6 +289,16 @@
     letter-spacing: -0.045em;
     font-weight: 700;
     margin: 1.75rem 0 0.75rem;
+  }
+  .account-story {
+    /* The supplied wordmark is painted on true black. Keeping this panel on
+     * the same ground makes the image boundary disappear, including when the
+     * rest of the application follows the light system theme. */
+    --foreground: #f5f5f5;
+    --muted-foreground: #929397;
+    --secondary: #15171a;
+    --secondary-foreground: #ededee;
+    color: var(--foreground);
   }
   .account-story > p {
     max-width: 22rem;

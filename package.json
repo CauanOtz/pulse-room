@@ -92,6 +92,7 @@
       "package.json"
     ],
     "win": {
+      "icon": "assets/app-icon.png",
       "target": [
         {
           "target": "nsis",

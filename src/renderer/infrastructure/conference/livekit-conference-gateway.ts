@@ -522,7 +522,7 @@ export class LiveKitConferenceGateway extends ObservableConference {
       id: this.localIdentity(),
       name: this.room.localParticipant.name || 'You',
       initials: this.getInitials(this.room.localParticipant.name || 'You'),
-      accent: '#D0D0D0',
+      accent: '#C6B4E3',
       isLocal: true,
       isMuted: !this.microphonePublication,
       // The room learns who is talking from the server, on an interval and a
@@ -560,7 +560,7 @@ export class LiveKitConferenceGateway extends ObservableConference {
       }
     });
 
-    const accents = ['#E8E8E8', '#B8B8B8', '#8F8F8F', '#6E6E6E'];
+    const accents = ['#F0AAA8', '#A8D7B9', '#E5C987', '#C6B4E3', '#A8CDD0'];
     const broadcasting = [...participant.trackPublications.values()].some(
       (publication) => publication.source === Track.Source.ScreenShare,
     );

@@ -132,7 +132,7 @@ describe('Stage', () => {
     render(<Watchable participants={participants} />);
 
     const rings = [...document.querySelectorAll('.tile-face')].filter((face) =>
-      face.className.includes('outline-foreground'),
+      face.className.includes('outline-success'),
     );
     expect(rings).toHaveLength(1);
     expect(rings[0].closest('.participant-tile')).toHaveTextContent('Maya');

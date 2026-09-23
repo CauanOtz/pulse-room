@@ -1,5 +1,15 @@
-import { useEffect, useState, type FormEvent } from 'react';
-import { LockKeyhole, LogOut, MoreVertical } from 'lucide-react';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import {
+  Hash,
+  LockKeyhole,
+  LogOut,
+  MoreVertical,
+  Settings,
+  Ticket,
+  Trash2,
+  Users,
+  Volume2,
+} from 'lucide-react';
 import {
   canManage,
   type Account,
@@ -169,121 +179,166 @@ export function ChannelDialog({
     }
   }
   return (
-    <Modal title={channel ? 'Edit channel' : 'Create channel'} onClose={onClose}>
-      <form onSubmit={(e) => void save(e)}>
-        <label>
-          Channel name
-          <input
-            autoFocus
-            required
-            maxLength={60}
-            value={draft.name}
-            onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-          />
-        </label>
-        <div className="flex flex-col gap-1.5 text-xs font-medium text-muted-foreground">
-          <span id="channel-type">Channel type</span>
-          <Select
-            disabled={!!channel}
-            value={draft.type}
-            onValueChange={(value) => setDraft({ ...draft, type: value as 'voice' | 'text' })}
-          >
-            <SelectTrigger aria-labelledby="channel-type">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="voice">Voice call</SelectItem>
-              <SelectItem value="text">Text chat</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <label className="check-row flex items-center gap-2.5 rounded-lg px-1 py-1.5 text-sm text-foreground">
-          <input
-            type="checkbox"
-            checked={draft.private}
-            onChange={(e) => setDraft({ ...draft, private: e.target.checked })}
-          />
-          Private channel
-        </label>
-        {draft.private && (
-          <fieldset>
-            <legend>Members who can enter</legend>
-            <p>Owners and administrators always have access.</p>
-            {detail.members
-              .filter((m) => m.role === 'member')
-              .map((member) => (
-                <label className="check-row flex items-center gap-2.5 rounded-lg px-1 py-1.5 text-sm text-foreground" key={member.id}>
-                  <input
-                    type="checkbox"
-                    checked={draft.memberIds.includes(member.id)}
-                    onChange={(e) =>
-                      setDraft({
-                        ...draft,
-                        memberIds: e.target.checked
-                          ? [...draft.memberIds, member.id]
-                          : draft.memberIds.filter((id) => id !== member.id),
-                      })
-                    }
-                  />
-                  {member.displayName}
-                </label>
-              ))}
-            {!detail.members.some((m) => m.role === 'member') && (
-              <small>Invite members to add them here.</small>
-            )}
-          </fieldset>
-        )}
-        <fieldset>
-          <legend>Member permissions</legend>
-          {draft.type === 'voice' ? (
-            <>
-              <label className="check-row flex items-center gap-2.5 rounded-lg px-1 py-1.5 text-sm text-foreground">
-                <input
-                  type="checkbox"
-                  checked={draft.allowSpeak}
-                  onChange={(e) => setDraft({ ...draft, allowSpeak: e.target.checked })}
-                />
-                Speak in this call
-              </label>
-              <label className="check-row flex items-center gap-2.5 rounded-lg px-1 py-1.5 text-sm text-foreground">
-                <input
-                  type="checkbox"
-                  checked={draft.allowShare}
-                  onChange={(e) => setDraft({ ...draft, allowShare: e.target.checked })}
-                />
-                Share screen and system audio
-              </label>
-            </>
-          ) : (
-            <label className="check-row flex items-center gap-2.5 rounded-lg px-1 py-1.5 text-sm text-foreground">
+    <Modal
+      title={channel ? 'Edit channel' : 'Create channel'}
+      onClose={onClose}
+      contentClassName="channel-editor-modal w-[min(42rem,calc(100vw-2rem))]"
+      headerClassName="px-6 py-4"
+      bodyClassName="flex min-h-0 flex-col space-y-0 overflow-hidden p-0"
+    >
+      <form className="flex min-h-0 flex-1 flex-col gap-0" onSubmit={(e) => void save(e)}>
+        <div className="channel-editor-body space-y-6 overflow-y-auto px-6 py-5">
+          <section className="space-y-4">
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">Channel details</h2>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                Give the room a clear purpose. You can change permissions at any time.
+              </p>
+            </div>
+            <label>
+              Channel name
               <input
-                type="checkbox"
-                checked={!draft.readOnly}
-                onChange={(e) => setDraft({ ...draft, readOnly: !e.target.checked })}
+                autoFocus
+                required
+                maxLength={60}
+                placeholder={draft.type === 'voice' ? 'Late night call' : 'clips-and-chaos'}
+                value={draft.name}
+                onChange={(e) => setDraft({ ...draft, name: e.target.value })}
               />
-              Send messages
             </label>
+            <div className="flex flex-col gap-2">
+              <span id="channel-type" className="text-xs font-medium text-muted-foreground">
+                Channel type
+              </span>
+              <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-labelledby="channel-type">
+                <ChannelTypeChoice
+                  active={draft.type === 'text'}
+                  disabled={!!channel}
+                  icon={<Hash className="size-4" />}
+                  title="Text chat"
+                  description="Messages and files"
+                  onClick={() => setDraft({ ...draft, type: 'text' })}
+                />
+                <ChannelTypeChoice
+                  active={draft.type === 'voice'}
+                  disabled={!!channel}
+                  icon={<Volume2 className="size-4" />}
+                  title="Voice call"
+                  description="Voice and screen share"
+                  onClick={() => setDraft({ ...draft, type: 'voice' })}
+                />
+              </div>
+            </div>
+          </section>
+
+          <section className="overflow-hidden rounded-lg border border-border bg-background/45">
+            <ToggleRow
+              label="Private channel"
+              description="Only selected members can find and enter this room."
+              checked={draft.private}
+              onChange={(checked) => setDraft({ ...draft, private: checked })}
+            />
+            {draft.private && (
+              <div className="border-t border-border px-4 py-3">
+                <div className="mb-2">
+                  <h3 className="text-xs font-semibold text-foreground">Members with access</h3>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Owners and administrators always have access.
+                  </p>
+                </div>
+                <div className="divide-y divide-border/70">
+                  {detail.members
+                    .filter((member) => member.role === 'member')
+                    .map((member) => (
+                      <ToggleRow
+                        compact
+                        key={member.id}
+                        label={member.displayName}
+                        description={`@${member.username}`}
+                        checked={draft.memberIds.includes(member.id)}
+                        onChange={(checked) =>
+                          setDraft({
+                            ...draft,
+                            memberIds: checked
+                              ? [...draft.memberIds, member.id]
+                              : draft.memberIds.filter((id) => id !== member.id),
+                          })
+                        }
+                      />
+                    ))}
+                </div>
+                {!detail.members.some((member) => member.role === 'member') && (
+                  <small className="block py-2 text-muted-foreground">Invite members to add them here.</small>
+                )}
+              </div>
+            )}
+          </section>
+
+          <fieldset className="overflow-hidden rounded-lg border border-border bg-background/45">
+            <div className="border-b border-border px-4 py-3">
+              <legend className="text-sm font-semibold text-foreground">Member permissions</legend>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                Owners and administrators always keep full access.
+              </p>
+            </div>
+            <div className="divide-y divide-border/70">
+              {draft.type === 'voice' ? (
+                <>
+                  <ToggleRow
+                    label="Speak in this call"
+                    description="Members can use their microphone."
+                    checked={draft.allowSpeak}
+                    onChange={(checked) => setDraft({ ...draft, allowSpeak: checked })}
+                  />
+                  <ToggleRow
+                    label="Share screen and system audio"
+                    description="Members can start a live screen share."
+                    checked={draft.allowShare}
+                    onChange={(checked) => setDraft({ ...draft, allowShare: checked })}
+                  />
+                </>
+              ) : (
+                <ToggleRow
+                  label="Send messages"
+                  description="Turn this off to make the channel read-only for members."
+                  checked={!draft.readOnly}
+                  onChange={(checked) => setDraft({ ...draft, readOnly: !checked })}
+                />
+              )}
+            </div>
+          </fieldset>
+
+          {error && (
+            <p role="alert" className="form-error rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+              {error}
+            </p>
           )}
-          <small>
-            These limits apply to members. Owners and administrators can always speak, share and post.
-          </small>
-        </fieldset>
-        {error && (
-          <p role="alert" className="form-error rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-            {error}
-          </p>
-        )}
-        <button className="primary-action inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50" disabled={busy}>
-          {busy ? 'Saving…' : 'Save channel'}
-        </button>
-      </form>
-      {channel && (
-        <div className="danger-zone space-y-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4">
-          <button className="danger-action inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-destructive/40 bg-transparent px-4 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50" onClick={() => setConfirmDelete(true)}>
-            Delete channel
-          </button>
         </div>
-      )}
+
+        <footer className="flex items-center gap-2 border-t border-border bg-background/55 px-6 py-3.5">
+          {channel && (
+            <button
+              className="danger-action mr-auto inline-flex h-9 items-center justify-center gap-2 rounded-md px-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              type="button"
+              onClick={() => setConfirmDelete(true)}
+            >
+              <Trash2 className="size-4" /> Delete channel
+            </button>
+          )}
+          <button
+            className={channel ? '' : 'ml-auto'}
+            type="button"
+            onClick={onClose}
+          >
+            <span className="inline-flex h-9 items-center justify-center rounded-md px-4 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
+              Cancel
+            </span>
+          </button>
+          <button className="primary-action inline-flex h-9 items-center justify-center rounded-md bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50" disabled={busy}>
+            {busy ? 'Saving…' : 'Save channel'}
+          </button>
+        </footer>
+      </form>
       {channel && confirmDelete && (
         <ConfirmDialog
           confirmation={{
@@ -302,6 +357,80 @@ export function ChannelDialog({
   );
 }
 
+function ChannelTypeChoice({
+  active,
+  disabled,
+  icon,
+  title,
+  description,
+  onClick,
+}: {
+  active: boolean;
+  disabled: boolean;
+  icon: ReactNode;
+  title: string;
+  description: string;
+  onClick(): void;
+}) {
+  return (
+    <button
+      className={`flex min-h-16 items-center gap-3 rounded-lg border px-3.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default ${
+        active
+          ? 'border-foreground/35 bg-accent text-foreground'
+          : 'border-border bg-background/40 text-muted-foreground hover:border-foreground/20 hover:bg-accent/60 hover:text-foreground'
+      }`}
+      type="button"
+      role="radio"
+      aria-checked={active}
+      disabled={disabled}
+      onClick={onClick}
+    >
+      <span className={`grid size-8 shrink-0 place-items-center rounded-md ${active ? 'bg-primary text-primary-foreground' : 'bg-secondary text-foreground'}`}>
+        {icon}
+      </span>
+      <span className="flex min-w-0 flex-col">
+        <strong className="text-sm font-semibold">{title}</strong>
+        <small className="text-[11px] text-muted-foreground">{description}</small>
+      </span>
+      <span className={`ml-auto size-3.5 rounded-full border ${active ? 'border-[4px] border-primary bg-primary-foreground' : 'border-input'}`} aria-hidden="true" />
+    </button>
+  );
+}
+
+function ToggleRow({
+  label,
+  description,
+  checked,
+  onChange,
+  compact = false,
+}: {
+  label: string;
+  description?: string;
+  checked: boolean;
+  onChange(checked: boolean): void;
+  compact?: boolean;
+}) {
+  return (
+    <label className={`permission-row check-row flex cursor-pointer flex-row items-center gap-4 px-4 transition-colors hover:bg-accent/45 ${compact ? 'py-2.5' : 'py-3.5'}`}>
+      <span className="flex min-w-0 flex-1 flex-col">
+        <strong className="truncate text-sm font-medium text-foreground">{label}</strong>
+        {description && <small className="mt-0.5 text-[11px] leading-4 text-muted-foreground">{description}</small>}
+      </span>
+      <span className="relative h-5 w-9 shrink-0">
+        <input
+          className="peer absolute inset-0 z-10 size-full cursor-pointer opacity-0"
+          type="checkbox"
+          aria-label={label}
+          checked={checked}
+          onChange={(event) => onChange(event.target.checked)}
+        />
+        <span className="absolute inset-0 rounded-full bg-input transition-colors peer-checked:bg-primary" aria-hidden="true" />
+        <span className="absolute left-0.5 top-0.5 size-4 rounded-full bg-foreground shadow-sm transition-transform peer-checked:translate-x-4 peer-checked:bg-primary-foreground" aria-hidden="true" />
+      </span>
+    </label>
+  );
+}
+
 export function ServerDialog({
   api,
   user,
@@ -317,7 +446,7 @@ export function ServerDialog({
   onChanged(): Promise<void>;
   onRemoved(): void;
 }) {
-  const [tab, setTab] = useState('members');
+  const [tab, setTab] = useState<'members' | 'invites' | 'settings'>('members');
   const [name, setName] = useState(detail.server.name);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -352,17 +481,93 @@ export function ServerDialog({
       setConfirmation(undefined);
     }
   }
+  const tabMeta = {
+    members: {
+      title: 'Members',
+      description: 'See who belongs here and decide what each person can manage.',
+    },
+    invites: {
+      title: 'Invites',
+      description: 'Create temporary access codes and revoke them whenever you need.',
+    },
+    settings: {
+      title: 'Server identity',
+      description: 'Keep the name and picture recognizable for everyone in the room.',
+    },
+  }[tab];
+  const requestRemoval = () =>
+    setConfirmation({
+      title: owner ? 'Delete server' : 'Leave server',
+      description: owner
+        ? `Permanently delete ${detail.server.name}, its channels and every message in them? This cannot be undone.`
+        : `Leave ${detail.server.name}? You will need a new invitation to return.`,
+      confirmLabel: owner ? 'Delete' : 'Leave',
+      tone: 'danger',
+      action: async () => {
+        await api.request(owner ? base : `${base}/members/${user.id}`, 'DELETE');
+        onRemoved();
+      },
+    });
   return (
-    <Modal title={detail.server.name} onClose={onClose}>
-      <div className="dialog-tabs inline-flex items-center gap-1 rounded-xl bg-secondary/60 p-1">
-        {['members', ...(manager ? ['invites', 'settings'] : [])].map((item) => (
-          <button key={item} aria-pressed={tab === item} onClick={() => setTab(item)}>
-            {item[0].toUpperCase() + item.slice(1)}
-          </button>
-        ))}
-      </div>
+    <Modal
+      title={detail.server.name}
+      onClose={onClose}
+      contentClassName="server-workspace-modal h-[min(42rem,calc(100vh-2rem))] max-h-none w-[min(56rem,calc(100vw-2rem))]"
+      headerClassName="h-15 px-6 py-0"
+      bodyClassName="flex min-h-0 flex-col space-y-0 overflow-hidden p-0"
+    >
+      <div className="grid min-h-0 flex-1 grid-cols-[12rem_minmax(0,1fr)]">
+        <aside className="flex min-h-0 flex-col border-r border-border bg-background/45 p-3">
+          <div className="px-2 pb-3 pt-1">
+            <span className="text-[11px] font-medium text-muted-foreground">Server settings</span>
+          </div>
+          <nav className="flex flex-col gap-1" aria-label="Server settings sections">
+            <button
+              className={`flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium transition-colors ${tab === 'members' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground'}`}
+              aria-pressed={tab === 'members'}
+              onClick={() => setTab('members')}
+            >
+              <Users className="size-4" /> Members
+              <span className="ml-auto font-mono text-[10px] text-muted-foreground">{detail.members.length}</span>
+            </button>
+            {manager && (
+              <>
+                <button
+                  className={`flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium transition-colors ${tab === 'invites' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground'}`}
+                  aria-pressed={tab === 'invites'}
+                  onClick={() => setTab('invites')}
+                >
+                  <Ticket className="size-4" /> Invites
+                </button>
+                <button
+                  className={`flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium transition-colors ${tab === 'settings' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground'}`}
+                  aria-pressed={tab === 'settings'}
+                  onClick={() => setTab('settings')}
+                >
+                  <Settings className="size-4" /> Settings
+                </button>
+              </>
+            )}
+          </nav>
+          <div className="mt-auto border-t border-border pt-3">
+            <button
+              className="flex h-9 w-full items-center gap-2.5 rounded-md px-2.5 text-left text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+              disabled={busy}
+              onClick={requestRemoval}
+            >
+              <Trash2 className="size-4" /> {owner ? 'Delete server' : 'Leave server'}
+            </button>
+          </div>
+        </aside>
+
+        <section className="min-h-0 min-w-0 overflow-y-auto">
+          <header className="sticky top-0 z-10 border-b border-border bg-card px-6 py-4">
+            <h2 className="text-base font-semibold text-foreground">{tabMeta.title}</h2>
+            <p className="mt-1 max-w-xl text-xs leading-5 text-muted-foreground">{tabMeta.description}</p>
+          </header>
+          <div className="server-workspace-content space-y-6 px-6 py-5">
       {tab === 'members' && (
-        <div className="member-list flex flex-col gap-1.5">
+        <div className="member-list overflow-hidden rounded-lg border border-border bg-background/35 divide-y divide-border">
           {detail.members.map((member) => {
             const removable =
               manager &&
@@ -372,7 +577,7 @@ export function ServerDialog({
             const transferable = owner && member.id !== user.id;
             return (
               <div
-                className="member-row flex items-center gap-3 rounded-xl border border-border bg-background/60 px-3 py-2.5 text-sm"
+                className="member-row flex h-14 items-center gap-3 px-3.5 py-2 text-sm transition-colors hover:bg-accent/40"
                 key={member.id}
               >
                 <Avatar
@@ -473,68 +678,103 @@ export function ServerDialog({
         </div>
       )}
       {tab === 'invites' && (
-        <>
-          <p>Only share this code with people you want in this server. Invites expire and can be revoked.</p>
-          <div className="flex flex-col gap-1.5 text-xs font-medium text-muted-foreground">
-            <span id="invite-expiry">Expires in</span>
-            <Select value={String(hours)} onValueChange={(value) => setHours(Number(value))}>
-              <SelectTrigger aria-labelledby="invite-expiry">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="1">1 hour</SelectItem>
-                <SelectItem value="24">24 hours</SelectItem>
-                <SelectItem value="168">7 days</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <label>
-            Maximum uses
-            <input
-              type="number"
-              min={1}
-              max={100}
-              value={maxUses}
-              onChange={(e) => setMaxUses(Number(e.target.value))}
-            />
-          </label>
-          <button
-            disabled={busy}
-            className="primary-action inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
-            onClick={() =>
-              void run(async () => {
-                setCode(
-                  (await api.request<{ code: string }>(`${base}/invites`, 'POST', { hours, maxUses })).code,
-                );
-              })
-            }
-          >
-            Generate invite
-          </button>
-          {code && (
-            <label>
-              Invite code — copy and share
-              <textarea readOnly value={code} onFocus={(e) => e.target.select()} />
-            </label>
-          )}
-          {invites.map((invite) => (
-            <div className="member-row flex items-center gap-3 rounded-xl border border-border bg-background/60 px-3 py-2.5 text-sm" key={invite.id}>
-              <span>
-                {invite.uses}/{invite.maxUses} uses
-                <small>Expires {new Date(invite.expiresAt).toLocaleString()}</small>
-              </span>
-              <button
-                disabled={busy}
-                onClick={() => void run(() => api.request(`${base}/invites/${invite.id}`, 'DELETE'))}
-              >
-                Revoke
-              </button>
+        <div className="space-y-6">
+          <section className="rounded-lg border border-border bg-background/40 p-4">
+            <div className="mb-4">
+              <h3 className="text-sm font-semibold text-foreground">New invitation</h3>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                Only share the generated code with people you want in this server.
+              </p>
             </div>
-          ))}
-        </>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5 text-xs font-medium text-muted-foreground">
+                <span id="invite-expiry">Expires in</span>
+                <Select value={String(hours)} onValueChange={(value) => setHours(Number(value))}>
+                  <SelectTrigger aria-labelledby="invite-expiry">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">1 hour</SelectItem>
+                    <SelectItem value="24">24 hours</SelectItem>
+                    <SelectItem value="168">7 days</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <label>
+                Maximum uses
+                <input
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={maxUses}
+                  onChange={(e) => setMaxUses(Number(e.target.value))}
+                />
+              </label>
+            </div>
+            <button
+              type="button"
+              disabled={busy}
+              className="primary-action mt-4 inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+              onClick={() =>
+                void run(async () => {
+                  setCode(
+                    (await api.request<{ code: string }>(`${base}/invites`, 'POST', { hours, maxUses })).code,
+                  );
+                })
+              }
+            >
+              Generate invite
+            </button>
+            {code && (
+              <label className="mt-4">
+                Invite code — copy and share
+                <textarea
+                  className="font-mono text-xs"
+                  readOnly
+                  value={code}
+                  onFocus={(event) => event.target.select()}
+                />
+              </label>
+            )}
+          </section>
+
+          <section>
+            <div className="mb-2 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-foreground">Active invitations</h3>
+              <span className="font-mono text-[10px] text-muted-foreground">{invites.length}</span>
+            </div>
+            {invites.length ? (
+              <div className="overflow-hidden rounded-lg border border-border bg-background/35 divide-y divide-border">
+                {invites.map((invite) => (
+                  <div className="member-row flex min-h-14 items-center gap-3 px-3.5 py-2.5 text-sm" key={invite.id}>
+                    <span className="flex min-w-0 flex-col">
+                      <strong className="font-medium text-foreground">
+                        {invite.uses} of {invite.maxUses} uses
+                      </strong>
+                      <small className="text-xs text-muted-foreground">
+                        Expires {new Date(invite.expiresAt).toLocaleString()}
+                      </small>
+                    </span>
+                    <button
+                      className="ml-auto rounded-md px-2.5 py-1.5 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10"
+                      disabled={busy}
+                      onClick={() => void run(() => api.request(`${base}/invites/${invite.id}`, 'DELETE'))}
+                    >
+                      Revoke
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-xs text-muted-foreground">
+                No active invitation codes.
+              </div>
+            )}
+          </section>
+        </div>
       )}
       {tab === 'settings' && (
-        <>
+        <div className="space-y-4">
           <PictureField
             name={detail.server.name}
             imageId={detail.server.iconId}
@@ -549,27 +789,39 @@ export function ServerDialog({
               await onChanged();
             }}
           />
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            void run(() => api.request(base, 'PATCH', { name }));
-          }}
-        >
-          <label>
-            Server name
-            <input required maxLength={60} value={name} onChange={(e) => setName(e.target.value)} />
-          </label>
-          <button className="primary-action inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50" disabled={busy}>
-            Rename server
-          </button>
-        </form>
-        </>
+          <section className="rounded-lg border border-border bg-background/40 p-4">
+            <div className="mb-4">
+              <h3 className="text-sm font-semibold text-foreground">Display name</h3>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                This is how the server appears in every member's sidebar.
+              </p>
+            </div>
+            <form
+              className="flex flex-row items-end gap-2.5"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void run(() => api.request(base, 'PATCH', { name }));
+              }}
+            >
+              <label className="min-w-0 flex-1">
+                Server name
+                <input required maxLength={60} value={name} onChange={(e) => setName(e.target.value)} />
+              </label>
+              <button className="primary-action inline-flex h-9 shrink-0 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50" disabled={busy}>
+                Rename server
+              </button>
+            </form>
+          </section>
+        </div>
       )}
       {error && (
         <p className="form-error rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive" role="alert">
           {error}
         </p>
       )}
+          </div>
+        </section>
+      </div>
       {confirmation && (
         <ConfirmDialog
           confirmation={confirmation}
@@ -578,28 +830,6 @@ export function ServerDialog({
           onConfirm={() => void run(confirmation.action)}
         />
       )}
-      <div className="danger-zone space-y-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4">
-        <button
-          className="danger-action inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-destructive/40 bg-transparent px-4 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
-          disabled={busy}
-          onClick={() =>
-            setConfirmation({
-              title: owner ? 'Delete server' : 'Leave server',
-              description: owner
-                ? `Permanently delete ${detail.server.name}, its channels and every message in them? This cannot be undone.`
-                : `Leave ${detail.server.name}? You will need a new invitation to return.`,
-              confirmLabel: owner ? 'Delete' : 'Leave',
-              tone: 'danger',
-              action: async () => {
-                await api.request(owner ? base : `${base}/members/${user.id}`, 'DELETE');
-                onRemoved();
-              },
-            })
-          }
-        >
-          {owner ? 'Delete server' : 'Leave server'}
-        </button>
-      </div>
     </Modal>
   );
 }

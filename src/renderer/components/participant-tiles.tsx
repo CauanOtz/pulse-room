@@ -105,14 +105,15 @@ const ParticipantTile = memo(function ParticipantTile({
   return (
     <button
       className={cn(
-        'participant-tile group/tile relative grid aspect-video place-items-center overflow-hidden rounded-xl bg-card',
+        'participant-tile group/tile relative grid aspect-video place-items-center overflow-hidden rounded-lg border border-border bg-card',
         'shadow-[var(--gloss)]',
         layout === 'grid' ? 'w-full max-w-105 justify-self-center' : 'w-37',
         'enabled:cursor-pointer enabled:hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         // An outline is drawn by the compositor and costs nothing to turn on
         // and off; a box shadow that animates repaints the tile underneath it,
         // and in this room that would happen every time anybody speaks.
-        (participant.isSpeaking || focused) && 'is-speaking outline outline-1 -outline-offset-1 outline-foreground',
+        participant.isSpeaking && 'is-speaking outline outline-2 -outline-offset-2 outline-success',
+        focused && 'outline outline-1 -outline-offset-1 outline-primary',
         focused && 'is-focused',
       )}
       type="button"
@@ -140,7 +141,7 @@ const ParticipantTile = memo(function ParticipantTile({
         <span
           className={cn(
             'tile-face grid aspect-square w-[30%] max-w-20 place-items-center rounded-full',
-            participant.isSpeaking && 'outline outline-2 outline-offset-2 outline-foreground',
+            participant.isSpeaking && 'outline outline-2 outline-offset-2 outline-success',
           )}
         >
           <Avatar
