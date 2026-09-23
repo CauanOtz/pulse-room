@@ -5,6 +5,12 @@
  */
 export declare class NoiseGate {
   constructor(rate: number);
+  /**
+   * Whether the microphone is carrying a voice right now. It is also what the
+   * talker's own face is drawn from, since the room's answer to that question
+   * arrives from the server an interval and a round trip later.
+   */
+  readonly open: boolean;
   /** The level, in dBFS, below which the microphone is treated as silence. */
   setThreshold(decibels: number): void;
   /** Feeds one sample in and returns the gain that moment deserves. */

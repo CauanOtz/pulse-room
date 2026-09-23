@@ -11,12 +11,23 @@ export interface ProcessedMicrophoneTrack {
   dispose(): Promise<void>;
 }
 
+/**
+ * Told the moment this microphone starts and stops carrying a voice.
+ *
+ * Absent when the processing graph could not be built, in which case nobody on
+ * this machine knows, and the room's own answer is the only one there is.
+ */
+export type SpeakingListener = (speaking: boolean) => void;
+
 export class MicrophoneTrackFactory {
-  public async create(options: MicrophoneOptions): Promise<ProcessedMicrophoneTrack> {
+  public async create(
+    options: MicrophoneOptions,
+    onSpeaking?: SpeakingListener,
+  ): Promise<ProcessedMicrophoneTrack> {
     const inputStream = await this.captureInput(options);
 
     try {
-      return await this.process(inputStream, options);
+      return await this.process(inputStream, options, onSpeaking);
     } catch (error) {
       // Being heard matters more than being filtered: if the processing graph
       // cannot be built on this machine, publish the plain microphone.
@@ -28,6 +39,7 @@ export class MicrophoneTrackFactory {
   private async process(
     inputStream: MediaStream,
     options: MicrophoneOptions,
+    onSpeaking?: SpeakingListener,
   ): Promise<ProcessedMicrophoneTrack> {
     const context = this.createContext(options.latencyHint);
     if (context.state === 'suspended') await context.resume();
@@ -46,6 +58,9 @@ export class MicrophoneTrackFactory {
     // holds the signal back about six milliseconds so it can see a peak
     // coming, and spends that on every syllable whether or not one does.
     const gate = await this.createNoiseGate(context, options);
+    if (gate && onSpeaking) {
+      gate.port.onmessage = (event: MessageEvent<boolean>) => onSpeaking(event.data === true);
+    }
     const fallbackGain = gate ? undefined : context.createGain();
     const fallbackLimiter = gate ? undefined : context.createDynamicsCompressor();
 
@@ -80,6 +95,9 @@ export class MicrophoneTrackFactory {
       processed: true,
       apply,
       dispose: async () => {
+        if (gate) gate.port.onmessage = null;
+        // A graph that is going away is not talking, whatever it said last.
+        onSpeaking?.(false);
         inputStream.getTracks().forEach((track) => track.stop());
         processedTrack.stop();
         if (context.state !== 'closed') await context.close();

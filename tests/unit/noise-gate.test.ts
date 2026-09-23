@@ -86,6 +86,27 @@ describe('NoiseGate', () => {
     expect(loudness(asSpoken) - loudness(firstWord)).toBeLessThan(6);
   });
 
+  it('closes again in a room whose own sound sits near the threshold', () => {
+    // The trap in the usual arrangement: a level to open and a lower one to
+    // close leaves a band, and a room that hums inside that band holds the
+    // gate open for the rest of the call once one word has opened it.
+    const gate = new NoiseGate(rate);
+    gate.setThreshold(-50);
+    for (let index = 0; index < rate * 0.3; index += 1) gate.advance(0.25);
+
+    // Room tone at about -53 dBFS: under the threshold, over where a second
+    // quieter threshold would have been.
+    let closedAfter: number | undefined;
+    for (let index = 0; index < rate * 2; index += 1) {
+      gate.advance((Math.random() * 2 - 1) * 0.004);
+      if (closedAfter === undefined && !gate.open) closedAfter = (index / rate) * 1000;
+    }
+
+    expect(closedAfter).toBeDefined();
+    // The hold is a fifth of a second, and the envelope takes a moment more.
+    expect(closedAfter!).toBeLessThan(400);
+  });
+
   it('holds through the gaps inside a sentence', () => {
     const gate = new NoiseGate(rate);
     gate.setThreshold(-50);

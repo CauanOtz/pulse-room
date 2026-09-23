@@ -10,6 +10,13 @@
  * sample at a time reads the peaks of a hiss as speech, which held the gate
  * open through the quiet of a room and made it do almost nothing.
  *
+ * What closes it is time, not a second quieter threshold. A level to open and
+ * a lower one to close is the usual arrangement and it has a trap in it: a
+ * room whose own sound happens to sit between the two keeps the gate open for
+ * the rest of the call once a first word has opened it, and most rooms sit
+ * there. One threshold and a fifth of a second of patience bridges the gaps
+ * inside a sentence without ever latching.
+ *
  * The limiter is here rather than in a DynamicsCompressorNode because that node
  * buys its cleanliness with a fixed look-ahead of about six milliseconds, and
  * it spends that on every syllable whether or not anything needed limiting.
@@ -17,8 +24,6 @@
  * hear on a voice and a talker can hear as a shorter round trip.
  */
 
-/** How far below the opening level the room must fall before it closes again. */
-const hysteresisDb = 6;
 /** Closed is quiet, not silent: a dead void sounds like the call dropped. */
 const closedGainDb = -28;
 const levelSeconds = 0.008;
@@ -53,7 +58,6 @@ export class NoiseGate {
 
   setThreshold(decibels) {
     this.openAt = decibelsToGain(decibels);
-    this.closeAt = decibelsToGain(decibels - hysteresisDb);
   }
 
   /** The gain this moment of the signal deserves, between the floor and one. */
@@ -65,8 +69,10 @@ export class NoiseGate {
       this.open = true;
       this.hold = this.holdSamples;
     } else if (this.hold > 0) {
+      // The gap between two syllables and the tail of a word both live here,
+      // and both are worth waiting out.
       this.hold -= 1;
-    } else if (level < this.closeAt) {
+    } else {
       this.open = false;
     }
 
@@ -128,6 +134,7 @@ class NoiseGateProcessor extends AudioWorkletProcessor {
     this.gate = new NoiseGate(sampleRate);
     this.limiter = new Limiter(sampleRate);
     this.threshold = Number.NaN;
+    this.announced = false;
   }
 
   process(inputs, outputs, parameters) {
@@ -147,8 +154,11 @@ class NoiseGateProcessor extends AudioWorkletProcessor {
     if (!first) return true;
 
     for (let index = 0; index < first.length; index += 1) {
-      // One decision for the microphone, applied to whatever it publishes.
-      const gateGain = enabled ? this.gate.advance(first[index]) : 1;
+      // The gate runs whether or not its gain is wanted, because whether
+      // somebody is talking is worth knowing even when nothing is being
+      // removed from what they say.
+      const decision = this.gate.advance(first[index]);
+      const gateGain = enabled ? decision : 1;
       const lifted = first[index] * gateGain * gain;
       const held = this.limiter.advance(lifted);
       for (let channel = 0; channel < input.length; channel += 1) {
@@ -157,6 +167,14 @@ class NoiseGateProcessor extends AudioWorkletProcessor {
         if (!samples || !target) continue;
         target[index] = clamp(samples[index] * gateGain * gain * held);
       }
+    }
+
+    // Whether this microphone is talking, the instant it starts. The room's
+    // own answer to that question comes from the server, which is a round trip
+    // and an interval away, and your own face should not wait for it.
+    if (this.gate.open !== this.announced) {
+      this.announced = this.gate.open;
+      this.port.postMessage(this.announced);
     }
 
     return true;

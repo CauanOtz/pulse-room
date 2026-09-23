@@ -67,6 +67,8 @@ export class LiveKitConferenceGateway extends ObservableConference {
   private readonly watched = new Set<string>();
   private previewed?: string;
   private deafened = false;
+  // What the microphone graph last said about whether this person is talking.
+  private localSpeaking = false;
   // How much of a voice this machine is willing to hold back before playing it.
   private voiceDelay: VoiceDelayName = 'lowest';
   private microphoneOptions?: MicrophoneOptions;
@@ -137,7 +139,11 @@ export class LiveKitConferenceGateway extends ObservableConference {
     }
 
     try {
-      const processed = await this.microphoneTrackFactory.create(options);
+      const processed = await this.microphoneTrackFactory.create(options, (speaking) => {
+        if (this.localSpeaking === speaking) return;
+        this.localSpeaking = speaking;
+        this.refreshParticipants();
+      });
       if (generation !== this.generation) {
         await processed.dispose();
         return;
@@ -436,6 +442,7 @@ export class LiveKitConferenceGateway extends ObservableConference {
       .on(RoomEvent.Reconnecting, () => this.update({ connectionState: 'reconnecting' }))
       .on(RoomEvent.Reconnected, () => this.update({ connectionState: 'connected' }))
       .on(RoomEvent.Disconnected, () => {
+        this.localSpeaking = false;
         this.watched.clear();
         this.previewed = undefined;
         this.update({ watching: [] });
@@ -474,7 +481,10 @@ export class LiveKitConferenceGateway extends ObservableConference {
       accent: '#D0D0D0',
       isLocal: true,
       isMuted: !this.microphonePublication,
-      isSpeaking: this.room.localParticipant.isSpeaking,
+      // The room learns who is talking from the server, on an interval and a
+      // round trip away. Your own microphone is on this machine, so your own
+      // face does not wait to hear about you from Frankfurt.
+      isSpeaking: this.microphonePublication ? this.localSpeaking : false,
       volume: 100,
       locallyMuted: false,
       screenStream: this.createLocalScreenStream(),

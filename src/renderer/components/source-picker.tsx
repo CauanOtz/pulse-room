@@ -1,6 +1,17 @@
 import { useEffect, useState } from 'react';
-import { LoaderCircle, Monitor, X } from 'lucide-react';
+import { LoaderCircle, Monitor, Volume2 } from 'lucide-react';
 import type { CaptureSource } from '../../shared/desktop-api';
+import { Button } from './ui/button';
+import {
+  Dialog,
+  DialogBody,
+  DialogCloseButton,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from './ui/dialog';
+import { cn } from './ui/utils';
 
 interface SourcePickerProps {
   open: boolean;
@@ -8,6 +19,13 @@ interface SourcePickerProps {
   onSelect(sourceId?: string): void;
 }
 
+/**
+ * Which monitor to put into the room.
+ *
+ * Every screen is drawn at the same size whatever shape it is, and drawn whole
+ * rather than filled, because the only question being asked here is which of
+ * these is the one with the game on it.
+ */
 export function SourcePicker({ open, onClose, onSelect }: SourcePickerProps) {
   const [sources, setSources] = useState<CaptureSource[]>([]);
   const [selectedId, setSelectedId] = useState<string>();
@@ -20,7 +38,8 @@ export function SourcePicker({ open, onClose, onSelect }: SourcePickerProps) {
       return;
     }
     setLoading(true);
-    window.desktop.capture.listScreens()
+    window.desktop.capture
+      .listScreens()
       .then((nextSources) => {
         setSources(nextSources);
         setSelectedId(nextSources[0]?.id);
@@ -28,51 +47,90 @@ export function SourcePicker({ open, onClose, onSelect }: SourcePickerProps) {
       .finally(() => setLoading(false));
   }, [open]);
 
-  if (!open) return null;
-
   return (
-    <div className="dialog-backdrop fixed inset-0 z-50 grid place-items-center bg-black/70 p-4 backdrop-blur-[2px]" role="presentation" onMouseDown={onClose}>
-      <section className="dialog source-dialog flex max-h-[min(90vh,42rem)] w-[min(46rem,calc(100vw-2rem))] flex-col rounded-2xl border border-border bg-card text-card-foreground shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="share-title" onMouseDown={(event) => event.stopPropagation()}>
-        <header>
-          <div>
-            <h2 id="share-title">Share your full screen</h2>
-            <p>System audio is included automatically on Windows.</p>
+    <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
+      <DialogContent
+        className="source-dialog w-[min(46rem,calc(100vw-2rem))]"
+        onOpenAutoFocus={(event) => event.preventDefault()}
+      >
+        <DialogHeader className="items-start">
+          <div className="flex min-w-0 flex-col gap-1">
+            <DialogTitle className="text-base font-semibold">Share your full screen</DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              System audio is included automatically on Windows.
+            </DialogDescription>
           </div>
-          <button className="icon-button grid size-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground" type="button" onClick={onClose} aria-label="Close"><X size={19} /></button>
-        </header>
+          <DialogCloseButton label="Close" />
+        </DialogHeader>
 
         {loading ? (
-          <div className="dialog-loading flex min-h-55 items-center justify-center gap-2 text-sm text-muted-foreground"><LoaderCircle className="spin animate-spin" size={24} /> Finding displays…</div>
+          <DialogBody className="flex min-h-55 items-center justify-center gap-2 text-sm text-muted-foreground">
+            <LoaderCircle className="spin size-6 animate-spin" aria-hidden="true" />
+            Finding displays…
+          </DialogBody>
         ) : sources.length > 0 ? (
-          <div className="source-grid grid max-h-110 grid-cols-2 gap-3 overflow-y-auto px-5 py-4">
-            {sources.map((source) => (
-              <button
-                key={source.id}
-                className={`source-card${selectedId === source.id ? ' is-selected' : ''}`}
-                type="button"
-                onClick={() => setSelectedId(source.id)}
-              >
-                <img src={source.thumbnailDataUrl} alt="" />
-                <span><Monitor size={16} /> {source.name}</span>
-              </button>
-            ))}
-          </div>
+          <DialogBody className="source-grid grid grid-cols-2 gap-3 space-y-0">
+            {sources.map((source) => {
+              const selected = selectedId === source.id;
+              return (
+                <button
+                  key={source.id}
+                  className={cn(
+                    'source-card group/source flex flex-col gap-2 rounded-xl p-2 text-left transition-colors',
+                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                    selected ? 'is-selected bg-secondary' : 'hover:bg-accent',
+                  )}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => setSelectedId(source.id)}
+                  onDoubleClick={() => onSelect(source.id)}
+                >
+                  {/* One box, whatever shape the monitor is, and the whole
+                      picture inside it rather than a crop of the middle. */}
+                  <span
+                    className={cn(
+                      'grid aspect-video w-full place-items-center overflow-hidden rounded-lg bg-background',
+                      selected
+                        ? 'shadow-[inset_0_0_0_2px_var(--primary)]'
+                        : 'shadow-[inset_0_0_0_1px_var(--border)]',
+                    )}
+                  >
+                    <img className="size-full object-contain" src={source.thumbnailDataUrl} alt="" />
+                  </span>
+                  <span
+                    className={cn(
+                      'flex min-w-0 items-center gap-2 px-0.5 text-xs font-medium',
+                      selected ? 'text-foreground' : 'text-muted-foreground',
+                    )}
+                  >
+                    <Monitor aria-hidden="true" className="size-4 shrink-0" />
+                    <span className="truncate">{source.name}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </DialogBody>
         ) : (
-          <div className="browser-share-message flex min-h-55 flex-col items-center justify-center gap-2 text-center text-sm text-muted-foreground">
-            <Monitor size={26} />
-            <strong>Use the system picker</strong>
+          <DialogBody className="browser-share-message flex min-h-55 flex-col items-center justify-center gap-2 space-y-0 text-center text-sm text-muted-foreground">
+            <Monitor aria-hidden="true" className="size-7" />
+            <strong className="text-foreground">Use the system picker</strong>
             <span>Your browser will ask which display to share.</span>
-          </div>
+          </DialogBody>
         )}
 
-        <footer>
-          <div className="audio-badge mr-auto flex items-center gap-2 text-[11px] text-success"><span /> System audio on</div>
-          <button className="secondary-button inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-border bg-transparent px-3 text-xs font-medium text-foreground transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-50" type="button" onClick={onClose}>Cancel</button>
-          <button className="primary-button inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50" type="button" onClick={() => onSelect(selectedId)} disabled={loading}>
+        <footer className="flex items-center gap-2 border-t border-border px-5 py-4">
+          <span className="audio-badge mr-auto flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
+            <Volume2 aria-hidden="true" className="size-3.5" />
+            System audio on
+          </span>
+          <Button variant="ghost" type="button" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="button" disabled={loading} onClick={() => onSelect(selectedId)}>
             Share full screen
-          </button>
+          </Button>
         </footer>
-      </section>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
