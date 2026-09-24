@@ -125,9 +125,19 @@
     background: var(--background);
     font-synthesis: none;
     text-rendering: optimizeLegibility;
-    font-feature-settings: 'ss01' 1, 'cv02' 1;
+    font-feature-settings:
+      'ss01' 1,
+      'cv02' 1;
   }
-  h1, h2, h3, h4, p, figure, blockquote, dl, dd {
+  h1,
+  h2,
+  h3,
+  h4,
+  p,
+  figure,
+  blockquote,
+  dl,
+  dd {
     margin: 0;
   }
   button {
@@ -140,7 +150,9 @@
   button:disabled {
     cursor: not-allowed;
   }
-  input, select, textarea {
+  input,
+  select,
+  textarea {
     font: inherit;
   }
   :focus-visible {
@@ -343,6 +355,46 @@
     font-size: 0.6875rem;
     font-weight: 400;
     color: var(--muted-foreground);
+  }
+  .settings-dialog .range-row input[type='range'] {
+    width: 100%;
+    height: 1rem;
+    margin: 0;
+    appearance: none;
+    background: transparent;
+    cursor: pointer;
+  }
+  .settings-dialog .range-row input[type='range']::-webkit-slider-runnable-track {
+    height: 0.25rem;
+    border-radius: 999px;
+    background: linear-gradient(
+      to right,
+      var(--foreground) 0 var(--range-progress),
+      var(--secondary) var(--range-progress) 100%
+    );
+  }
+  .settings-dialog .range-row input[type='range']::-webkit-slider-thumb {
+    width: 0.875rem;
+    height: 0.875rem;
+    margin-top: -0.3125rem;
+    appearance: none;
+    border: 2px solid var(--card);
+    border-radius: 999px;
+    background: var(--foreground);
+    box-shadow: 0 0 0 1px color-mix(in oklab, var(--foreground) 18%, transparent);
+    transition: transform 120ms ease;
+  }
+  .settings-dialog .range-row input[type='range']:hover::-webkit-slider-thumb {
+    transform: scale(1.12);
+  }
+  .settings-dialog .settings-section + .settings-section {
+    padding-top: 2rem;
+    border-top: 1px solid var(--border);
+  }
+  .settings-dialog .settings-health fieldset {
+    margin: 0;
+    border-radius: var(--radius-lg);
+    background: color-mix(in oklab, var(--background) 45%, transparent);
   }
   .community-modal label {
     display: flex;

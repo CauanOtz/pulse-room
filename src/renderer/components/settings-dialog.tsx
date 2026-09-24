@@ -1,17 +1,24 @@
-import { useEffect, useState } from 'react';
-import { RefreshCw, X } from 'lucide-react';
-import { noiseGateThresholdDb } from '../domain/conference';
-import type { ParticipantHealth } from '../domain/conference';
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import {
+  Activity,
+  AudioLines,
+  Headphones,
+  Mic2,
+  MonitorUp,
+  RefreshCw,
+  Settings2,
+  SlidersHorizontal,
+  Volume2,
+  X,
+} from 'lucide-react';
+import { noiseGateThresholdDb, type ParticipantHealth } from '../domain/conference';
 import { CallHealth } from './call-health';
 import { MicrophoneMeter } from './microphone-meter';
 import { Switch } from './ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { cn } from './ui/utils';
 import type { UserSettings } from '../application/ports/settings-repository';
-import type {
-  AvailableMediaDevices,
-  MediaDeviceOption,
-} from '../infrastructure/media/media-devices-service';
+import type { AvailableMediaDevices, MediaDeviceOption } from '../infrastructure/media/media-devices-service';
 import type { UpdateStatus } from '../../shared/desktop-api';
 
 interface SettingsDialogProps {
@@ -31,256 +38,386 @@ interface SettingsDialogProps {
   onInstallUpdate(): void;
 }
 
+type SettingsSection = 'input' | 'processing' | 'screen' | 'connection' | 'application';
+
+const navigation: Array<{ id: SettingsSection; label: string; icon: typeof Mic2 }> = [
+  { id: 'input', label: 'Input & output', icon: Mic2 },
+  { id: 'processing', label: 'Voice processing', icon: AudioLines },
+  { id: 'screen', label: 'Screen share', icon: MonitorUp },
+  { id: 'connection', label: 'Connection', icon: Activity },
+  { id: 'application', label: 'Application', icon: Settings2 },
+];
+
 export function SettingsDialog(props: SettingsDialogProps) {
   const [settings, setSettings] = useState(props.initialSettings);
+  const [activeSection, setActiveSection] = useState<SettingsSection>('input');
+  const bodyRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => setSettings(props.initialSettings), [props.initialSettings, props.open]);
   if (!props.open) return null;
 
   const updateCopy = getUpdateCopy(props.updateStatus, props.version);
+  const goToSection = (id: SettingsSection) => {
+    setActiveSection(id);
+    bodyRef.current?.querySelector<HTMLElement>(`#voice-settings-${id}`)?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    });
+  };
+
+  const updateActiveSection = () => {
+    const body = bodyRef.current;
+    if (!body) return;
+    if (body.scrollTop + body.clientHeight >= body.scrollHeight - 4) {
+      setActiveSection('application');
+      return;
+    }
+    const marker = body.getBoundingClientRect().top + 80;
+    const visible = navigation.reduce<SettingsSection>((current, item) => {
+      const section = body.querySelector<HTMLElement>(`#voice-settings-${item.id}`);
+      return section && section.getBoundingClientRect().top <= marker ? item.id : current;
+    }, 'input');
+    setActiveSection(visible);
+  };
 
   return (
-    <div className="dialog-backdrop fixed inset-0 z-50 grid place-items-center bg-black/70 p-4 backdrop-blur-[2px]" role="presentation" onMouseDown={props.onClose}>
+    <div
+      className="dialog-backdrop fixed inset-0 z-50 grid place-items-center bg-black/75 p-4 backdrop-blur-[3px]"
+      role="presentation"
+      onMouseDown={props.onClose}
+    >
       <section
-        className="dialog settings-dialog flex max-h-[min(90vh,44rem)] w-[min(38rem,calc(100vw-2rem))] flex-col rounded-2xl border border-border bg-card text-card-foreground shadow-2xl"
+        className="dialog settings-dialog flex h-[min(88vh,48rem)] w-[min(58rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-2xl"
         role="dialog"
         aria-modal="true"
         aria-labelledby="settings-title"
         onMouseDown={(event) => event.stopPropagation()}
       >
-        <header className="flex flex-none items-start gap-3 border-b border-border px-5 py-4">
+        <header className="flex h-[4.5rem] flex-none items-center gap-4 border-b border-border px-6">
+          <span
+            className="grid size-9 shrink-0 place-items-center rounded-lg bg-secondary text-foreground"
+            aria-hidden="true"
+          >
+            <SlidersHorizontal className="size-[18px]" />
+          </span>
           <div className="min-w-0 flex-1">
-            <h2 id="settings-title" className="text-lg font-semibold">
+            <h2 id="settings-title" className="text-[17px] font-semibold tracking-[-0.015em]">
               Voice and video
             </h2>
-            <p className="text-xs text-muted-foreground">Tune what your friends hear and what you hear.</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Shape your voice, playback, and screen share.
+            </p>
           </div>
           <button
-            className="icon-button grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="icon-button grid size-8 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             type="button"
             onClick={props.onClose}
             aria-label="Close"
           >
-            <X size={19} />
+            <X size={18} />
           </button>
         </header>
 
-        <div className="settings-body grid min-h-0 flex-1 grid-cols-2 gap-4 overflow-y-auto px-5 py-5">
-          {!props.managedAccount && (
-            <>
-              <label className="field-label flex flex-col gap-1.5 text-xs font-medium text-muted-foreground">
-                Display name
-                <input
-                  value={settings.displayName}
-                  onChange={(event) => setSettings({ ...settings, displayName: event.target.value })}
-                />
-              </label>
-              <label className="field-label flex flex-col gap-1.5 text-xs font-medium text-muted-foreground">
-                Room name
-                <input
-                  value={settings.roomId}
-                  onChange={(event) => setSettings({ ...settings, roomId: event.target.value })}
-                />
-              </label>
-            </>
-          )}
-          <DeviceField
-            label="Microphone"
-            value={settings.microphoneDeviceId}
-            devices={props.devices.microphones}
-            onChange={(deviceId) => setSettings({ ...settings, microphoneDeviceId: deviceId })}
-          />
-          <DeviceField
-            label="Speakers"
-            value={settings.speakerDeviceId}
-            devices={props.devices.speakers}
-            onChange={(deviceId) => setSettings({ ...settings, speakerDeviceId: deviceId })}
-          />
-          <div className="mic-status field-span col-span-2 flex items-center gap-2.5 rounded-xl border border-border bg-background/60 px-3.5 py-2.5 text-xs" role="status">
-            <span
-              className={
-                props.microphoneLive
-                  ? 'is-live size-2 shrink-0 rounded-full bg-success shadow-[0_0_0_4px] shadow-success/20'
-                  : 'is-off size-2 shrink-0 rounded-full bg-destructive shadow-[0_0_0_4px] shadow-destructive/20'
-              }
-            />
-            {props.microphoneLive
-              ? 'Your microphone is live in the room.'
-              : (props.microphoneProblem ?? 'Your microphone is not publishing.')}
-          </div>
-
-          <MicrophoneMeter
-            deviceId={settings.microphoneDeviceId}
-            gateThresholdDb={noiseGateThresholdDb(settings.noiseGate)}
-          />
-
-          <label className="field-label field-span gain-field col-span-2 flex flex-col gap-2 text-xs font-medium text-muted-foreground">
-            <span>
-              Microphone gain <strong>{settings.microphoneGain}%</strong>
-            </span>
-            <input
-              aria-label="Microphone gain"
-              type="range"
-              min="0"
-              max="150"
-              value={settings.microphoneGain}
-              onChange={(event) => setSettings({ ...settings, microphoneGain: Number(event.target.value) })}
-            />
-            <small>A limiter protects the signal when gain goes above 100%.</small>
-          </label>
-
-          <label className="field-label field-span gain-field col-span-2 flex flex-col gap-2 text-xs font-medium text-muted-foreground">
-            <span>
-              Noise gate <strong>{settings.noiseGate}%</strong>
-            </span>
-            <input
-              aria-label="Noise gate"
-              type="range"
-              min="0"
-              max="100"
-              value={settings.noiseGate}
-              onChange={(event) => setSettings({ ...settings, noiseGate: Number(event.target.value) })}
-            />
-            <small>Silences fans and keyboards between words. Lower it if your voice gets clipped.</small>
-          </label>
-
-          <div className="toggle-block field-span col-span-2 flex flex-col gap-1 rounded-xl border border-border bg-background/60 p-2">
-            <Toggle
-              label="Noise suppression"
-              detail="Filtering from the browser audio engine."
-              checked={settings.noiseSuppression}
-              onChange={(checked) => setSettings({ ...settings, noiseSuppression: checked })}
-            />
-            <Toggle
-              label="Echo cancellation"
-              detail="Stops speakers returning through your microphone, and routes playback through the canceller to do it. Measured here, that buffer costs 41 ms against 5 ms without. On headphones there is nothing to cancel: turning it off is the single largest saving in the room."
-              checked={settings.echoCancellation}
-              onChange={(checked) => setSettings({ ...settings, echoCancellation: checked })}
-            />
-            <Toggle
-              label="Automatic gain"
-              detail="Keep quiet and loud speech at a stable level."
-              checked={settings.autoGainControl}
-              onChange={(checked) => setSettings({ ...settings, autoGainControl: checked })}
-            />
-            <Toggle
-              label="Room sounds"
-              detail="Short cues for arrivals, muting, and screens going live."
-              checked={settings.roomSounds}
-              onChange={(checked) => setSettings({ ...settings, roomSounds: checked })}
-            />
-            <Toggle
-              label="Expand screen levels"
-              detail="Restores true black when a shared screen looks washed out."
-              checked={settings.expandScreenLevels}
-              onChange={(checked) => setSettings({ ...settings, expandScreenLevels: checked })}
-            />
-          </div>
-
-          <fieldset className="quality-field field-span col-span-2 flex flex-col gap-2 rounded-xl border border-border bg-background/60 p-3">
-            <legend className="px-1 text-xs font-semibold text-muted-foreground">Screen quality</legend>
-            <QualityOption
-              id="efficient"
-              label="Efficient"
-              detail="720p · 30 fps · up to 2.5 Mbps"
-              selected={settings.screenSharePreset === 'efficient'}
-              onSelect={() => setSettings({ ...settings, screenSharePreset: 'efficient' })}
-            />
-            <QualityOption
-              id="balanced"
-              label="Balanced"
-              detail="1080p · 30 fps · up to 4.5 Mbps"
-              selected={settings.screenSharePreset === 'balanced'}
-              onSelect={() => setSettings({ ...settings, screenSharePreset: 'balanced' })}
-            />
-            <QualityOption
-              id="motion"
-              label="Motion"
-              detail="1080p · 60 fps · up to 7 Mbps"
-              selected={settings.screenSharePreset === 'motion'}
-              onSelect={() => setSettings({ ...settings, screenSharePreset: 'motion' })}
-            />
-          </fieldset>
-
-          {props.readHealth && <CallHealth read={props.readHealth} />}
-
-          <fieldset className="delay-field field-span col-span-2 flex flex-col gap-2 rounded-xl border border-border bg-background/60 p-3">
-            <legend className="px-1 text-xs font-semibold text-muted-foreground">Voice delay</legend>
-            <p className="px-1 pb-1 text-[11px] text-muted-foreground">
-              How much slack the sound card is allowed. Lowest asks it for none, which on this
-              machine meant 6 ms of output buffer against 42 ms, and there is nothing in
-              between on offer. No slack means nothing to absorb a machine that stalls, and a
-              listener hears that as wind, or as a voice gone thin and quiet. It is a bet on
-              the machine, which is why it is not the default. Takes hold on the next call.
+        <div className="grid min-h-0 flex-1 grid-cols-[11.5rem_minmax(0,1fr)] max-[720px]:grid-cols-1">
+          <aside className="settings-nav flex min-h-0 flex-col border-r border-border bg-background/55 px-3 py-4 max-[720px]:hidden">
+            <p className="px-2 pb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+              Audio settings
             </p>
-            <QualityOption
-              id="lowest"
-              group="delay"
-              label="Lowest delay"
-              detail="~69 ms here · best on a cable"
-              selected={settings.voiceDelay === 'lowest'}
-              onSelect={() => setSettings({ ...settings, voiceDelay: 'lowest' })}
-            />
-            <QualityOption
-              id="balanced"
-              group="delay"
-              label="Balanced"
-              detail="~110 ms here · survives a hiccup"
-              selected={settings.voiceDelay === 'balanced'}
-              onSelect={() => setSettings({ ...settings, voiceDelay: 'balanced' })}
-            />
-            <QualityOption
-              id="smooth"
-              group="delay"
-              label="Smoothest"
-              detail="~230 ms here · for a line that is genuinely bad"
-              selected={settings.voiceDelay === 'smooth'}
-              onSelect={() => setSettings({ ...settings, voiceDelay: 'smooth' })}
-            />
-          </fieldset>
-
-          <div className="update-row field-span col-span-2 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4 text-xs">
-            <div className="flex min-w-0 flex-col gap-0.5">
-              <strong className="text-[13px] font-semibold text-foreground">Application updates</strong>
-              <span className="text-[11px] text-muted-foreground">{updateCopy}</span>
+            <nav className="space-y-0.5" aria-label="Voice settings sections">
+              {navigation.map(({ id, label, icon: Icon }) => (
+                <button
+                  key={id}
+                  className={cn(
+                    'flex h-9 w-full items-center gap-2.5 rounded-md px-2.5 text-left text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                    activeSection === id
+                      ? 'bg-accent text-foreground'
+                      : 'text-muted-foreground hover:bg-accent/70 hover:text-foreground',
+                  )}
+                  type="button"
+                  aria-current={activeSection === id ? 'location' : undefined}
+                  onClick={() => goToSection(id)}
+                >
+                  <Icon className="size-[15px] shrink-0" strokeWidth={1.9} />
+                  {label}
+                </button>
+              ))}
+            </nav>
+            <div className="mt-auto border-t border-border px-2 pt-3">
+              <p className="text-[11px] leading-4 text-muted-foreground">
+                Changes take effect when you save. Device choices apply to your next connection.
+              </p>
             </div>
-            {props.updateStatus.state === 'downloaded' ? (
-              <button
-                className="inline-flex h-8 shrink-0 items-center justify-center rounded-lg bg-primary px-3 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-                type="button"
-                onClick={props.onInstallUpdate}
+          </aside>
+
+          <div
+            ref={bodyRef}
+            className="settings-body min-h-0 overflow-y-auto scroll-smooth"
+            onScroll={updateActiveSection}
+          >
+            <div className="mx-auto flex w-full max-w-[43rem] flex-col gap-8 px-7 py-6 max-[720px]:px-5">
+              <SettingsGroup
+                id="input"
+                icon={<Headphones className="size-4" />}
+                title="Input & output"
+                description="Choose what you speak through and where the room plays."
               >
-                Restart and update
-              </button>
-            ) : (
-              <button
-                className="inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-border px-3 text-xs font-medium text-foreground transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-50"
-                type="button"
-                onClick={props.onCheckUpdates}
-                disabled={
-                  props.updateStatus.state === 'checking' || props.updateStatus.state === 'downloading'
-                }
+                {!props.managedAccount && (
+                  <div className="grid grid-cols-2 gap-3 max-[620px]:grid-cols-1">
+                    <TextField
+                      label="Display name"
+                      value={settings.displayName}
+                      onChange={(displayName) => setSettings({ ...settings, displayName })}
+                    />
+                    <TextField
+                      label="Room name"
+                      value={settings.roomId}
+                      onChange={(roomId) => setSettings({ ...settings, roomId })}
+                    />
+                  </div>
+                )}
+                <div className="grid grid-cols-2 gap-3 max-[620px]:grid-cols-1">
+                  <DeviceField
+                    label="Microphone"
+                    value={settings.microphoneDeviceId}
+                    devices={props.devices.microphones}
+                    onChange={(microphoneDeviceId) => setSettings({ ...settings, microphoneDeviceId })}
+                  />
+                  <DeviceField
+                    label="Speakers"
+                    value={settings.speakerDeviceId}
+                    devices={props.devices.speakers}
+                    onChange={(speakerDeviceId) => setSettings({ ...settings, speakerDeviceId })}
+                  />
+                </div>
+                <div className="overflow-hidden rounded-lg border border-border bg-background/45">
+                  <div
+                    className="mic-status flex items-center gap-3 border-b border-border px-4 py-3 text-xs"
+                    role="status"
+                  >
+                    <span
+                      className={cn(
+                        'size-2 shrink-0 rounded-full shadow-[0_0_0_4px]',
+                        props.microphoneLive
+                          ? 'is-live bg-success shadow-success/15'
+                          : 'is-off bg-destructive shadow-destructive/15',
+                      )}
+                    />
+                    <span className="font-medium text-foreground">
+                      {props.microphoneLive
+                        ? 'Your microphone is live in the room.'
+                        : (props.microphoneProblem ?? 'Your microphone is not publishing.')}
+                    </span>
+                  </div>
+                  <div className="px-4 py-4">
+                    <MicrophoneMeter
+                      deviceId={settings.microphoneDeviceId}
+                      gateThresholdDb={noiseGateThresholdDb(settings.noiseGate)}
+                    />
+                  </div>
+                </div>
+              </SettingsGroup>
+
+              <SettingsGroup
+                id="processing"
+                icon={<AudioLines className="size-4" />}
+                title="Voice processing"
+                description="Keep speech clear without flattening the way your voice sounds."
               >
-                <RefreshCw
-                  size={15}
-                  className={props.updateStatus.state === 'checking' ? 'animate-spin' : ''}
-                />
-                Check now
-              </button>
-            )}
+                <div className="overflow-hidden rounded-lg border border-border bg-background/45">
+                  <RangeControl
+                    label="Microphone gain"
+                    value={settings.microphoneGain}
+                    min={0}
+                    max={150}
+                    suffix="%"
+                    description="A limiter protects the signal when gain goes above 100%."
+                    onChange={(microphoneGain) => setSettings({ ...settings, microphoneGain })}
+                  />
+                  <RangeControl
+                    label="Noise gate"
+                    value={settings.noiseGate}
+                    min={0}
+                    max={100}
+                    suffix="%"
+                    description="Silences fans and keyboards between words. Lower it if your voice gets clipped."
+                    onChange={(noiseGate) => setSettings({ ...settings, noiseGate })}
+                  />
+                </div>
+                <div className="toggle-block overflow-hidden rounded-lg border border-border bg-background/45">
+                  <Toggle
+                    label="Noise suppression"
+                    detail="Filters steady background noise through the browser audio engine."
+                    checked={settings.noiseSuppression}
+                    onChange={(noiseSuppression) => setSettings({ ...settings, noiseSuppression })}
+                  />
+                  <Toggle
+                    label="Echo cancellation"
+                    detail="Prevents speaker audio from returning through your microphone. Turn it off on headphones for lower delay."
+                    checked={settings.echoCancellation}
+                    onChange={(echoCancellation) => setSettings({ ...settings, echoCancellation })}
+                  />
+                  <Toggle
+                    label="Automatic gain"
+                    detail="Keeps quiet and loud speech at a stable level."
+                    checked={settings.autoGainControl}
+                    onChange={(autoGainControl) => setSettings({ ...settings, autoGainControl })}
+                  />
+                  <Toggle
+                    label="Room sounds"
+                    detail="Plays short cues for arrivals, muting, and screens going live."
+                    checked={settings.roomSounds}
+                    onChange={(roomSounds) => setSettings({ ...settings, roomSounds })}
+                  />
+                </div>
+              </SettingsGroup>
+
+              <SettingsGroup
+                id="screen"
+                icon={<MonitorUp className="size-4" />}
+                title="Screen share"
+                description="Balance detail, motion, and bandwidth for everyone watching."
+              >
+                <div
+                  className="grid grid-cols-3 gap-2 max-[620px]:grid-cols-1"
+                  role="radiogroup"
+                  aria-label="Screen quality"
+                >
+                  <QualityOption
+                    id="efficient"
+                    label="Efficient"
+                    detail="720p · 30 fps"
+                    meta="Up to 2.5 Mbps"
+                    selected={settings.screenSharePreset === 'efficient'}
+                    onSelect={() => setSettings({ ...settings, screenSharePreset: 'efficient' })}
+                  />
+                  <QualityOption
+                    id="balanced"
+                    label="Balanced"
+                    detail="1080p · 30 fps"
+                    meta="Up to 4.5 Mbps"
+                    selected={settings.screenSharePreset === 'balanced'}
+                    onSelect={() => setSettings({ ...settings, screenSharePreset: 'balanced' })}
+                  />
+                  <QualityOption
+                    id="motion"
+                    label="Motion"
+                    detail="1080p · 60 fps"
+                    meta="Up to 7 Mbps"
+                    selected={settings.screenSharePreset === 'motion'}
+                    onSelect={() => setSettings({ ...settings, screenSharePreset: 'motion' })}
+                  />
+                </div>
+                <div className="overflow-hidden rounded-lg border border-border bg-background/45">
+                  <Toggle
+                    label="Expand screen levels"
+                    detail="Restores true black when a shared screen looks washed out."
+                    checked={settings.expandScreenLevels}
+                    onChange={(expandScreenLevels) => setSettings({ ...settings, expandScreenLevels })}
+                  />
+                </div>
+              </SettingsGroup>
+
+              <SettingsGroup
+                id="connection"
+                icon={<Activity className="size-4" />}
+                title="Connection"
+                description="Choose how aggressively Pulse Room trades stability for lower delay."
+              >
+                <div
+                  className="grid grid-cols-3 gap-2 max-[620px]:grid-cols-1"
+                  role="radiogroup"
+                  aria-label="Voice delay"
+                >
+                  <QualityOption
+                    id="lowest"
+                    group="delay"
+                    label="Lowest delay"
+                    detail="~69 ms here"
+                    meta="Best on a cable"
+                    selected={settings.voiceDelay === 'lowest'}
+                    onSelect={() => setSettings({ ...settings, voiceDelay: 'lowest' })}
+                  />
+                  <QualityOption
+                    id="balanced"
+                    group="delay"
+                    label="Balanced"
+                    detail="~110 ms here"
+                    meta="Survives a hiccup"
+                    selected={settings.voiceDelay === 'balanced'}
+                    onSelect={() => setSettings({ ...settings, voiceDelay: 'balanced' })}
+                  />
+                  <QualityOption
+                    id="smooth"
+                    group="delay"
+                    label="Smoothest"
+                    detail="~230 ms here"
+                    meta="For unstable lines"
+                    selected={settings.voiceDelay === 'smooth'}
+                    onSelect={() => setSettings({ ...settings, voiceDelay: 'smooth' })}
+                  />
+                </div>
+                <p className="text-[11px] leading-4 text-muted-foreground">
+                  Lower delay leaves less room for a computer or connection that briefly stalls. Changes apply
+                  on the next call.
+                </p>
+                {props.readHealth && (
+                  <div className="settings-health">
+                    <CallHealth read={props.readHealth} />
+                  </div>
+                )}
+              </SettingsGroup>
+
+              <SettingsGroup
+                id="application"
+                icon={<Settings2 className="size-4" />}
+                title="Application"
+                description="Keep Pulse Room current."
+              >
+                <div className="update-row flex flex-wrap items-center justify-between gap-4 rounded-lg border border-border bg-background/45 px-4 py-3.5">
+                  <div className="flex min-w-0 flex-col gap-0.5">
+                    <strong className="text-[13px] font-semibold text-foreground">Application updates</strong>
+                    <span className="text-[11px] text-muted-foreground">{updateCopy}</span>
+                  </div>
+                  {props.updateStatus.state === 'downloaded' ? (
+                    <button
+                      className="inline-flex h-8 shrink-0 items-center justify-center rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                      type="button"
+                      onClick={props.onInstallUpdate}
+                    >
+                      Restart and update
+                    </button>
+                  ) : (
+                    <button
+                      className="inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-md border border-border px-3 text-xs font-medium text-foreground transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-50"
+                      type="button"
+                      onClick={props.onCheckUpdates}
+                      disabled={
+                        props.updateStatus.state === 'checking' || props.updateStatus.state === 'downloading'
+                      }
+                    >
+                      <RefreshCw
+                        size={14}
+                        className={props.updateStatus.state === 'checking' ? 'animate-spin' : ''}
+                      />{' '}
+                      Check now
+                    </button>
+                  )}
+                </div>
+              </SettingsGroup>
+            </div>
           </div>
         </div>
 
-        <footer className="flex flex-none flex-wrap items-center justify-end gap-2 border-t border-border px-5 py-3.5">
+        <footer className="flex h-[4.25rem] flex-none items-center justify-end gap-2 border-t border-border bg-background/35 px-6">
           <button
-            className="secondary-button inline-flex h-9 items-center justify-center rounded-lg border border-border px-4 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+            className="secondary-button inline-flex h-9 items-center justify-center rounded-md px-4 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             type="button"
             onClick={props.onClose}
           >
             Cancel
           </button>
           <button
-            className="primary-button inline-flex h-9 items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
+            className="primary-button inline-flex h-9 items-center justify-center rounded-md bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
             type="button"
             onClick={() => props.onSave(settings)}
             disabled={!settings.displayName.trim() || (!props.managedAccount && !settings.roomId.trim())}
@@ -290,6 +427,55 @@ export function SettingsDialog(props: SettingsDialogProps) {
         </footer>
       </section>
     </div>
+  );
+}
+
+function SettingsGroup({
+  id,
+  icon,
+  title,
+  description,
+  children,
+}: {
+  id: SettingsSection;
+  icon: ReactNode;
+  title: string;
+  description: string;
+  children: ReactNode;
+}) {
+  return (
+    <section id={`voice-settings-${id}`} className="settings-section scroll-mt-6">
+      <header className="mb-4 flex items-start gap-3">
+        <span
+          className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-md bg-secondary text-secondary-foreground"
+          aria-hidden="true"
+        >
+          {icon}
+        </span>
+        <div>
+          <h3 className="text-sm font-semibold tracking-[-0.01em] text-foreground">{title}</h3>
+          <p className="mt-0.5 text-xs leading-5 text-muted-foreground">{description}</p>
+        </div>
+      </header>
+      <div className="space-y-3 pl-10 max-[620px]:pl-0">{children}</div>
+    </section>
+  );
+}
+
+function TextField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange(value: string): void;
+}) {
+  return (
+    <label className="field-label flex flex-col gap-1.5 text-xs font-medium text-muted-foreground">
+      {label}
+      <input value={value} onChange={(event) => onChange(event.target.value)} />
+    </label>
   );
 }
 
@@ -305,10 +491,16 @@ function DeviceField({
   devices: MediaDeviceOption[];
   onChange(deviceId?: string): void;
 }) {
+  const Icon = label === 'Microphone' ? Mic2 : Volume2;
   return (
-    <div className="field-label field-span col-span-2 flex flex-col gap-1.5 text-xs font-medium text-muted-foreground">
-      <span id={`device-${label}`}>{label}</span>
-      <Select value={value ?? 'system'} onValueChange={(next) => onChange(next === 'system' ? undefined : next)}>
+    <div className="field-label flex min-w-0 flex-col gap-1.5 text-xs font-medium text-muted-foreground">
+      <span id={`device-${label}`} className="flex items-center gap-1.5">
+        <Icon className="size-3.5" /> {label}
+      </span>
+      <Select
+        value={value ?? 'system'}
+        onValueChange={(next) => onChange(next === 'system' ? undefined : next)}
+      >
         <SelectTrigger aria-labelledby={`device-${label}`}>
           <SelectValue />
         </SelectTrigger>
@@ -325,6 +517,50 @@ function DeviceField({
   );
 }
 
+function RangeControl({
+  label,
+  value,
+  min,
+  max,
+  suffix,
+  description,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  suffix: string;
+  description: string;
+  onChange(value: number): void;
+}) {
+  const inputId = `setting-${label.toLowerCase().replaceAll(' ', '-')}`;
+  return (
+    <div className="range-row flex flex-col gap-2 border-b border-border px-4 py-3.5 last:border-b-0">
+      <span className="flex items-center justify-between gap-3">
+        <label htmlFor={inputId} className="text-[13px] font-medium text-foreground">
+          {label}
+        </label>
+        <output className="min-w-11 rounded-md bg-secondary px-2 py-1 text-center font-mono text-[11px] tabular-nums text-secondary-foreground">
+          {value}
+          {suffix}
+        </output>
+      </span>
+      <input
+        id={inputId}
+        aria-label={label}
+        type="range"
+        min={min}
+        max={max}
+        value={value}
+        onChange={(event) => onChange(Number(event.target.value))}
+        style={{ '--range-progress': `${((value - min) / (max - min)) * 100}%` } as CSSProperties}
+      />
+      <small>{description}</small>
+    </div>
+  );
+}
+
 function Toggle({
   label,
   detail,
@@ -337,10 +573,10 @@ function Toggle({
   onChange(value: boolean): void;
 }) {
   return (
-    <label className="toggle-row flex items-center justify-between gap-3 rounded-lg px-2 py-2 text-sm">
+    <label className="toggle-row flex cursor-pointer items-center justify-between gap-4 border-b border-border px-4 py-3.5 transition-colors last:border-b-0 hover:bg-accent/35">
       <span className="flex min-w-0 flex-col gap-0.5">
-        <strong className="text-[13px] font-semibold text-foreground">{label}</strong>
-        <small className="text-[11px] font-normal text-muted-foreground">{detail}</small>
+        <strong className="text-[13px] font-medium text-foreground">{label}</strong>
+        <small className="max-w-[31rem] leading-4">{detail}</small>
       </span>
       <Switch checked={checked} onCheckedChange={onChange} aria-label={label} />
     </label>
@@ -352,6 +588,7 @@ function QualityOption({
   group = 'quality',
   label,
   detail,
+  meta,
   selected,
   onSelect,
 }: {
@@ -359,14 +596,17 @@ function QualityOption({
   group?: string;
   label: string;
   detail: string;
+  meta: string;
   selected: boolean;
   onSelect(): void;
 }) {
   return (
     <label
       className={cn(
-        'quality-option flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 transition-colors',
-        selected ? 'is-selected border-primary bg-primary/10' : 'border-border hover:bg-accent',
+        'quality-option relative flex min-h-[5.75rem] cursor-pointer flex-col rounded-lg border px-3.5 py-3 transition-colors',
+        selected
+          ? 'is-selected border-foreground/35 bg-accent text-foreground'
+          : 'border-border bg-background/45 text-muted-foreground hover:border-foreground/20 hover:bg-accent/55 hover:text-foreground',
       )}
       htmlFor={`${group}-${id}`}
     >
@@ -378,18 +618,18 @@ function QualityOption({
         checked={selected}
         onChange={onSelect}
       />
-      <span
-        className={cn(
-          'grid size-4 shrink-0 place-items-center rounded-full border',
-          selected ? 'border-primary' : 'border-input',
-        )}
-      >
-        {selected && <span className="size-2 rounded-full bg-primary" />}
+      <span className="flex items-center justify-between gap-2">
+        <strong className="text-[13px] font-semibold">{label}</strong>
+        <span
+          className={cn(
+            'grid size-3.5 shrink-0 place-items-center rounded-full border',
+            selected ? 'border-[4px] border-primary bg-primary-foreground' : 'border-input',
+          )}
+          aria-hidden="true"
+        />
       </span>
-      <span className="flex min-w-0 flex-col gap-0.5">
-        <strong className="text-[13px] font-semibold text-foreground">{label}</strong>
-        <span className="text-[11px] text-muted-foreground">{detail}</span>
-      </span>
+      <span className="mt-auto text-[11px] font-medium text-foreground/90">{detail}</span>
+      <span className="mt-0.5 font-mono text-[10px] tabular-nums text-muted-foreground">{meta}</span>
     </label>
   );
 }
