@@ -39,9 +39,9 @@ export function VoicePanel(props: VoicePanelProps) {
       <div className="voice-status flex items-center gap-1">
         <button
           className={cn(
-            'flex min-w-0 flex-1 items-center gap-2.5 rounded-md px-1 py-0.5 text-left transition-colors',
+            'group flex min-w-0 flex-1 items-center gap-2.5 px-1 py-0.5 text-left',
             props.onReturn
-              ? 'cursor-pointer hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+              ? 'cursor-pointer focus-visible:outline-none'
               : 'cursor-default',
           )}
           type="button"
@@ -64,7 +64,7 @@ export function VoicePanel(props: VoicePanelProps) {
               {heading}
             </strong>
             {/* The path reads the way you would say it out loud. */}
-            <span className="truncate text-xs text-muted-foreground">
+            <span className="truncate text-xs text-muted-foreground group-hover:underline group-focus-visible:underline [text-underline-offset:3px]">
               {props.channelName}
               {props.serverName && (
                 <span className="text-muted-foreground/60"> / {props.serverName}</span>
