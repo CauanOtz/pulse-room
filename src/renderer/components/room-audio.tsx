@@ -8,6 +8,7 @@ interface RoomAudioProps {
   watching?: string[];
   /** Per person, the level of the sound coming from their screen. */
   screenVolumes?: Record<string, number>;
+  onSpeakingChange?(participantId: string, speaking: boolean): void;
 }
 
 /**
@@ -23,6 +24,7 @@ export function RoomAudio({
   speakerDeviceId,
   watching,
   screenVolumes,
+  onSpeakingChange,
 }: RoomAudioProps) {
   const others = participants.filter((participant) => !participant.isLocal);
   return (
@@ -35,6 +37,7 @@ export function RoomAudio({
             stream={participant.microphoneStream}
             speakerDeviceId={speakerDeviceId}
             volume={participant.locallyMuted ? 0 : participant.volume}
+            onSpeakingChange={(speaking) => onSpeakingChange?.(participant.id, speaking)}
           />
         ))}
       {others

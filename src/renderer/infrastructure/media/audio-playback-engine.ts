@@ -4,6 +4,37 @@ export interface PlaybackHandle {
 }
 
 /**
+ * Keeps a voice indicator steady across the tiny silences between syllables.
+ * The threshold is intentionally low: this watches audio that already passed
+ * through the sender's microphone processing, not raw room noise.
+ */
+export class VoiceActivityLatch {
+  private speaking = false;
+  private quietSince?: number;
+
+  public constructor(
+    private readonly threshold = 0.006,
+    private readonly releaseDelayMs = 320,
+  ) {}
+
+  public sample(level: number, now: number): boolean {
+    if (level >= this.threshold) {
+      this.quietSince = undefined;
+      this.speaking = true;
+      return true;
+    }
+
+    if (!this.speaking) return false;
+    this.quietSince ??= now;
+    if (now - this.quietSince >= this.releaseDelayMs) {
+      this.speaking = false;
+      this.quietSince = undefined;
+    }
+    return this.speaking;
+  }
+}
+
+/**
  * Plays incoming audio through one shared Web Audio graph.
  *
  * A media element cannot be turned up past its own recording level, and a quiet
@@ -15,7 +46,10 @@ export class AudioPlaybackEngine {
   private sinkId?: string;
   private latencyHint: AudioContextLatencyCategory | number = 0;
 
-  public attach(stream: MediaStream): PlaybackHandle | undefined {
+  public attach(
+    stream: MediaStream,
+    onSpeakingChange?: (speaking: boolean) => void,
+  ): PlaybackHandle | undefined {
     if (stream.getAudioTracks().length === 0) return undefined;
 
     try {
@@ -24,14 +58,39 @@ export class AudioPlaybackEngine {
 
       const source = context.createMediaStreamSource(stream);
       const gain = context.createGain();
-      source.connect(gain).connect(context.destination);
+      const analyser = onSpeakingChange ? context.createAnalyser() : undefined;
+      if (analyser) {
+        analyser.fftSize = 512;
+        analyser.smoothingTimeConstant = 0.55;
+        source.connect(analyser).connect(gain).connect(context.destination);
+      } else {
+        source.connect(gain).connect(context.destination);
+      }
+
+      const samples = analyser ? new Float32Array(analyser.fftSize) : undefined;
+      const latch = analyser ? new VoiceActivityLatch() : undefined;
+      let lastSpeaking = false;
+      const timer = analyser
+        ? window.setInterval(() => {
+            analyser.getFloatTimeDomainData(samples!);
+            let energy = 0;
+            for (const sample of samples!) energy += sample * sample;
+            const speaking = latch!.sample(Math.sqrt(energy / samples!.length), performance.now());
+            if (speaking === lastSpeaking) return;
+            lastSpeaking = speaking;
+            onSpeakingChange?.(speaking);
+          }, 80)
+        : undefined;
 
       return {
         setVolume: (percent) => {
           gain.gain.value = Math.max(0, percent) / 100;
         },
         dispose: () => {
+          if (timer !== undefined) window.clearInterval(timer);
+          if (lastSpeaking) onSpeakingChange?.(false);
           source.disconnect();
+          analyser?.disconnect();
           gain.disconnect();
         },
       };

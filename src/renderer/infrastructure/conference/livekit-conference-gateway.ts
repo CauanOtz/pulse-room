@@ -5,6 +5,7 @@ import {
   RoomEvent,
   Track,
   type LocalTrackPublication,
+  type Participant as LiveKitParticipant,
   type RemoteParticipant,
   type RemoteTrack,
   type RemoteTrackPublication,
@@ -72,6 +73,9 @@ export class LiveKitConferenceGateway extends ObservableConference {
   private deafened = false;
   // What the microphone graph last said about whether this person is talking.
   private localSpeaking = false;
+  // Keep the event payload as the source of truth. Some LiveKit builds update
+  // participant.isSpeaking after observers have already taken their snapshot.
+  private readonly activeSpeakers = new Set<string>();
   // How much of a voice this machine is willing to hold back before playing it.
   private voiceDelay: VoiceDelayName = 'lowest';
   private microphoneOptions?: MicrophoneOptions;
@@ -87,6 +91,7 @@ export class LiveKitConferenceGateway extends ObservableConference {
     const generation = ++this.generation;
     this.joinAbort?.abort();
     this.joinAbort = new AbortController();
+    this.activeSpeakers.clear();
     this.update({ connectionState: 'connecting', error: undefined });
 
     try {
@@ -111,6 +116,7 @@ export class LiveKitConferenceGateway extends ObservableConference {
   public async leave(): Promise<void> {
     this.generation++;
     this.joinAbort?.abort();
+    this.activeSpeakers.clear();
     await this.stopScreenShare();
     await this.disableMicrophone();
     await this.room.disconnect();
@@ -439,13 +445,18 @@ export class LiveKitConferenceGateway extends ObservableConference {
         this.refreshParticipants();
       })
       .on(RoomEvent.ParticipantDisconnected, (participant: RemoteParticipant) => {
+        this.activeSpeakers.delete(participant.identity);
         this.streams.forget(participant.identity);
         this.volumes.delete(participant.identity);
         this.locallyMuted.delete(participant.identity);
         this.forgetVanishedScreens();
         this.refreshParticipants();
       })
-      .on(RoomEvent.ActiveSpeakersChanged, () => this.refreshParticipants())
+      .on(RoomEvent.ActiveSpeakersChanged, (speakers: LiveKitParticipant[]) => {
+        this.activeSpeakers.clear();
+        speakers.forEach((participant) => this.activeSpeakers.add(participant.identity));
+        this.refreshParticipants();
+      })
       .on(RoomEvent.ConnectionQualityChanged, () => this.refreshParticipants())
       .on(RoomEvent.TrackPublished, () => {
         this.applyScreenSubscriptions();
@@ -467,6 +478,7 @@ export class LiveKitConferenceGateway extends ObservableConference {
       .on(RoomEvent.Reconnected, () => this.update({ connectionState: 'connected' }))
       .on(RoomEvent.Disconnected, () => {
         this.localSpeaking = false;
+        this.activeSpeakers.clear();
         this.watched.clear();
         this.previewed = undefined;
         this.update({ watching: [] });
@@ -595,7 +607,7 @@ export class LiveKitConferenceGateway extends ObservableConference {
       accent: accents[index % accents.length],
       isLocal: false,
       isMuted: !participant.isMicrophoneEnabled,
-      isSpeaking: participant.isSpeaking,
+      isSpeaking: this.activeSpeakers.has(participant.identity) || participant.isSpeaking,
       volume: this.volumes.get(participant.identity) ?? 100,
       locallyMuted: this.locallyMuted.has(participant.identity),
       microphoneStream: this.streams.sync(participant.identity, 'microphone', microphoneTracks),

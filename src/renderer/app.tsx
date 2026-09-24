@@ -107,6 +107,10 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
   // The sound of a shared screen is the room's, not the picture's, so its level
   // is held here where both the player and the stage can reach it.
   const [screenVolumes, setScreenVolumes] = useState<Record<string, number>>({});
+  // The room server normally reports active speakers. Audio playback also
+  // measures the stream locally so the ring still works when a self-hosted
+  // deployment delays or omits those reports.
+  const [heardSpeaking, setHeardSpeaking] = useState<ReadonlySet<string>>(() => new Set());
   const [openParticipant, setOpenParticipant] = useState<{
     id: string;
     position: { x: number; y: number };
@@ -123,6 +127,34 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
   const manager = canManage(workspace?.detail.server.role);
   const canSpeak = activeCall?.canSpeak ?? true;
   const canShare = activeCall?.canShare ?? true;
+
+  const visibleParticipants = useMemo(
+    () =>
+      snapshot.participants.map((participant) =>
+        heardSpeaking.has(participant.id) && !participant.isSpeaking
+          ? { ...participant, isSpeaking: true }
+          : participant,
+      ),
+    [heardSpeaking, snapshot.participants],
+  );
+
+  const handleRemoteSpeaking = useCallback((participantId: string, speaking: boolean) => {
+    setHeardSpeaking((current) => {
+      if (current.has(participantId) === speaking) return current;
+      const next = new Set(current);
+      if (speaking) next.add(participantId);
+      else next.delete(participantId);
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    const connected = new Set(snapshot.participants.map((participant) => participant.id));
+    setHeardSpeaking((current) => {
+      if ([...current].every((id) => connected.has(id))) return current;
+      return new Set([...current].filter((id) => connected.has(id)));
+    });
+  }, [snapshot.participants]);
 
   // Opening a different server starts on its text channel. The one exception
   // is the explicit "return to call" action, which restores the voice stage.
@@ -250,7 +282,7 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
   }, []);
 
   const popoverEntry: RosterEntry | undefined = useMemo(() => {
-    const participant = snapshot.participants.find((each) => each.id === openParticipant?.id);
+    const participant = visibleParticipants.find((each) => each.id === openParticipant?.id);
     if (!participant) return undefined;
     return {
       id: participant.id,
@@ -265,7 +297,7 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
       locallyMuted: participant.locallyMuted,
       detailed: true,
     };
-  }, [openParticipant?.id, snapshot.participants]);
+  }, [openParticipant?.id, visibleParticipants]);
 
   const handleChannelSelect = (channelId: string) => {
     setViewId(channelId);
@@ -346,7 +378,7 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
         activeChannelId={settings.roomId}
         connectedChannelName={activeCall?.channelName}
         connectedServerName={activeCall?.serverName}
-        participants={snapshot.participants}
+        participants={visibleParticipants}
         avatars={avatars}
         joined={joined}
         busy={busy}
@@ -462,7 +494,7 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
             <div className="flex min-h-0 min-w-0 p-2.5">
               <Stage
                 avatars={activeCall?.avatars ?? avatars}
-                participants={snapshot.participants}
+                participants={visibleParticipants}
                 joined={joined}
                 speakerDeviceId={settings.speakerDeviceId}
                 expandLevels={settings.expandScreenLevels}
@@ -515,7 +547,7 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
           )}
           {joined && textChannel && (
             <CallMiniPlayer
-              participant={snapshot.participants.find(
+              participant={visibleParticipants.find(
                 (participant) => participant.isBroadcasting && snapshot.watching.includes(participant.id),
               )}
               speakerDeviceId={settings.speakerDeviceId}
@@ -532,6 +564,7 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
         speakerDeviceId={settings.speakerDeviceId}
         watching={snapshot.watching}
         screenVolumes={screenVolumes}
+        onSpeakingChange={handleRemoteSpeaking}
       />
 
       {popoverEntry && openParticipant && (

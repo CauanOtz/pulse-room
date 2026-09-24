@@ -9,6 +9,7 @@ interface MediaOutputProps {
   className?: string;
   volume?: number;
   label?: string;
+  onSpeakingChange?(speaking: boolean): void;
 }
 
 export function MediaOutput({
@@ -19,9 +20,12 @@ export function MediaOutput({
   className,
   volume = 100,
   label = 'Shared screen',
+  onSpeakingChange,
 }: MediaOutputProps) {
   const elementRef = useRef<HTMLVideoElement & HTMLAudioElement>(null);
   const playbackRef = useRef<PlaybackHandle>(undefined);
+  const speakingListenerRef = useRef(onSpeakingChange);
+  speakingListenerRef.current = onSpeakingChange;
   const [boosted, setBoosted] = useState(false);
 
   // Each concern gets its own effect: reassigning srcObject restarts playback,
@@ -37,7 +41,7 @@ export function MediaOutput({
   useEffect(() => {
     if (!stream || muted) return undefined;
 
-    const handle = audioPlayback.attach(stream);
+    const handle = audioPlayback.attach(stream, (speaking) => speakingListenerRef.current?.(speaking));
     playbackRef.current = handle;
     setBoosted(Boolean(handle));
 
