@@ -59,6 +59,7 @@ function conferenceGateway() {
     applyMicrophoneOptions: vi.fn(async () => {}),
     setDeafened: vi.fn(async (deafened) => update({ deafened })),
     startScreenShare: vi.fn(async () => update({ screenSharing: true })),
+    updateScreenShare: vi.fn(async () => undefined),
     stopScreenShare: vi.fn(async () => update({ screenSharing: false })),
     setParticipantVolume: vi.fn(),
     setParticipantMuted: vi.fn(),

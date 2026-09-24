@@ -6,6 +6,7 @@ import type {
 } from '../../domain/conference';
 import { ObservableConference } from './observable-conference';
 import { createDisplayMediaOptions } from '../media/display-media-options';
+import { updateScreenShareTrack } from '../media/screen-share-quality';
 import { MicrophoneTrackFactory, type ProcessedMicrophoneTrack } from '../media/microphone-track-factory';
 
 const demoFriends: Participant[] = [
@@ -169,6 +170,12 @@ export class DemoConferenceGateway extends ObservableConference {
           : participant,
       ),
     });
+  }
+
+  public async updateScreenShare(options: ScreenShareOptions): Promise<void> {
+    const videoTrack = this.displayStream?.getVideoTracks()[0];
+    if (!videoTrack) return;
+    await updateScreenShareTrack(videoTrack, undefined, options);
   }
 
   public setParticipantVolume(participantId: string, volume: number): void {

@@ -23,6 +23,7 @@ import { ObservableConference } from './observable-conference';
 import { createDisplayMediaOptions } from '../media/display-media-options';
 import { ParticipantStreamRegistry } from '../media/participant-stream-registry';
 import { MicrophoneTrackFactory, type ProcessedMicrophoneTrack } from '../media/microphone-track-factory';
+import { updateScreenShareTrack } from '../media/screen-share-quality';
 import { reuseParticipants } from './snapshot-diff';
 
 const grades: SignalQuality[] = ['excellent', 'good', 'poor', 'lost', 'unknown'];
@@ -55,6 +56,7 @@ export class LiveKitConferenceGateway extends ObservableConference {
   });
 
   private screenPublications: LocalTrackPublication[] = [];
+  private screenQualityUpdate: Promise<void> = Promise.resolve();
   private microphonePublication?: LocalTrackPublication;
   private processedMicrophone?: ProcessedMicrophoneTrack;
   private readonly microphoneTrackFactory = new MicrophoneTrackFactory();
@@ -374,6 +376,27 @@ export class LiveKitConferenceGateway extends ObservableConference {
     );
     this.update({ screenSharing: false });
     this.refreshParticipants();
+  }
+
+  /**
+   * Changes capture constraints and sender limits in place. The MediaStreamTrack
+   * and LiveKit publication keep their identity, so viewers do not see the live
+   * disappear and system audio is never interrupted.
+   */
+  public updateScreenShare(options: ScreenShareOptions): Promise<void> {
+    const update = this.screenQualityUpdate.then(async () => {
+      const publication = this.screenPublications.find(
+        (candidate) => candidate.source === Track.Source.ScreenShare,
+      );
+      const track = publication?.track;
+      if (!(track instanceof LocalVideoTrack)) return;
+
+      await updateScreenShareTrack(track.mediaStreamTrack, track.sender, options);
+    });
+    // A rapid second selection waits for the browser's first setParameters;
+    // WebRTC rejects overlapping parameter changes.
+    this.screenQualityUpdate = update.catch(() => undefined);
+    return update;
   }
 
   public setParticipantVolume(participantId: string, volume: number): void {

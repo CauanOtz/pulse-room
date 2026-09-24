@@ -1,7 +1,7 @@
-import { useState } from 'react';
 import { ChevronUp, Headphones, Mic, MicOff, MonitorUp, PhoneOff, Settings2 } from 'lucide-react';
 import type { ScreenSharePresetName } from '../domain/conference';
 import { StreamMenu } from './stream-menu';
+import { DropdownMenu, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { Tooltip } from './ui/tooltip';
 import { cn } from './ui/utils';
 
@@ -20,8 +20,6 @@ interface CallControlsProps {
 }
 
 export function CallControls(props: CallControlsProps) {
-  const [menuOpen, setMenuOpen] = useState(false);
-
   return (
     <div
       // A blurred backdrop is recomputed by the GPU on every frame of whatever
@@ -69,15 +67,23 @@ export function CallControls(props: CallControlsProps) {
             <MonitorUp size={17} />
           </button>
         </Tooltip>
-        <button
-          className="dock-caret grid h-9 w-5 place-items-center rounded-lg rounded-l-none bg-secondary text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          type="button"
-          aria-label="Stream options"
-          aria-expanded={menuOpen}
-          onClick={() => setMenuOpen(!menuOpen)}
-        >
-          <ChevronUp size={12} />
-        </button>
+        <DropdownMenu modal={false}>
+          <DropdownMenuTrigger asChild>
+            <button
+              className="dock-caret grid h-9 w-5 place-items-center rounded-lg rounded-l-none bg-secondary text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              type="button"
+              aria-label="Stream options"
+            >
+              <ChevronUp size={12} />
+            </button>
+          </DropdownMenuTrigger>
+          <StreamMenu
+            sharing={props.screenSharing}
+            quality={props.quality}
+            onSelectQuality={props.onSelectQuality}
+            onStop={props.onShare}
+          />
+        </DropdownMenu>
       </span>
 
       <Tooltip label="Audio settings">
@@ -102,16 +108,6 @@ export function CallControls(props: CallControlsProps) {
           <PhoneOff size={17} />
         </button>
       </Tooltip>
-
-      {menuOpen && (
-        <StreamMenu
-          sharing={props.screenSharing}
-          quality={props.quality}
-          onSelectQuality={props.onSelectQuality}
-          onStop={props.onShare}
-          onClose={() => setMenuOpen(false)}
-        />
-      )}
     </div>
   );
 }

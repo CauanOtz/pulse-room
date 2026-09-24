@@ -27,6 +27,7 @@ function createGateway(): ConferenceGateway {
     applyMicrophoneOptions: vi.fn(async () => undefined),
     setDeafened: vi.fn(async () => undefined),
     startScreenShare: vi.fn(async () => undefined),
+    updateScreenShare: vi.fn(async () => undefined),
     stopScreenShare: vi.fn(async () => undefined),
     setParticipantVolume: vi.fn(),
     setParticipantMuted: vi.fn(),
@@ -89,6 +90,57 @@ describe('ConferenceController', () => {
       frameRate: 60,
       maxBitrate: 7_000_000,
     }));
+  });
+
+  it('retunes an active screen share without stopping or republishing it', async () => {
+    const gateway = createGateway();
+    vi.mocked(gateway.getSnapshot).mockReturnValue({
+      connectionState: 'connected',
+      participants: [],
+      microphoneEnabled: true,
+      deafened: false,
+      screenSharing: true,
+      watching: [],
+    });
+    const settingsRepository: SettingsRepository = {
+      load: () => defaultSettings,
+      save: vi.fn(),
+    };
+    const controller = new ConferenceController(gateway, settingsRepository);
+
+    await controller.setScreenQuality('motion');
+
+    expect(settingsRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({ screenSharePreset: 'motion' }),
+    );
+    expect(gateway.updateScreenShare).toHaveBeenCalledWith(
+      expect.objectContaining({ width: 1920, height: 1080, frameRate: 60 }),
+    );
+    expect(gateway.stopScreenShare).not.toHaveBeenCalled();
+    expect(gateway.startScreenShare).not.toHaveBeenCalled();
+  });
+
+  it('applies a quality changed in settings to the active screen share', async () => {
+    const gateway = createGateway();
+    vi.mocked(gateway.getSnapshot).mockReturnValue({
+      connectionState: 'connected',
+      participants: [],
+      microphoneEnabled: true,
+      deafened: false,
+      screenSharing: true,
+      watching: [],
+    });
+    const settingsRepository: SettingsRepository = {
+      load: () => defaultSettings,
+      save: vi.fn(),
+    };
+    const controller = new ConferenceController(gateway, settingsRepository);
+
+    await controller.saveSettings({ ...defaultSettings, screenSharePreset: 'efficient' });
+
+    expect(gateway.updateScreenShare).toHaveBeenCalledWith(
+      expect.objectContaining({ width: 1280, height: 720, frameRate: 30 }),
+    );
   });
 
   it('hands new audio settings to the live microphone', async () => {

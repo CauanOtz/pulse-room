@@ -16,6 +16,7 @@ export class ConferenceController {
   }
 
   public async saveSettings(settings: UserSettings): Promise<void> {
+    const previousSettings = this.getSettings();
     this.settingsRepository.save(settings);
     // The buffer is retuned on the live call rather than on the next one: it
     // is the setting somebody reaches for while the call is going badly.
@@ -25,6 +26,12 @@ export class ConferenceController {
     const snapshot = this.gateway.getSnapshot();
     if (snapshot.connectionState === 'connected') {
       await this.gateway.applyMicrophoneOptions(this.microphoneOptions(settings));
+    }
+    if (
+      snapshot.screenSharing &&
+      previousSettings.screenSharePreset !== settings.screenSharePreset
+    ) {
+      await this.gateway.updateScreenShare(screenSharePresets[settings.screenSharePreset]);
     }
   }
 
@@ -60,13 +67,12 @@ export class ConferenceController {
     await this.gateway.setDeafened(!this.gateway.getSnapshot().deafened);
   }
 
-  /** Changing quality mid-broadcast restarts the capture at the new preset. */
+  /** Changing quality keeps the same capture and publication alive. */
   public async setScreenQuality(preset: ScreenSharePresetName): Promise<void> {
     const settings = { ...this.getSettings(), screenSharePreset: preset };
     this.settingsRepository.save(settings);
     if (!this.gateway.getSnapshot().screenSharing) return;
-    await this.gateway.stopScreenShare();
-    await this.gateway.startScreenShare(screenSharePresets[preset]);
+    await this.gateway.updateScreenShare(screenSharePresets[preset]);
   }
 
   public async toggleScreenShare(sourceId?: string): Promise<void> {

@@ -16,6 +16,8 @@ export interface ConferenceGateway {
   applyMicrophoneOptions(options: MicrophoneOptions): Promise<void>;
   setDeafened(deafened: boolean): Promise<void>;
   startScreenShare(options: ScreenShareOptions): Promise<void>;
+  /** Retunes the active video track without ending or republishing the screen share. */
+  updateScreenShare(options: ScreenShareOptions): Promise<void>;
   stopScreenShare(): Promise<void>;
   setParticipantVolume(participantId: string, volume: number): void;
   setParticipantMuted(participantId: string, muted: boolean): void;

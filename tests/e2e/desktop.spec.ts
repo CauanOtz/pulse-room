@@ -174,6 +174,16 @@ test('launches the secured desktop shell and completes the join flow', async () 
       'aria-checked',
       'true',
     );
+    await streamMenu.getByRole('menuitemradio', { name: /1080p . 60 fps/ }).click();
+    // Changing quality keeps the same live visible instead of tearing it down
+    // and asking Chromium to capture the monitor again.
+    await expect(window.getByLabel('Shared screen')).toBeVisible();
+    await window.locator('.call-dock').getByRole('button', { name: 'Stream options' }).click();
+    await expect(
+      window.getByRole('menu', { name: 'Stream options' }).getByRole('menuitemradio', {
+        name: /1080p . 60 fps/,
+      }),
+    ).toHaveAttribute('aria-checked', 'true');
     await window.keyboard.press('Escape');
 
     await window.locator('.stage-live').hover();
