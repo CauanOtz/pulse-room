@@ -1,4 +1,4 @@
-import { CornerUpLeft, MonitorUp, PhoneOff } from 'lucide-react';
+import { MonitorUp, PhoneOff } from 'lucide-react';
 import { cn } from './ui/utils';
 import type { ConnectionState, SignalQuality } from '../domain/conference';
 import { SignalBars } from './signal-bars';
@@ -36,45 +36,48 @@ export function VoicePanel(props: VoicePanelProps) {
       className="voice-panel mx-2 mb-2 flex flex-col gap-2 rounded-lg border border-border bg-secondary/45 p-2.5 shadow-[var(--gloss)]"
       aria-label="Voice status"
     >
-      <div className="voice-status flex items-center gap-2.5 px-1">
-        <SignalBars
-          always
-          signal={props.signal ?? (reconnecting ? 'poor' : 'excellent')}
-          className={cn('h-3.5', reconnecting || troubled ? 'text-destructive' : 'text-success')}
-        />
-        <div className="flex min-w-0 flex-1 flex-col leading-tight">
-          <strong
-            className={cn(
-              'truncate text-[13px] font-semibold',
-              reconnecting || troubled ? 'text-destructive' : 'text-success',
-            )}
-          >
-            {heading}
-          </strong>
-          {/* The path reads the way you would say it out loud. */}
-          <span className="truncate text-xs text-muted-foreground">
-            {props.channelName}
-            {props.serverName && <span className="text-muted-foreground/60"> / {props.serverName}</span>}
-            {props.headcount !== undefined && (
-              <span className="text-muted-foreground/60">
-                {' '}
-                · {props.headcount} {props.headcount === 1 ? 'person' : 'people'}
-              </span>
-            )}
-          </span>
-        </div>
-        {props.onReturn && (
-          <Tooltip label="Return to call">
-            <button
-              className="grid size-7.5 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              type="button"
-              aria-label="Return to call"
-              onClick={props.onReturn}
+      <div className="voice-status flex items-center gap-1">
+        <button
+          className={cn(
+            'flex min-w-0 flex-1 items-center gap-2.5 rounded-md px-1 py-0.5 text-left transition-colors',
+            props.onReturn
+              ? 'cursor-pointer hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+              : 'cursor-default',
+          )}
+          type="button"
+          aria-label={props.onReturn ? 'Return to call' : 'Current call'}
+          disabled={!props.onReturn}
+          onClick={props.onReturn}
+        >
+          <SignalBars
+            always
+            signal={props.signal ?? (reconnecting ? 'poor' : 'excellent')}
+            className={cn('h-3.5', reconnecting || troubled ? 'text-destructive' : 'text-success')}
+          />
+          <span className="flex min-w-0 flex-1 flex-col leading-tight">
+            <strong
+              className={cn(
+                'truncate text-[13px] font-semibold',
+                reconnecting || troubled ? 'text-destructive' : 'text-success',
+              )}
             >
-              <CornerUpLeft size={15} />
-            </button>
-          </Tooltip>
-        )}
+              {heading}
+            </strong>
+            {/* The path reads the way you would say it out loud. */}
+            <span className="truncate text-xs text-muted-foreground">
+              {props.channelName}
+              {props.serverName && (
+                <span className="text-muted-foreground/60"> / {props.serverName}</span>
+              )}
+              {props.headcount !== undefined && (
+                <span className="text-muted-foreground/60">
+                  {' '}
+                  · {props.headcount} {props.headcount === 1 ? 'person' : 'people'}
+                </span>
+              )}
+            </span>
+          </span>
+        </button>
         <Tooltip label="Disconnect">
           <button
             className="grid size-7.5 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"

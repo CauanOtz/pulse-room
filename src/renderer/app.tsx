@@ -419,18 +419,6 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
               {workspace ? workspace.detail.server.name : 'A room for games, films, and unfinished stories.'}
             </span>
           </div>
-          {joined && textChannel && (
-            // Somebody reading a channel while a call runs is one click from
-            // the call, and the button says which call it is.
-            <button
-              className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md border border-border bg-secondary px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              type="button"
-              onClick={handleReturnToCall}
-            >
-              <span className="size-1.5 rounded-full bg-success" />
-              Return to call
-            </button>
-          )}
           {textChannel && (
             <Tooltip label={membersOpen ? 'Hide members' : 'Show members'}>
               <button
