@@ -1,4 +1,4 @@
-import { MonitorUp, PhoneOff } from 'lucide-react';
+import { CornerUpLeft, MonitorUp, PhoneOff } from 'lucide-react';
 import { cn } from './ui/utils';
 import type { ConnectionState, SignalQuality } from '../domain/conference';
 import { SignalBars } from './signal-bars';
@@ -15,6 +15,7 @@ interface VoicePanelProps {
   screenSharing: boolean;
   busy: boolean;
   onLeave(): void;
+  onReturn?(): void;
   onShare(): void;
 }
 
@@ -31,7 +32,10 @@ export function VoicePanel(props: VoicePanelProps) {
         : 'Voice connected';
 
   return (
-    <section className="voice-panel mx-2 mb-2 flex flex-col gap-2 rounded-lg border border-border bg-secondary/45 p-2.5 shadow-[var(--gloss)]" aria-label="Voice status">
+    <section
+      className="voice-panel mx-2 mb-2 flex flex-col gap-2 rounded-lg border border-border bg-secondary/45 p-2.5 shadow-[var(--gloss)]"
+      aria-label="Voice status"
+    >
       <div className="voice-status flex items-center gap-2.5 px-1">
         <SignalBars
           always
@@ -59,6 +63,18 @@ export function VoicePanel(props: VoicePanelProps) {
             )}
           </span>
         </div>
+        {props.onReturn && (
+          <Tooltip label="Return to call">
+            <button
+              className="grid size-7.5 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              type="button"
+              aria-label="Return to call"
+              onClick={props.onReturn}
+            >
+              <CornerUpLeft size={15} />
+            </button>
+          </Tooltip>
+        )}
         <Tooltip label="Disconnect">
           <button
             className="grid size-7.5 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"

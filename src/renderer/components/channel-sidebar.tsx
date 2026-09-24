@@ -36,6 +36,9 @@ interface ChannelSidebarProps {
   connectionState: ConnectionState;
   channels: VoiceChannel[];
   activeChannelId: string;
+  /** The call can belong to a server other than the one being browsed. */
+  connectedChannelName?: string;
+  connectedServerName?: string;
   participants: Participant[];
   joined: boolean;
   busy: boolean;
@@ -44,6 +47,7 @@ interface ChannelSidebarProps {
   avatars?: ReadonlyMap<string, string | null | undefined>;
   onSelectChannel(channelId: string): void;
   onLeave(): void;
+  onReturnToCall?(): void;
   onShare(): void;
   onOpenParticipant(entry: RosterEntry, position: { x: number; y: number }): void;
   /** Absent for anyone who may not shape the server, which hides the controls. */
@@ -87,9 +91,7 @@ export function ChannelSidebar(props: ChannelSidebarProps) {
           <GroupHeading
             label="Text channels"
             createLabel="Create text channel"
-            onCreate={
-              props.textChannels && props.onCreateChannel && (() => props.onCreateChannel?.('text'))
-            }
+            onCreate={props.textChannels && props.onCreateChannel && (() => props.onCreateChannel?.('text'))}
           />
           {props.textChannels ? (
             props.textChannels.map((channel) => (
@@ -105,21 +107,31 @@ export function ChannelSidebar(props: ChannelSidebarProps) {
             ))
           ) : (
             <>
-              <button className={cn(
+              <button
+                className={cn(
                   'channel-row relative flex h-8.5 w-full items-center gap-2 rounded-md px-2.5 text-left text-[13px] text-muted-foreground transition-colors',
                   'hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                   'disabled:pointer-events-none disabled:opacity-45',
-                )} type="button" disabled>
+                )}
+                type="button"
+                disabled
+              >
                 <Hash size={15} /> general
               </button>
-              <button className={cn(
+              <button
+                className={cn(
                   'channel-row relative flex h-8.5 w-full items-center gap-2 rounded-md px-2.5 text-left text-[13px] text-muted-foreground transition-colors',
                   'hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                   'disabled:pointer-events-none disabled:opacity-45',
-                )} type="button" disabled>
+                )}
+                type="button"
+                disabled
+              >
                 <Hash size={15} /> clips-and-chaos
               </button>
-              <p className="channel-note mt-1 px-2 text-[10px] text-muted-foreground">Text chat is still to be built.</p>
+              <p className="channel-note mt-1 px-2 text-[10px] text-muted-foreground">
+                Text chat is still to be built.
+              </p>
             </>
           )}
         </section>
@@ -158,17 +170,17 @@ export function ChannelSidebar(props: ChannelSidebarProps) {
       {isConnected && (
         <VoicePanel
           connectionState={props.connectionState}
-          channelName={activeChannel?.name ?? props.activeChannelId}
-          serverName={props.serverName}
+          channelName={props.connectedChannelName ?? activeChannel?.name ?? props.activeChannelId}
+          serverName={props.connectedServerName ?? props.serverName}
           headcount={props.participants.length}
           signal={props.participants.find((participant) => participant.isLocal)?.signal}
           screenSharing={props.screenSharing}
           busy={props.busy}
           onLeave={props.onLeave}
+          onReturn={props.onReturnToCall}
           onShare={props.onShare}
         />
       )}
-
     </aside>
   );
 }
@@ -188,9 +200,7 @@ function GroupHeading({
 }) {
   return (
     <div className="channel-heading flex h-7 items-center justify-between gap-2 pl-2 pr-1">
-      <h2 className="min-w-0 truncate text-[11px] font-semibold text-muted-foreground">
-        {label}
-      </h2>
+      <h2 className="min-w-0 truncate text-[11px] font-semibold text-muted-foreground">{label}</h2>
       {onCreate && (
         <Tooltip label={createLabel}>
           <button
@@ -326,9 +336,15 @@ function ChannelRoster({
               />
             </span>
             <span className="roster-name min-w-0 flex-1 truncate">{entry.name}</span>
-            {entry.isMuted && <MicOff aria-label={`${entry.name} is muted`} size={13} className="roster-flag shrink-0" />}
+            {entry.isMuted && (
+              <MicOff aria-label={`${entry.name} is muted`} size={13} className="roster-flag shrink-0" />
+            )}
             {entry.locallyMuted && (
-              <VolumeX aria-label={`${entry.name} is silenced for you`} size={13} className="roster-flag shrink-0" />
+              <VolumeX
+                aria-label={`${entry.name} is silenced for you`}
+                size={13}
+                className="roster-flag shrink-0"
+              />
             )}
             <SignalBars signal={entry.signal} />
           </button>
@@ -358,13 +374,15 @@ function LiveBadge({ entry, watching }: { entry: RosterEntry; watching?: string[
       <span
         className={cn(
           'roster-live inline-flex shrink-0 items-center gap-1 rounded px-1 py-px text-[8.5px] font-bold uppercase tracking-[0.12em]',
-          taken
-            ? 'bg-secondary text-muted-foreground'
-            : 'bg-destructive text-destructive-foreground',
+          taken ? 'bg-secondary text-muted-foreground' : 'bg-destructive text-destructive-foreground',
         )}
         aria-label={hint}
       >
-        {taken ? <Tv aria-hidden="true" className="size-2.5" /> : <span className="size-1 rounded-full bg-current" />}
+        {taken ? (
+          <Tv aria-hidden="true" className="size-2.5" />
+        ) : (
+          <span className="size-1 rounded-full bg-current" />
+        )}
         Live
       </span>
     </Tooltip>

@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { Hash, Users, Volume2 } from 'lucide-react';
+import { Hash, Maximize2, Users, Volume2 } from 'lucide-react';
 import type { UpdateStatus } from '../shared/desktop-api';
 import { ConferenceController } from './application/conference-controller';
 import { emptyPresence, presenceSounds, type RoomPresence } from './application/room-presence';
-import { voiceChannels } from './domain/conference';
+import { voiceChannels, type Participant } from './domain/conference';
 import { accountOf, type ChannelOccupancy, type RosterEntry } from './domain/roster';
 import { RoomSoundPlayer } from './infrastructure/media/room-sound-player';
 import { CallControls } from './components/call-controls';
@@ -11,6 +11,7 @@ import { ChannelSidebar } from './components/channel-sidebar';
 import { ProfileBar } from './components/profile-bar';
 import { ParticipantPopover } from './components/participant-popover';
 import { RoomAudio } from './components/room-audio';
+import { MediaOutput } from './components/media-output';
 import { ServerRail } from './components/server-rail';
 import { SettingsDialog } from './components/settings-dialog';
 import { SourcePicker } from './components/source-picker';
@@ -24,12 +25,27 @@ import {
 } from './infrastructure/media/media-devices-service';
 import { LocalSettingsRepository } from './infrastructure/persistence/local-settings-repository';
 import type { WorkspaceBindings } from './community-root';
-import { canManage } from '../shared/community';
+import { canManage, type CommunityChannel } from '../shared/community';
 import { TextChat } from './components/text-chat';
 import { MemberSidebar } from './components/member-sidebar';
 
 const mediaDevicesService = new MediaDevicesService();
 const roomSoundPlayer = new RoomSoundPlayer();
+
+/**
+ * The call is a session of its own. It must not become a property of whichever
+ * server happens to be open in the sidebar, or browsing another chat would
+ * make its channel and permissions appear to have disappeared.
+ */
+interface ActiveCall {
+  serverId: string;
+  serverName: string;
+  channelId: string;
+  channelName: string;
+  canSpeak: boolean;
+  canShare: boolean;
+  avatars: ReadonlyMap<string, string | null | undefined>;
+}
 
 export function App({ workspace }: { workspace?: WorkspaceBindings }) {
   // One picture per account, looked up by everything that draws a person.
@@ -61,7 +77,7 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
       ),
       repository,
     );
-  }, [workspace?.api, workspace?.user.id, workspace?.detail.server.id]);
+  }, [workspace?.api, workspace?.user.id]);
   useEffect(
     () => () => {
       void controller.gateway.leave();
@@ -96,22 +112,62 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
     position: { x: number; y: number };
   }>();
 
+  const [activeCall, setActiveCall] = useState<ActiveCall>();
+  const activeCallRef = useRef(activeCall);
+  activeCallRef.current = activeCall;
+  const returningToCall = useRef(false);
+
   const joined = snapshot.connectionState !== 'disconnected';
-  const activeChannel = channels.find((channel) => channel.id === settings.roomId);
-  const currentVoice = workspace?.detail.channels.find((c) => c.id === settings.roomId);
+  const activeChannelName =
+    activeCall?.channelName ?? channels.find((channel) => channel.id === settings.roomId)?.name;
   const manager = canManage(workspace?.detail.server.role);
-  const canSpeak = !workspace || manager || Boolean(currentVoice?.allowSpeak);
-  const canShare = !workspace || manager || Boolean(currentVoice?.allowShare);
+  const canSpeak = activeCall?.canSpeak ?? true;
+  const canShare = activeCall?.canShare ?? true;
+
+  // Opening a different server starts on its text channel. The one exception
+  // is the explicit "return to call" action, which restores the voice stage.
   useEffect(() => {
-    if (!workspace || !joined) return;
-    if (!currentVoice) {
-      void controller.gateway.leave();
+    if (!workspace) return;
+    const call = activeCallRef.current;
+    if (returningToCall.current && call?.serverId === workspace.detail.server.id) {
+      returningToCall.current = false;
+      setViewId(call.channelId);
       return;
     }
+    setViewId(workspace.detail.channels.find((channel) => channel.type === 'text')?.id ?? '');
+  }, [workspace?.detail.server.id]);
+
+  // Refresh names, permissions and pictures while the call's own server is in
+  // view. When another server is open, this snapshot keeps the live session
+  // independent from the navigation state.
+  useEffect(() => {
+    if (!workspace || !activeCall || workspace.detail.server.id !== activeCall.serverId) return;
+    const channel = workspace.detail.channels.find(
+      (candidate): candidate is CommunityChannel =>
+        candidate.type === 'voice' && candidate.id === activeCall.channelId,
+    );
+    if (!channel) return;
+    const nextAvatars = new Map(workspace.detail.members.map((member) => [member.id, member.avatarId]));
+    setActiveCall((current) =>
+      current
+        ? {
+            ...current,
+            serverName: workspace.detail.server.name,
+            channelName: channel.name,
+            canSpeak: manager || channel.allowSpeak,
+            canShare: manager || channel.allowShare,
+            avatars: nextAvatars,
+          }
+        : current,
+    );
+  }, [activeCall?.channelId, activeCall?.serverId, manager, workspace]);
+
+  useEffect(() => {
+    if (!joined || !activeCall) return;
     if (!canSpeak && snapshot.microphoneEnabled) void controller.toggleMicrophone();
     if (!canShare && snapshot.screenSharing) void controller.gateway.stopScreenShare();
   }, [
-    currentVoice,
+    activeCall,
     canSpeak,
     canShare,
     joined,
@@ -125,9 +181,11 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
     () =>
       new Set([
         ...occupancy.flatMap((room) => room.occupants.map((one) => accountOf(one.identity))),
-        ...snapshot.participants.map((participant) => accountOf(participant.id)),
+        ...(activeCall?.serverId === workspace?.detail.server.id
+          ? snapshot.participants.map((participant) => accountOf(participant.id))
+          : []),
       ]),
-    [occupancy, snapshot.participants],
+    [activeCall?.serverId, occupancy, snapshot.participants, workspace?.detail.server.id],
   );
 
   const broadcasters = useMemo(
@@ -212,8 +270,38 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
   const handleChannelSelect = (channelId: string) => {
     setViewId(channelId);
     if (channelId === settings.roomId && joined) return;
+    const channel = workspace?.detail.channels.find(
+      (candidate): candidate is CommunityChannel => candidate.type === 'voice' && candidate.id === channelId,
+    );
+    if (workspace && channel) {
+      setActiveCall({
+        serverId: workspace.detail.server.id,
+        serverName: workspace.detail.server.name,
+        channelId,
+        channelName: channel.name,
+        canSpeak: manager || channel.allowSpeak,
+        canShare: manager || channel.allowShare,
+        avatars,
+      });
+    }
     setSettings((current) => ({ ...current, roomId: channelId }));
     void run(() => controller.enterRoom(channelId));
+  };
+
+  const handleLeave = () =>
+    void run(async () => {
+      await controller.gateway.leave();
+      setActiveCall(undefined);
+    });
+
+  const handleReturnToCall = () => {
+    if (!activeCall) return;
+    if (workspace && workspace.detail.server.id !== activeCall.serverId) {
+      returningToCall.current = true;
+      workspace.onSelectServer(activeCall.serverId);
+      return;
+    }
+    setViewId(activeCall.channelId);
   };
 
   const handleShareRequest = () => {
@@ -256,13 +344,16 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
         onSelectText={setViewId}
         onManage={workspace?.onManage}
         activeChannelId={settings.roomId}
+        connectedChannelName={activeCall?.channelName}
+        connectedServerName={activeCall?.serverName}
         participants={snapshot.participants}
         avatars={avatars}
         joined={joined}
         busy={busy}
         screenSharing={snapshot.screenSharing}
         occupancy={occupancy}
-        onLeave={() => void run(() => controller.gateway.leave())}
+        onLeave={handleLeave}
+        onReturnToCall={handleReturnToCall}
         onShare={handleShareRequest}
         onSelectChannel={handleChannelSelect}
         onOpenParticipant={(entry, position) => setOpenParticipant({ id: entry.id, position })}
@@ -322,7 +413,7 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
               <Volume2 aria-hidden="true" className="size-4 shrink-0 text-primary" />
             )}
             <strong className="shrink-0 font-semibold">
-              {textChannel?.name ?? activeChannel?.name ?? 'Choose a channel'}
+              {textChannel?.name ?? activeChannelName ?? 'Choose a channel'}
             </strong>
             <span className="room-description min-w-0 truncate border-l border-border pl-2.5 text-xs text-muted-foreground">
               {workspace ? workspace.detail.server.name : 'A room for games, films, and unfinished stories.'}
@@ -334,7 +425,7 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
             <button
               className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md border border-border bg-secondary px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               type="button"
-              onClick={() => setViewId(settings.roomId)}
+              onClick={handleReturnToCall}
             >
               <span className="size-1.5 rounded-full bg-success" />
               Return to call
@@ -382,18 +473,14 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
             // The room is a card of its own, inset from the window.
             <div className="flex min-h-0 min-w-0 p-2.5">
               <Stage
-                avatars={avatars}
+                avatars={activeCall?.avatars ?? avatars}
                 participants={snapshot.participants}
                 joined={joined}
                 speakerDeviceId={settings.speakerDeviceId}
                 expandLevels={settings.expandScreenLevels}
                 watching={snapshot.watching}
-                onWatch={(participantId, watching) =>
-                  controller.gateway.watchScreen(participantId, watching)
-                }
-                onOptions={(participant, position) =>
-                  setOpenParticipant({ id: participant.id, position })
-                }
+                onWatch={(participantId, watching) => controller.gateway.watchScreen(participantId, watching)}
+                onOptions={(participant, position) => setOpenParticipant({ id: participant.id, position })}
                 screenVolumes={screenVolumes}
                 onScreenVolume={(participantId, volume) =>
                   setScreenVolumes((volumes) => ({ ...volumes, [participantId]: volume }))
@@ -414,7 +501,7 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
                       void run(() => controller.setScreenQuality(preset));
                     }}
                     onOpenSettings={() => setSettingsOpen(true)}
-                    onLeave={() => void run(() => controller.gateway.leave())}
+                    onLeave={handleLeave}
                   />
                 )}
               </Stage>
@@ -437,6 +524,17 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
             >
               {snapshot.error}
             </div>
+          )}
+          {joined && textChannel && (
+            <CallMiniPlayer
+              participant={snapshot.participants.find(
+                (participant) => participant.isBroadcasting && snapshot.watching.includes(participant.id),
+              )}
+              speakerDeviceId={settings.speakerDeviceId}
+              expandLevels={settings.expandScreenLevels}
+              withMembers={membersOpen}
+              onReturn={handleReturnToCall}
+            />
           )}
         </div>
       </main>
@@ -481,6 +579,57 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
         onInstallUpdate={() => window.desktop && void window.desktop.updates.install()}
       />
     </div>
+  );
+}
+
+/**
+ * A screen somebody is already watching follows them into text channels. It
+ * reuses the same MediaStream and stays muted because RoomAudio owns playback.
+ */
+function CallMiniPlayer({
+  participant,
+  speakerDeviceId,
+  expandLevels,
+  withMembers,
+  onReturn,
+}: {
+  participant?: Participant;
+  speakerDeviceId?: string;
+  expandLevels: boolean;
+  withMembers: boolean;
+  onReturn(): void;
+}) {
+  const stream = participant?.screenStream;
+  if (!participant || !stream?.getVideoTracks().length) return null;
+
+  return (
+    <aside
+      className={cn(
+        'call-mini-player absolute bottom-4 right-4 z-10 aspect-video w-[min(20rem,36vw)] overflow-hidden rounded-lg border border-border bg-stage shadow-2xl shadow-black/50',
+        withMembers && 'with-members',
+      )}
+      aria-label="Call picture in picture"
+    >
+      <button
+        className="group relative size-full overflow-hidden text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+        type="button"
+        aria-label="Open the call"
+        onClick={onReturn}
+      >
+        <MediaOutput
+          stream={stream}
+          muted
+          speakerDeviceId={speakerDeviceId}
+          video
+          className={expandLevels ? 'screen-video is-expanded' : 'screen-video'}
+        />
+        <span className="absolute inset-x-0 bottom-0 flex items-center gap-2 bg-gradient-to-t from-black/85 to-transparent px-3 pb-2.5 pt-8 text-xs font-medium text-white">
+          <span className="size-1.5 rounded-full bg-destructive" />
+          <span className="min-w-0 flex-1 truncate">Live from {participant.name}</span>
+          <Maximize2 className="size-3.5 opacity-70 transition-opacity group-hover:opacity-100" />
+        </span>
+      </button>
+    </aside>
   );
 }
 

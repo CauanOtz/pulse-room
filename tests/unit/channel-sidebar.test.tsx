@@ -21,23 +21,34 @@ function renderSidebar(overrides: Partial<Parameters<typeof ChannelSidebar>[0]> 
   const onShare = vi.fn();
   render(
     <TooltipProvider>
-    <ChannelSidebar
-      connectionState="connected"
-      channels={voiceChannels}
-      activeChannelId="lounge"
-      participants={[
-        { id: 'you', name: 'You', initials: 'YO', accent: '#a8bdff', isLocal: true, isMuted: false, isSpeaking: false, volume: 100, locallyMuted: false, isBroadcasting: false },
-      ]}
-      joined
-      busy={false}
-      screenSharing={false}
-      occupancy={[]}
-      onSelectChannel={onSelectChannel}
-      onOpenParticipant={onOpenParticipant}
-      onLeave={onLeave}
-      onShare={onShare}
-      {...overrides}
-    />
+      <ChannelSidebar
+        connectionState="connected"
+        channels={voiceChannels}
+        activeChannelId="lounge"
+        participants={[
+          {
+            id: 'you',
+            name: 'You',
+            initials: 'YO',
+            accent: '#a8bdff',
+            isLocal: true,
+            isMuted: false,
+            isSpeaking: false,
+            volume: 100,
+            locallyMuted: false,
+            isBroadcasting: false,
+          },
+        ]}
+        joined
+        busy={false}
+        screenSharing={false}
+        occupancy={[]}
+        onSelectChannel={onSelectChannel}
+        onOpenParticipant={onOpenParticipant}
+        onLeave={onLeave}
+        onShare={onShare}
+        {...overrides}
+      />
     </TooltipProvider>,
   );
   return { onSelectChannel, onOpenParticipant, onLeave, onShare };
@@ -82,8 +93,30 @@ describe('ChannelSidebar', () => {
   it('says who is live, and offers their screen to nobody who has not asked', () => {
     renderSidebar({
       participants: [
-        { id: 'you', name: 'You', initials: 'YO', accent: '#a8bdff', isLocal: true, isMuted: false, isSpeaking: false, volume: 100, locallyMuted: false, isBroadcasting: false },
-        { id: 'babi', name: 'babi', initials: 'BA', accent: '#ee8d72', isLocal: false, isMuted: false, isSpeaking: false, volume: 100, locallyMuted: false, isBroadcasting: true },
+        {
+          id: 'you',
+          name: 'You',
+          initials: 'YO',
+          accent: '#a8bdff',
+          isLocal: true,
+          isMuted: false,
+          isSpeaking: false,
+          volume: 100,
+          locallyMuted: false,
+          isBroadcasting: false,
+        },
+        {
+          id: 'babi',
+          name: 'babi',
+          initials: 'BA',
+          accent: '#ee8d72',
+          isLocal: false,
+          isMuted: false,
+          isSpeaking: false,
+          volume: 100,
+          locallyMuted: false,
+          isBroadcasting: true,
+        },
       ],
     });
 
@@ -96,7 +129,18 @@ describe('ChannelSidebar', () => {
   it('opens audio options for a friend on a right click', () => {
     const { onOpenParticipant } = renderSidebar({
       participants: [
-        { id: 'babi', name: 'babi', initials: 'BA', accent: '#ee8d72', isLocal: false, isMuted: false, isSpeaking: true, volume: 100, locallyMuted: false, isBroadcasting: false },
+        {
+          id: 'babi',
+          name: 'babi',
+          initials: 'BA',
+          accent: '#ee8d72',
+          isLocal: false,
+          isMuted: false,
+          isSpeaking: true,
+          volume: 100,
+          locallyMuted: false,
+          isBroadcasting: false,
+        },
       ],
     });
 
@@ -118,6 +162,20 @@ describe('ChannelSidebar', () => {
     expect(onLeave).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps the active call visible while another server is being browsed', () => {
+    const onReturnToCall = vi.fn();
+    renderSidebar({
+      channels: [{ ...voiceChannels[0], id: 'another-room', name: 'Another room' }],
+      connectedChannelName: 'Game room',
+      connectedServerName: 'Friends',
+      onReturnToCall,
+    });
+
+    const voice = screen.getByLabelText('Voice status');
+    expect(voice).toHaveTextContent('Game room / Friends');
+    fireEvent.click(screen.getByRole('button', { name: 'Return to call' }));
+    expect(onReturnToCall).toHaveBeenCalledTimes(1);
+  });
 });
 
 const textChannel: CommunityChannel = {

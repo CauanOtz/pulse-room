@@ -185,7 +185,12 @@ export function CommunityRoot({ apiUrl }: { apiUrl: string }) {
       setDialog(undefined);
     }
   };
-  if (restoring) return <main className="account-loading flex h-full flex-col items-center justify-center gap-4 text-sm text-muted-foreground">Opening Pulse Room…</main>;
+  if (restoring)
+    return (
+      <main className="account-loading flex h-full flex-col items-center justify-center gap-4 text-sm text-muted-foreground">
+        Opening Pulse Room…
+      </main>
+    );
   if (!user && error)
     return (
       <main className="account-loading flex h-full flex-col items-center justify-center gap-4 text-sm text-muted-foreground">
@@ -206,7 +211,6 @@ export function CommunityRoot({ apiUrl }: { apiUrl: string }) {
     <ImagesProvider images={images}>
       {detail ? (
         <App
-          key={detail.server.id}
           workspace={{
             api,
             user,
@@ -261,7 +265,10 @@ export function CommunityRoot({ apiUrl }: { apiUrl: string }) {
         </div>
       )}
       {error && (
-        <div className="community-status fixed bottom-3 right-3 z-50 max-w-112 rounded-lg border border-destructive bg-card p-3 text-xs text-destructive shadow-lg" role="alert">
+        <div
+          className="community-status fixed bottom-3 right-3 z-50 max-w-112 rounded-lg border border-destructive bg-card p-3 text-xs text-destructive shadow-lg"
+          role="alert"
+        >
           {error}
         </div>
       )}

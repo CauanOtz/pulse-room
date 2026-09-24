@@ -233,6 +233,12 @@
     background: color-mix(in oklab, var(--sidebar) 84%, var(--background));
   }
 
+  @media (min-width: 68.01rem) {
+    .call-mini-player.with-members {
+      right: 15rem;
+    }
+  }
+
   @media (max-width: 68rem) {
     .app-shell {
       grid-template-columns: 56px 220px minmax(0, 1fr) !important;
