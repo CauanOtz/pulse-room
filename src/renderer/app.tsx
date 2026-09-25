@@ -125,6 +125,25 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
   const activeChannelName =
     activeCall?.channelName ?? channels.find((channel) => channel.id === settings.roomId)?.name;
   const manager = canManage(workspace?.detail.server.role);
+  /**
+   * Who can see this place. A lock in the channel list says a channel is
+   * private but never says private to whom, and the answer is the thing you
+   * want before you type in it.
+   */
+  const channelReach = (() => {
+    if (!workspace) return 'A room for games, films, and unfinished stories.';
+    const server = workspace.detail.server.name;
+    const channel = textChannel;
+    if (!channel) return `Voice channel · ${server}`;
+    const parts: string[] = [];
+    parts.push(
+      channel.private
+        ? `Private · ${channel.memberIds.length} ${channel.memberIds.length === 1 ? 'member' : 'members'}`
+        : `Everyone in ${server}`,
+    );
+    if (channel.readOnly) parts.push(manager ? 'Read-only for members' : 'Read-only');
+    return parts.join(' · ');
+  })();
   const canSpeak = activeCall?.canSpeak ?? true;
   const canShare = activeCall?.canShare ?? true;
 
@@ -437,18 +456,22 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
       />
 
       <main className="room-main col-start-3 row-span-2 row-start-1 flex min-w-0 flex-col bg-background">
-        <header className="room-header flex h-13 flex-none items-center gap-2.5 border-b border-border bg-card/35 px-5 text-sm">
-          <div className="room-title flex min-w-0 flex-1 items-center gap-2">
+        <header className="room-header flex h-15 flex-none items-center gap-2.5 border-b border-border px-5 text-sm">
+          <div className="room-title flex min-w-0 flex-1 items-center gap-2.5">
             {textChannel ? (
-              <Hash aria-hidden="true" className="size-4 shrink-0 text-primary" />
+              <Hash aria-hidden="true" className="size-4.5 shrink-0 text-muted-foreground" />
             ) : (
-              <Volume2 aria-hidden="true" className="size-4 shrink-0 text-primary" />
+              <Volume2 aria-hidden="true" className="size-4.5 shrink-0 text-muted-foreground" />
             )}
-            <strong className="shrink-0 font-semibold">
-              {textChannel?.name ?? activeChannelName ?? 'Choose a channel'}
-            </strong>
-            <span className="room-description min-w-0 truncate border-l border-border pl-2.5 text-xs text-muted-foreground">
-              {workspace ? workspace.detail.server.name : 'A room for games, films, and unfinished stories.'}
+            {/* Where you are, and then the one thing about this place that is
+                worth knowing before you speak in it. */}
+            <span className="flex min-w-0 flex-col leading-tight">
+              <strong className="truncate text-[15px] font-semibold tracking-[-0.01em]">
+                {textChannel?.name ?? activeChannelName ?? 'Choose a channel'}
+              </strong>
+              <span className="room-description truncate text-[11.5px] text-muted-foreground">
+                {channelReach}
+              </span>
             </span>
           </div>
           {textChannel && (

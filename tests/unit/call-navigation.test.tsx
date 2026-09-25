@@ -154,7 +154,7 @@ describe('call navigation', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Game room' }));
     await waitFor(() =>
-      expect(screen.getByLabelText('Voice status')).toHaveTextContent('Game room / Friends'),
+      expect(screen.getByLabelText('Voice status')).toHaveTextContent('Game room'),
     );
 
     view.rerender(
@@ -164,7 +164,9 @@ describe('call navigation', () => {
     );
 
     expect(gateway.leave).not.toHaveBeenCalled();
-    expect(screen.getByLabelText('Voice status')).toHaveTextContent('Game room / Friends');
+    // The call names itself and the server it belongs to, wherever you browse.
+    expect(screen.getByLabelText('Voice status')).toHaveTextContent('Game room');
+    expect(screen.getByLabelText('Voice status')).toHaveTextContent('Friends');
     fireEvent.click(
       within(screen.getByLabelText('Voice status')).getByRole('button', { name: 'Return to call' }),
     );

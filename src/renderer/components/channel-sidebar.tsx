@@ -24,6 +24,7 @@ import { DeviceMenu } from './device-menu';
 import { Button } from './ui/button';
 import { Tooltip } from './ui/tooltip';
 import { cn } from './ui/utils';
+import { LiveBadge } from './live-badge';
 import { VoicePanel } from './voice-panel';
 import type { CommunityChannel } from '../../shared/community';
 
@@ -155,13 +156,15 @@ export function ChannelSidebar(props: ChannelSidebarProps) {
                 onEdit={props.onEditChannel && (() => props.onEditChannel?.(channel.id))}
               />
 
-              <ChannelRoster
-                entries={rosterOf(channel.id)}
-                watching={props.watching}
-                onOpenParticipant={props.onOpenParticipant}
-                onWatch={props.onWatch}
-                onPreview={props.onPreview}
-              />
+              {!(isConnected && channel.id === props.activeChannelId) && (
+                <ChannelRoster
+                  entries={rosterOf(channel.id)}
+                  watching={props.watching}
+                  onOpenParticipant={props.onOpenParticipant}
+                  onWatch={props.onWatch}
+                  onPreview={props.onPreview}
+                />
+              )}
             </div>
           ))}
         </section>
@@ -172,13 +175,15 @@ export function ChannelSidebar(props: ChannelSidebarProps) {
           connectionState={props.connectionState}
           channelName={props.connectedChannelName ?? activeChannel?.name ?? props.activeChannelId}
           serverName={props.connectedServerName ?? props.serverName}
-          headcount={props.participants.length}
           signal={props.participants.find((participant) => participant.isLocal)?.signal}
+          people={rosterOf(props.activeChannelId)}
+          watching={props.watching}
           screenSharing={props.screenSharing}
           busy={props.busy}
           onLeave={props.onLeave}
           onReturn={props.onReturnToCall}
           onShare={props.onShare}
+          onOpenParticipant={props.onOpenParticipant}
         />
       )}
     </aside>
@@ -355,36 +360,4 @@ function ChannelRoster({
   );
 }
 
-/**
- * Says that somebody is sharing, and whether this machine took it. The picture
- * and the choice live on the person in the room; a list that also carried them
- * would be two places to look for the same thing.
- */
-function LiveBadge({ entry, watching }: { entry: RosterEntry; watching?: string[] }) {
-  // Your own screen is never something you are watching: it is something you
-  // are sending, and the room should not tell you that you tuned into it.
-  const taken = !entry.isLocal && watching?.includes(entry.id);
-  const hint = entry.isLocal
-    ? 'You are sharing your screen'
-    : taken
-      ? `You are watching ${entry.name}`
-      : `${entry.name} is sharing a screen`;
-  return (
-    <Tooltip label={hint}>
-      <span
-        className={cn(
-          'roster-live inline-flex shrink-0 items-center gap-1 rounded px-1 py-px text-[8.5px] font-bold uppercase tracking-[0.12em]',
-          taken ? 'bg-secondary text-muted-foreground' : 'bg-destructive text-destructive-foreground',
-        )}
-        aria-label={hint}
-      >
-        {taken ? (
-          <Tv aria-hidden="true" className="size-2.5" />
-        ) : (
-          <span className="size-1 rounded-full bg-current" />
-        )}
-        Live
-      </span>
-    </Tooltip>
-  );
-}
+

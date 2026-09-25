@@ -172,7 +172,8 @@ describe('ChannelSidebar', () => {
     });
 
     const voice = screen.getByLabelText('Voice status');
-    expect(voice).toHaveTextContent('Game room / Friends');
+    expect(voice).toHaveTextContent('Game room');
+    expect(voice).toHaveTextContent('Friends');
     fireEvent.click(screen.getByRole('button', { name: 'Return to call' }));
     expect(onReturnToCall).toHaveBeenCalledTimes(1);
   });

@@ -60,6 +60,11 @@ export class NoiseGate {
     this.openAt = decibelsToGain(decibels);
   }
 
+  /** How loud the microphone is, smoothed over the last few milliseconds. */
+  get level() {
+    return Math.sqrt(this.power);
+  }
+
   /** The gain this moment of the signal deserves, between the floor and one. */
   advance(sample) {
     this.power += (sample * sample - this.power) * this.levelCoefficient;
@@ -135,6 +140,7 @@ class NoiseGateProcessor extends AudioWorkletProcessor {
     this.limiter = new Limiter(sampleRate);
     this.threshold = Number.NaN;
     this.announced = false;
+    this.blocksSinceLevel = 0;
   }
 
   process(inputs, outputs, parameters) {
@@ -174,7 +180,16 @@ class NoiseGateProcessor extends AudioWorkletProcessor {
     // and an interval away, and your own face should not wait for it.
     if (this.gate.open !== this.announced) {
       this.announced = this.gate.open;
-      this.port.postMessage(this.announced);
+      this.port.postMessage({ type: 'speaking', value: this.announced });
+    }
+
+    // And how loud, for the meter beside your own name. Every eighth block is
+    // about five times a frame at sixty, which is more than a meter can show
+    // and few enough messages to cost nothing.
+    this.blocksSinceLevel += 1;
+    if (this.blocksSinceLevel >= 8) {
+      this.blocksSinceLevel = 0;
+      this.port.postMessage({ type: 'level', value: this.gate.level });
     }
 
     return true;

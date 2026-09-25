@@ -37,6 +37,7 @@ export function RoomAudio({
             stream={participant.microphoneStream}
             speakerDeviceId={speakerDeviceId}
             volume={participant.locallyMuted ? 0 : participant.volume}
+            participantId={participant.id}
             onSpeakingChange={(speaking) => onSpeakingChange?.(participant.id, speaking)}
           />
         ))}

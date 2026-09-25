@@ -19,15 +19,24 @@ export interface ProcessedMicrophoneTrack {
  */
 export type SpeakingListener = (speaking: boolean) => void;
 
+/** What the microphone chain says about itself, on the audio thread's clock. */
+export type MicrophoneReport =
+  | { type: 'speaking'; value: boolean }
+  | { type: 'level'; value: number };
+
+/** How loud this microphone is, for the meter beside your own name. */
+export type LevelListener = (level: number) => void;
+
 export class MicrophoneTrackFactory {
   public async create(
     options: MicrophoneOptions,
     onSpeaking?: SpeakingListener,
+    onLevel?: LevelListener,
   ): Promise<ProcessedMicrophoneTrack> {
     const inputStream = await this.captureInput(options);
 
     try {
-      return await this.process(inputStream, options, onSpeaking);
+      return await this.process(inputStream, options, onSpeaking, onLevel);
     } catch (error) {
       // Being heard matters more than being filtered: if the processing graph
       // cannot be built on this machine, publish the plain microphone.
@@ -40,6 +49,7 @@ export class MicrophoneTrackFactory {
     inputStream: MediaStream,
     options: MicrophoneOptions,
     onSpeaking?: SpeakingListener,
+    onLevel?: LevelListener,
   ): Promise<ProcessedMicrophoneTrack> {
     const context = this.createContext(options.latencyHint);
     if (context.state === 'suspended') await context.resume();
@@ -58,8 +68,12 @@ export class MicrophoneTrackFactory {
     // holds the signal back about six milliseconds so it can see a peak
     // coming, and spends that on every syllable whether or not one does.
     const gate = await this.createNoiseGate(context, options);
-    if (gate && onSpeaking) {
-      gate.port.onmessage = (event: MessageEvent<boolean>) => onSpeaking(event.data === true);
+    if (gate && (onSpeaking || onLevel)) {
+      gate.port.onmessage = (event: MessageEvent<MicrophoneReport>) => {
+        const report = event.data;
+        if (report?.type === 'speaking') onSpeaking?.(report.value === true);
+        else if (report?.type === 'level') onLevel?.(report.value);
+      };
     }
     const fallbackGain = gate ? undefined : context.createGain();
     const fallbackLimiter = gate ? undefined : context.createDynamicsCompressor();
@@ -98,6 +112,7 @@ export class MicrophoneTrackFactory {
         if (gate) gate.port.onmessage = null;
         // A graph that is going away is not talking, whatever it said last.
         onSpeaking?.(false);
+        onLevel?.(0);
         inputStream.getTracks().forEach((track) => track.stop());
         processedTrack.stop();
         if (context.state !== 'closed') await context.close();

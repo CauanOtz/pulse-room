@@ -26,6 +26,7 @@ import { ParticipantStreamRegistry } from '../media/participant-stream-registry'
 import { MicrophoneTrackFactory, type ProcessedMicrophoneTrack } from '../media/microphone-track-factory';
 import { updateScreenShareTrack } from '../media/screen-share-quality';
 import { reuseParticipants } from './snapshot-diff';
+import { voiceLevels } from '../media/voice-levels';
 
 const grades: SignalQuality[] = ['excellent', 'good', 'poor', 'lost', 'unknown'];
 
@@ -148,11 +149,16 @@ export class LiveKitConferenceGateway extends ObservableConference {
     }
 
     try {
-      const processed = await this.microphoneTrackFactory.create(options, (speaking) => {
-        if (this.localSpeaking === speaking) return;
-        this.localSpeaking = speaking;
-        this.refreshParticipants();
-      });
+      const processed = await this.microphoneTrackFactory.create(
+        options,
+        (speaking) => {
+          if (this.localSpeaking === speaking) return;
+          this.localSpeaking = speaking;
+          this.refreshParticipants();
+        },
+        // The meter beside your own name, which never leaves this machine.
+        (level) => voiceLevels.report(this.localIdentity(), level),
+      );
       if (generation !== this.generation) {
         await processed.dispose();
         return;
@@ -478,6 +484,7 @@ export class LiveKitConferenceGateway extends ObservableConference {
       .on(RoomEvent.Reconnected, () => this.update({ connectionState: 'connected' }))
       .on(RoomEvent.Disconnected, () => {
         this.localSpeaking = false;
+        voiceLevels.clear();
         this.activeSpeakers.clear();
         this.watched.clear();
         this.previewed = undefined;

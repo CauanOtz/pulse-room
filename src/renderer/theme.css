@@ -1,11 +1,26 @@
 /*
  * The design system: shadcn tokens over Tailwind, in two themes.
  *
- * Dark is the room's real theme. It stays genuinely black: hierarchy comes
- * from small changes in luminance, spacing and one-pixel dividers rather than
- * blue-grey panels. White identifies navigation and focus, green identifies
- * healthy voice, and coral is reserved for live/destructive states. Light
- * inverts the same neutral hierarchy.
+ * Dark is the room's real theme, and it is built as a ladder rather than as a
+ * shade. Five rungs, each far enough from the last to be seen as a different
+ * surface, and brightness follows importance: the frame at the edge of the
+ * window is the deepest thing on screen and the conversation is the brightest.
+ * Before this, the content sat at the very bottom of the range and every
+ * region carried the same weight, which reads as one dark mass with lines
+ * drawn on it rather than as rooms of different importance.
+ *
+ *   rail        the outer frame, furthest from the eye
+ *   sidebar     navigation
+ *   background  content: the room, the conversation
+ *   card        objects lying on the content
+ *   popover     surfaces floating above everything
+ *
+ * The stage is the one deliberate exception and stays near-black whatever the
+ * ladder says, because a shared screen must be the only lit thing around it.
+ *
+ * The greys stay within two points of neutral: this is black, not blue. White
+ * identifies navigation and focus, green identifies healthy voice, and coral
+ * is reserved for live and destructive states. Light inverts the same ladder.
  * Every colour below is a token: no component names a colour of its own.
  */
 @import 'tailwindcss';
@@ -14,35 +29,45 @@
   --font-sans: 'Schibsted Grotesk Variable', 'Segoe UI', system-ui, sans-serif;
   /* Numbers only: levels, latency, times and codes, so digits line up. */
   --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
-  --radius-lg: 0.5rem;
-  --radius-xl: 0.75rem;
+  /* Shape carries hierarchy too: the flatter a thing sits, the tighter its
+     corners, so a floating surface reads as floating before it is read. */
+  --radius-xs: 0.25rem;
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
 }
 
 :root {
-  --background: #050506;
+  /* The ladder, bottom to top. */
+  --rail: #050506;
+  --sidebar: #0a0b0c;
+  --background: #0f1012;
+  --card: #16171a;
+  --popover: #1c1e21;
+  --accent: #24262a;
+
   --foreground: #f5f5f5;
-  --card: #0e0f11;
   --card-foreground: #f5f5f5;
-  --popover: #111214;
   --popover-foreground: #f5f5f5;
   --primary: #f4f4f5;
   --primary-foreground: #080809;
-  --secondary: #15171a;
+  --secondary: #1a1c1f;
   --secondary-foreground: #ededee;
-  --muted: #111214;
+  --muted: #16171a;
   --muted-foreground: #929397;
-  --accent: #1b1d20;
   --accent-foreground: #fafafa;
   --destructive: #f05b67;
   --destructive-foreground: #ffffff;
   --success: #45cf8a;
-  --border: rgba(255, 255, 255, 0.085);
+  /* Surfaces now separate themselves, so the dividers can step back. */
+  --border: rgba(255, 255, 255, 0.07);
   --input: rgba(255, 255, 255, 0.13);
   --ring: rgba(255, 255, 255, 0.72);
-  --sidebar: #0a0b0d;
   --sidebar-foreground: #f1f1f2;
-  --rail: #050506;
-  --stage: #07080a;
+  /* Deliberately below the ladder: a shared screen is the only lit thing. */
+  --stage: #050506;
   --gloss: inset 0 1px 0 rgba(255, 255, 255, 0.05);
   color-scheme: dark;
 }
