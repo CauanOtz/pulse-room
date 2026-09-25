@@ -67,11 +67,12 @@ describe('ChannelSidebar', () => {
     renderSidebar();
 
     expect(screen.getByRole('button', { name: 'Lounge' })).toHaveAttribute('aria-current', 'true');
-    // The voice block says where you are and how many of you there are.
+    // The call grows out of its own row: the row names it, and the block
+    // below holds how many of you there are and who.
     const voice = screen.getByLabelText('Voice status');
-    expect(voice).toHaveTextContent('Lounge');
+    expect(voice).not.toHaveTextContent('Lounge');
     expect(voice).toHaveTextContent('1 person');
-    expect(screen.getByRole('complementary').querySelector('.roster-entry')).toHaveTextContent('You');
+    expect(voice.querySelector('.roster-entry')).toHaveTextContent('You');
   });
 
   it('holds still while a switch is in flight', () => {

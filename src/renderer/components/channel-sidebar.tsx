@@ -64,6 +64,14 @@ interface ChannelSidebarProps {
 export function ChannelSidebar(props: ChannelSidebarProps) {
   const isConnected = props.connectionState === 'connected' || props.connectionState === 'reconnecting';
   const activeChannel = props.channels.find((channel) => channel.id === props.activeChannelId);
+  /**
+   * The call belongs beside its own channel. It is the room you are in, so it
+   * grows out of the row that names it rather than sitting at the far end of
+   * the column from the people it contains. Only when the call is in a server
+   * you are not looking at does it come loose and hold the foot of the list,
+   * because then there is no row for it to belong to.
+   */
+  const callIsInView = isConnected && Boolean(activeChannel);
   const rosterOf = (channelId: string) =>
     channelRoster(
       channelId,
@@ -72,6 +80,24 @@ export function ChannelSidebar(props: ChannelSidebarProps) {
       props.occupancy,
       props.avatars,
     );
+
+  const callPanel = (
+    <VoicePanel
+      connectionState={props.connectionState}
+      channelName={props.connectedChannelName ?? activeChannel?.name ?? props.activeChannelId}
+      serverName={props.connectedServerName ?? props.serverName}
+      signal={props.participants.find((participant) => participant.isLocal)?.signal}
+      people={rosterOf(props.activeChannelId)}
+      watching={props.watching}
+      screenSharing={props.screenSharing}
+      busy={props.busy}
+      inList={callIsInView}
+      onLeave={props.onLeave}
+      onReturn={props.onReturnToCall}
+      onShare={props.onShare}
+      onOpenParticipant={props.onOpenParticipant}
+    />
+  );
 
   return (
     <aside className="channel-sidebar relative flex min-w-0 flex-col bg-sidebar text-sidebar-foreground">
@@ -144,7 +170,9 @@ export function ChannelSidebar(props: ChannelSidebarProps) {
             onCreate={props.onCreateChannel && (() => props.onCreateChannel?.('voice'))}
           />
           {props.channels.map((channel, index) => (
-            <div key={channel.id}>
+            // Named so that where the call is drawn can be asserted, since
+            // that placement is the whole point of it.
+            <div className="channel-item-group" data-channel={channel.id} key={channel.id}>
               <ChannelRow
                 icon={index === 0 ? <Volume2 size={15} /> : <Radio size={15} />}
                 name={channel.name}
@@ -156,7 +184,9 @@ export function ChannelSidebar(props: ChannelSidebarProps) {
                 onEdit={props.onEditChannel && (() => props.onEditChannel?.(channel.id))}
               />
 
-              {!(isConnected && channel.id === props.activeChannelId) && (
+              {isConnected && channel.id === props.activeChannelId ? (
+                callPanel
+              ) : (
                 <ChannelRoster
                   entries={rosterOf(channel.id)}
                   watching={props.watching}
@@ -170,22 +200,7 @@ export function ChannelSidebar(props: ChannelSidebarProps) {
         </section>
       </div>
 
-      {isConnected && (
-        <VoicePanel
-          connectionState={props.connectionState}
-          channelName={props.connectedChannelName ?? activeChannel?.name ?? props.activeChannelId}
-          serverName={props.connectedServerName ?? props.serverName}
-          signal={props.participants.find((participant) => participant.isLocal)?.signal}
-          people={rosterOf(props.activeChannelId)}
-          watching={props.watching}
-          screenSharing={props.screenSharing}
-          busy={props.busy}
-          onLeave={props.onLeave}
-          onReturn={props.onReturnToCall}
-          onShare={props.onShare}
-          onOpenParticipant={props.onOpenParticipant}
-        />
-      )}
+      {isConnected && !callIsInView && callPanel}
     </aside>
   );
 }

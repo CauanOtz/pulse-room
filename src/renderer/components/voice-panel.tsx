@@ -20,6 +20,8 @@ interface VoicePanelProps {
   watching?: string[];
   screenSharing: boolean;
   busy: boolean;
+  /** True when it sits in the list, in the place of its own channel row. */
+  inList?: boolean;
   onLeave(): void;
   onReturn?(): void;
   onShare(): void;
@@ -53,12 +55,18 @@ export function VoicePanel(props: VoicePanelProps) {
 
   return (
     <section
-      className="voice-panel mx-2 mb-2 flex flex-col overflow-hidden rounded-lg border border-border bg-card shadow-[var(--gloss)]"
+      className={cn(
+        'voice-panel flex flex-col overflow-hidden rounded-lg border border-border bg-card shadow-[var(--gloss)]',
+        // In the list it grows out of its own row and keeps its place there.
+        // Adrift, it holds the foot of the column instead.
+        props.inList ? 'mx-1 mb-2 mt-0.5' : 'mx-2 mb-2 mt-auto',
+      )}
       aria-label="Voice status"
     >
       <button
         className={cn(
-          'voice-heading group flex flex-col items-start gap-0.5 px-3 pb-2.5 pt-2.5 text-left',
+          'voice-heading group flex flex-col items-start gap-0.5 px-3 text-left',
+          props.inList ? 'py-2' : 'py-2.5',
           props.onReturn ? 'cursor-pointer hover:bg-accent/40' : 'cursor-default',
           'transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
         )}
@@ -82,14 +90,20 @@ export function VoicePanel(props: VoicePanelProps) {
             {heading}
           </span>
         </span>
-        {/* The one line in this column set larger than a channel name: the
-            room you are in outranks the rooms you are not. */}
-        <span className="w-full truncate text-[17px] font-semibold leading-tight tracking-[-0.02em] text-foreground group-hover:underline [text-underline-offset:3px]">
-          {props.channelName}
-        </span>
+        {/* Sitting under its own row, the room has already been named eight
+            pixels above; saying it again is just the same word twice. Adrift
+            in another server, nothing else names it, so it says so itself and
+            says it larger than any channel in the list. */}
+        {!props.inList && (
+          <span className="w-full truncate text-[17px] font-semibold leading-tight tracking-[-0.02em] text-foreground group-hover:underline [text-underline-offset:3px]">
+            {props.channelName}
+          </span>
+        )}
         <span className="w-full truncate font-mono text-[10.5px] text-muted-foreground">
           {props.people.length} {props.people.length === 1 ? 'person' : 'people'}
-          {props.serverName && <span className="text-muted-foreground/55"> · {props.serverName}</span>}
+          {props.serverName && !props.inList && (
+            <span className="text-muted-foreground/55"> · {props.serverName}</span>
+          )}
         </span>
       </button>
 
