@@ -20,7 +20,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "npm run build && playwright test",
+    "build:e2e": "vite build --mode test && npm run build:electron && npm run build:server",
+    "test:e2e": "npm run build:e2e && playwright test",
     "verify": "npm run typecheck && npm run test && npm run test:e2e",
     "package:windows": "npm run build && electron-builder --win nsis",
     "release:windows": "npm run build && electron-builder --win nsis --publish always"
