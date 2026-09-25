@@ -10,8 +10,6 @@ interface MediaOutputProps {
   volume?: number;
   label?: string;
   onSpeakingChange?(speaking: boolean): void;
-  /** Whose voice this carries, so its level can be drawn beside their name. */
-  participantId?: string;
 }
 
 export function MediaOutput({
@@ -23,7 +21,6 @@ export function MediaOutput({
   volume = 100,
   label = 'Shared screen',
   onSpeakingChange,
-  participantId,
 }: MediaOutputProps) {
   const elementRef = useRef<HTMLVideoElement & HTMLAudioElement>(null);
   const playbackRef = useRef<PlaybackHandle>(undefined);
@@ -44,11 +41,7 @@ export function MediaOutput({
   useEffect(() => {
     if (!stream || muted) return undefined;
 
-    const handle = audioPlayback.attach(
-      stream,
-      (speaking) => speakingListenerRef.current?.(speaking),
-      participantId,
-    );
+    const handle = audioPlayback.attach(stream, (speaking) => speakingListenerRef.current?.(speaking));
     playbackRef.current = handle;
     setBoosted(Boolean(handle));
 
@@ -57,7 +50,7 @@ export function MediaOutput({
       playbackRef.current = undefined;
       setBoosted(false);
     };
-  }, [muted, participantId, stream]);
+  }, [muted, stream]);
 
   useEffect(() => {
     const element = elementRef.current;

@@ -1,5 +1,3 @@
-import { voiceLevels } from './voice-levels';
-
 export interface PlaybackHandle {
   setVolume(percent: number): void;
   dispose(): void;
@@ -51,8 +49,6 @@ export class AudioPlaybackEngine {
   public attach(
     stream: MediaStream,
     onSpeakingChange?: (speaking: boolean) => void,
-    /** Whose voice this is, so its level can be drawn beside their name. */
-    participantId?: string,
   ): PlaybackHandle | undefined {
     if (stream.getAudioTracks().length === 0) return undefined;
 
@@ -79,11 +75,7 @@ export class AudioPlaybackEngine {
             analyser.getFloatTimeDomainData(samples!);
             let energy = 0;
             for (const sample of samples!) energy += sample * sample;
-            const level = Math.sqrt(energy / samples!.length);
-            // The same measurement, kept rather than discarded: it is what
-            // the meter beside this person's name is drawn from.
-            if (participantId) voiceLevels.report(participantId, level);
-            const speaking = latch!.sample(level, performance.now());
+            const speaking = latch!.sample(Math.sqrt(energy / samples!.length), performance.now());
             if (speaking === lastSpeaking) return;
             lastSpeaking = speaking;
             onSpeakingChange?.(speaking);
@@ -96,7 +88,6 @@ export class AudioPlaybackEngine {
         },
         dispose: () => {
           if (timer !== undefined) window.clearInterval(timer);
-          if (participantId) voiceLevels.forget(participantId);
           if (lastSpeaking) onSpeakingChange?.(false);
           source.disconnect();
           analyser?.disconnect();

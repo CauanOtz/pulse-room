@@ -11,8 +11,6 @@ export declare class NoiseGate {
    * arrives from the server an interval and a round trip later.
    */
   readonly open: boolean;
-  /** How loud the microphone is, smoothed over the last few milliseconds. */
-  readonly level: number;
   /** The level, in dBFS, below which the microphone is treated as silence. */
   setThreshold(decibels: number): void;
   /** Feeds one sample in and returns the gain that moment deserves. */

@@ -153,10 +153,8 @@ describe('call navigation', () => {
       </TooltipProvider>,
     );
     fireEvent.click(screen.getByRole('button', { name: 'Game room' }));
-    // In its own server the call sits under the row that names it, so the
-    // panel does not repeat the name eight pixels below it.
     await waitFor(() =>
-      expect(screen.getByLabelText('Voice status')).toHaveTextContent('Voice connected'),
+      expect(screen.getByLabelText('Voice status')).toHaveTextContent('Game room / Friends'),
     );
 
     view.rerender(
@@ -166,10 +164,7 @@ describe('call navigation', () => {
     );
 
     expect(gateway.leave).not.toHaveBeenCalled();
-    // Adrift in another server there is no row to name it, so it names itself
-    // and the server it belongs to.
-    expect(screen.getByLabelText('Voice status')).toHaveTextContent('Game room');
-    expect(screen.getByLabelText('Voice status')).toHaveTextContent('Friends');
+    expect(screen.getByLabelText('Voice status')).toHaveTextContent('Game room / Friends');
     fireEvent.click(
       within(screen.getByLabelText('Voice status')).getByRole('button', { name: 'Return to call' }),
     );

@@ -158,8 +158,8 @@ describe('telling this machine that its own microphone is talking', () => {
     expect(track.processed).toBe(true);
     expect(ports).toHaveLength(1);
 
-    ports[0].onmessage?.({ data: { type: 'speaking', value: true } } as MessageEvent);
-    ports[0].onmessage?.({ data: { type: 'speaking', value: false } } as MessageEvent);
+    ports[0].onmessage?.({ data: true } as MessageEvent<boolean>);
+    ports[0].onmessage?.({ data: false } as MessageEvent<boolean>);
 
     // No interval, no round trip: the answer is already on this machine.
     expect(heard).toEqual([true, false]);
@@ -172,41 +172,12 @@ describe('telling this machine that its own microphone is talking', () => {
     const heard: boolean[] = [];
 
     const track = await new MicrophoneTrackFactory().create(options, (speaking) => heard.push(speaking));
-    ports[0].onmessage?.({ data: { type: 'speaking', value: true } } as MessageEvent);
+    ports[0].onmessage?.({ data: true } as MessageEvent<boolean>);
     await track.dispose();
 
     // A face left mid-sentence because the microphone closed is a bug.
     expect(heard).toEqual([true, false]);
     expect(ports[0].onmessage).toBeNull();
-  });
-
-  it('carries how loud the microphone is, not only whether it is open', async () => {
-    const stream = createInputStream();
-    vi.stubGlobal('navigator', { ...navigator, mediaDevices: { getUserMedia: vi.fn(async () => stream) } });
-    const { ports } = stubWorkingAudio();
-    const levels: number[] = [];
-
-    await new MicrophoneTrackFactory().create(options, undefined, (level) => levels.push(level));
-    ports[0].onmessage?.({ data: { type: 'level', value: 0.42 } } as MessageEvent);
-    // A level report is not a speaking report and must not be read as one.
-    ports[0].onmessage?.({ data: { type: 'speaking', value: true } } as MessageEvent);
-
-    expect(levels).toEqual([0.42]);
-  });
-
-  it('drops the meter to nothing when the graph is taken down', async () => {
-    const stream = createInputStream();
-    vi.stubGlobal('navigator', { ...navigator, mediaDevices: { getUserMedia: vi.fn(async () => stream) } });
-    stubWorkingAudio();
-    const levels: number[] = [];
-
-    const track = await new MicrophoneTrackFactory().create(options, undefined, (level) =>
-      levels.push(level),
-    );
-    await track.dispose();
-
-    // A meter frozen mid-word on a microphone that closed is a lie.
-    expect(levels).toEqual([0]);
   });
 
   it('asks for nothing when nobody wants to be told', async () => {
