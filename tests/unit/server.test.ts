@@ -410,6 +410,25 @@ describe('server and channel isolation', () => {
 });
 
 describe('LiveKit configuration and presence cache', () => {
+  const livekit = { LIVEKIT_API_KEY: 'key', LIVEKIT_API_SECRET: 'secret' };
+
+  it('insists a LiveKit token crosses an encrypted connection', () => {
+    expect(() => loadConfiguration({ ...livekit, LIVEKIT_URL: 'ws://livekit.example.com' })).toThrow();
+    expect(() => loadConfiguration({ ...livekit, LIVEKIT_URL: 'http://livekit.example.com' })).toThrow();
+  });
+
+  it('allows plain ws only where the traffic never leaves the machine', () => {
+    for (const url of ['ws://localhost:7880', 'ws://127.0.0.1:7880', 'ws://[::1]:7880', 'ws://localhost']) {
+      expect(loadConfiguration({ ...livekit, LIVEKIT_URL: url }).LIVEKIT_URL).toBe(url);
+    }
+  });
+
+  it('is not fooled by a hostname that merely begins with localhost', () => {
+    for (const url of ['ws://localhost.example.com', 'ws://127.0.0.1.example.com']) {
+      expect(() => loadConfiguration({ ...livekit, LIVEKIT_URL: url })).toThrow();
+    }
+  });
+
   it('requires all self-hosted fields together', () => {
     expect(() =>
       loadConfiguration({

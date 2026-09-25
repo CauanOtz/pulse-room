@@ -1,9 +1,25 @@
 import { z } from 'zod';
 
+/**
+ * This machine, and only this machine. The host has to end where the pattern
+ * says it does, or a name like ws://localhost.example.com would walk straight
+ * through a check meant for loopback.
+ */
+const loopback = /^wss?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?(\/|$)/;
+
+/**
+ * A token crossing a network must cross an encrypted one. Traffic to loopback
+ * does not cross a network at all, and a LiveKit server run for development
+ * speaks plain ws, so insisting on wss there only forces somebody to weaken
+ * this rule less carefully than it is weakened here.
+ */
 const secureLiveKitUrl = z
   .string()
   .url()
-  .refine((value) => value.startsWith('wss://'), 'LiveKit URLs must use wss://');
+  .refine(
+    (value) => value.startsWith('wss://') || loopback.test(value),
+    'LiveKit URLs must use wss://, unless they are on this machine',
+  );
 
 const configurationSchema = z
   .object({
