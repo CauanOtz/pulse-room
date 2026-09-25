@@ -12,6 +12,7 @@
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "dev:server": "tsx watch server/index.ts",
+    "dev:seed": "node scripts/seed-dev.mjs",
     "build": "npm run typecheck && npm run build:renderer && npm run build:electron && npm run build:server",
     "build:renderer": "vite build",
     "build:electron": "tsc -p tsconfig.electron.json",
