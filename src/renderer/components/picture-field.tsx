@@ -2,18 +2,32 @@ import { useRef, useState } from 'react';
 import { ImageUp, Trash2 } from 'lucide-react';
 import { Avatar } from './avatar';
 import { toSquareImage } from '../infrastructure/square-image';
+import { cn } from './ui/utils';
 
 interface PictureFieldProps {
   name: string;
   imageId?: string | null;
   label: string;
   canEdit: boolean;
+  variant?: 'card' | 'identity';
+  username?: string;
+  statusLabel?: string;
   onChoose(image: Blob): Promise<void>;
   onRemove(): Promise<void>;
 }
 
 /** Picks a picture, squares it here, and hands the service only bytes. */
-export function PictureField({ name, imageId, label, canEdit, onChoose, onRemove }: PictureFieldProps) {
+export function PictureField({
+  name,
+  imageId,
+  label,
+  canEdit,
+  variant = 'card',
+  username,
+  statusLabel,
+  onChoose,
+  onRemove,
+}: PictureFieldProps) {
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string>();
@@ -31,18 +45,49 @@ export function PictureField({ name, imageId, label, canEdit, onChoose, onRemove
   };
 
   return (
-    <div className="picture-field flex items-center gap-3.5 rounded-xl border border-border bg-background/60 p-3.5">
-      <Avatar name={name} imageId={imageId} className="picture-preview grid size-17 shrink-0 place-items-center rounded-2xl bg-secondary text-xl font-bold text-secondary-foreground" />
-      <div className="picture-actions flex min-w-0 flex-col gap-2">
-        <strong>{label}</strong>
+    <div
+      className={cn(
+        'picture-field flex min-w-0 items-center gap-4',
+        variant === 'identity'
+          ? 'py-1'
+          : 'rounded-xl border border-border bg-background/60 p-3.5',
+      )}
+    >
+      <Avatar
+        name={name}
+        imageId={imageId}
+        className={cn(
+          'picture-preview grid shrink-0 place-items-center bg-secondary font-bold text-secondary-foreground',
+          variant === 'identity'
+            ? 'size-15 rounded-[1.1rem] text-lg'
+            : 'size-17 rounded-2xl text-xl',
+        )}
+      />
+      <div className="picture-actions flex min-w-0 flex-1 flex-col gap-2">
+        {variant === 'identity' ? (
+          <div className="flex min-w-0 flex-wrap items-start justify-between gap-x-4 gap-y-1">
+            <div className="flex min-w-0 flex-col leading-tight">
+              <strong className="truncate text-sm font-semibold text-foreground">{name}</strong>
+              {username && <span className="truncate text-xs text-muted-foreground">@{username}</span>}
+            </div>
+            {statusLabel && (
+              <span className="inline-flex shrink-0 items-center gap-1.5 pt-0.5 text-[11px] font-medium text-muted-foreground">
+                <span className="size-1.5 rounded-full bg-success" aria-hidden="true" />
+                {statusLabel}
+              </span>
+            )}
+          </div>
+        ) : (
+          <strong>{label}</strong>
+        )}
         {canEdit ? (
           <>
-            <div>
-              <button type="button" className="secondary-button inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-border bg-transparent px-3 text-xs font-medium text-foreground transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-50" disabled={busy} onClick={() => input.current?.click()}>
+            <div className="flex flex-wrap items-center gap-2">
+              <button type="button" className="secondary-button inline-flex h-8 items-center justify-center gap-2 rounded-md border border-border bg-transparent px-3 text-xs font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50" disabled={busy} onClick={() => input.current?.click()}>
                 <ImageUp size={15} /> {imageId ? 'Replace' : 'Add picture'}
               </button>
               {imageId && (
-                <button type="button" className="secondary-button inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-border bg-transparent px-3 text-xs font-medium text-foreground transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-50" disabled={busy} onClick={() => void run(onRemove)}>
+                <button type="button" className="secondary-button inline-flex h-8 items-center justify-center gap-2 rounded-md border border-border bg-transparent px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50" disabled={busy} onClick={() => void run(onRemove)}>
                   <Trash2 size={15} /> Remove
                 </button>
               )}
@@ -54,7 +99,7 @@ export function PictureField({ name, imageId, label, canEdit, onChoose, onRemove
                 {problem}
               </small>
             ) : (
-              <small>PNG, JPEG or WebP. It is cropped to a square and shrunk before it is sent.</small>
+              <small className="max-w-[30rem]">PNG, JPEG or WebP. It is cropped to a square and shrunk before it is sent.</small>
             )}
           </>
         ) : (

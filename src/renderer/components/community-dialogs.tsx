@@ -1,7 +1,6 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import {
   Hash,
-  LockKeyhole,
   LogOut,
   MoreVertical,
   Settings,
@@ -852,18 +851,18 @@ export function AccountDialog({
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
   return (
-    <Modal title="Your account" onClose={onClose}>
-      <div className="account-identity flex items-center gap-3 border-b border-border pb-4">
-        <Avatar name={user.displayName} imageId={user.avatarId} className="account-avatar grid size-12 shrink-0 place-items-center rounded-2xl bg-secondary text-sm font-bold text-secondary-foreground" />
-        <div className="flex min-w-0 flex-col leading-tight">
-          <strong className="truncate text-sm font-semibold">{user.displayName}</strong>
-          <span className="truncate text-xs text-muted-foreground">@{user.username}</span>
-        </div>
-        <span className="account-badge ml-auto rounded-full bg-success/15 px-2.5 py-1 text-[11px] font-semibold text-success">Signed in</span>
-      </div>
+    <Modal
+      title="Your account"
+      onClose={onClose}
+      contentClassName="w-[min(38rem,calc(100vw-2rem))]"
+      bodyClassName="space-y-0 px-6 py-5 sm:px-7"
+    >
       <PictureField
         name={user.displayName}
         imageId={user.avatarId}
+        username={user.username}
+        statusLabel="Signed in"
+        variant="identity"
         label="Profile picture"
         canEdit
         onChoose={async (image) => {
@@ -875,15 +874,12 @@ export function AccountDialog({
           await onProfileChanged();
         }}
       />
-      <section className="account-security space-y-3">
-        <div className="section-heading flex items-start gap-2 text-sm font-semibold text-foreground">
-          <LockKeyhole size={18} aria-hidden="true" className="mt-0.5 shrink-0 text-primary" />
-          <div className="flex flex-col gap-0.5">
-            <h3 className="text-sm font-semibold">Password &amp; security</h3>
-            <p className="text-xs font-normal text-muted-foreground">
-              Use a unique password to keep your rooms private.
-            </p>
-          </div>
+      <section className="account-security mt-6 space-y-4 border-t border-border/70 pt-5">
+        <div className="section-heading flex flex-col gap-1">
+          <h3 className="text-sm font-semibold tracking-[-0.01em] text-foreground">Password &amp; security</h3>
+          <p className="text-xs text-muted-foreground">
+            Use a unique password to keep your rooms private.
+          </p>
         </div>
         <form
           onSubmit={(e) => {
@@ -928,22 +924,26 @@ export function AccountDialog({
             </label>
             <small id="password-hint">At least 12 characters. Other devices will be signed out.</small>
           </div>
-          <div className="form-actions flex flex-wrap items-center justify-end gap-2">
-            <button className="primary-action inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50" disabled={busy}>
+          <div className="form-actions flex flex-wrap items-center justify-end gap-2 pt-1">
+            <button className="primary-action inline-flex h-9 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50" disabled={busy}>
               {busy ? 'Please wait…' : 'Change password'}
             </button>
           </div>
         </form>
-        {message && <p role="status">{message}</p>}
+        {message && (
+          <p className="rounded-md border border-border/70 bg-background/55 px-3 py-2 text-xs text-muted-foreground" role="status">
+            {message}
+          </p>
+        )}
       </section>
-      <footer className="account-session flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4 text-sm">
-        <div className="flex min-w-0 flex-col leading-tight">
+      <footer className="account-session mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-border/70 pt-4 text-sm">
+        <div className="flex min-w-0 flex-col gap-1">
           <strong className="text-sm font-semibold">This device</strong>
           <small className="text-xs text-muted-foreground">Sign out of Pulse Room on this computer.</small>
         </div>
         <button
           disabled={busy}
-          className="danger-action inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-destructive/40 bg-transparent px-4 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+          className="danger-action inline-flex h-8 items-center justify-center gap-2 rounded-md bg-transparent px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
           onClick={() => {
             setBusy(true);
             void onLogout().catch((e) => {
