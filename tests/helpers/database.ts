@@ -25,14 +25,27 @@ export class TestDatabase implements Database {
     await this.engine.close();
   }
 }
+/**
+ * node-postgres sends a query with no parameters over the simple protocol,
+ * which runs a script of several statements; with parameters it prepares one.
+ * PGlite's query() always prepares, so a parameterless script has to go
+ * through exec() to behave the way production does. Deciding that by looking
+ * for CREATE TABLE worked until the first migration made only of ALTERs, which
+ * production ran and this refused.
+ */
+function isScript(sql: string): boolean {
+  return sql.split(';').filter((statement) => statement.trim()).length > 1;
+}
+
 async function execute<T>(
   engine: PGlite | Transaction,
   sql: string,
   values?: unknown[],
 ): Promise<SqlResult<T>> {
-  if (!values && sql.includes('CREATE TABLE')) {
-    await engine.exec(sql);
-    return { rows: [] };
+  if (!values && isScript(sql)) {
+    const results = await engine.exec(sql);
+    // Like the simple protocol, a script answers with its last statement.
+    return { rows: (results.at(-1)?.rows ?? []) as T[] };
   }
   return engine.query<T>(sql, values);
 }
