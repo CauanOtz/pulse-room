@@ -25,7 +25,7 @@ import {
 } from './infrastructure/media/media-devices-service';
 import { LocalSettingsRepository } from './infrastructure/persistence/local-settings-repository';
 import type { WorkspaceBindings } from './community-root';
-import { canManage, type CommunityChannel } from '../shared/community';
+import { canManage, type CommunityChannel, type CommunityMember, type WornTag } from '../shared/community';
 import { TextChat } from './components/text-chat';
 import { MemberSidebar } from './components/member-sidebar';
 import { ProfilePopover, type ProfileSummary } from './components/profile-popover';
@@ -46,7 +46,12 @@ interface ActiveCall {
   canSpeak: boolean;
   canShare: boolean;
   avatars: ReadonlyMap<string, string | null | undefined>;
+  tags: ReadonlyMap<string, WornTag>;
 }
+
+/** The tag each member wears, for anything that draws a name. */
+const tagsOf = (members: readonly CommunityMember[] = []): ReadonlyMap<string, WornTag> =>
+  new Map(members.flatMap((member) => (member.tag ? [[member.id, member.tag] as const] : [])));
 
 export function App({ workspace }: { workspace?: WorkspaceBindings }) {
   // One picture per account, looked up by everything that draws a person.
@@ -54,6 +59,7 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
     () => new Map((workspace?.detail.members ?? []).map((member) => [member.id, member.avatarId])),
     [workspace?.detail.members],
   );
+  const tags = useMemo(() => tagsOf(workspace?.detail.members), [workspace?.detail.members]);
   const controller = useMemo(() => {
     const repository = new LocalSettingsRepository(window.localStorage, workspace?.user.id);
     if (workspace) {
@@ -204,6 +210,7 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
     );
     if (!channel) return;
     const nextAvatars = new Map(workspace.detail.members.map((member) => [member.id, member.avatarId]));
+    const nextTags = tagsOf(workspace.detail.members);
     setActiveCall((current) =>
       current
         ? {
@@ -213,6 +220,7 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
             canSpeak: manager || channel.allowSpeak,
             canShare: manager || channel.allowShare,
             avatars: nextAvatars,
+            tags: nextTags,
           }
         : current,
     );
@@ -346,12 +354,15 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
       displayName: member?.displayName ?? participant?.name ?? accountId,
       username: member?.username,
       avatarId: member?.avatarId ?? avatars.get(accountId),
+      bannerId: member?.bannerId,
+      theme: member?.theme,
+      tag: member?.tag ?? tags.get(accountId),
       bio: member?.bio,
       role: member?.role,
       voiceChannelName: voiceChannel?.name ?? (isCurrentCall ? activeCall?.channelName : undefined),
       isYou: accountId === workspace?.user.id || Boolean(participant?.isLocal),
     };
-  }, [activeCall, avatars, occupancy, openProfile, visibleParticipants, workspace]);
+  }, [activeCall, avatars, occupancy, openProfile, tags, visibleParticipants, workspace]);
 
   const handleChannelSelect = (channelId: string) => {
     setViewId(channelId);
@@ -368,6 +379,7 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
         canSpeak: manager || channel.allowSpeak,
         canShare: manager || channel.allowShare,
         avatars,
+        tags,
       });
     }
     setSettings((current) => ({ ...current, roomId: channelId }));
@@ -434,6 +446,7 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
         connectedServerName={activeCall?.serverName}
         participants={visibleParticipants}
         avatars={avatars}
+        tags={activeCall?.tags ?? tags}
         joined={joined}
         busy={busy}
         screenSharing={snapshot.screenSharing}
@@ -539,6 +552,7 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
                 channel={textChannel}
                 manager={manager}
                 avatars={avatars}
+                tags={tags}
                 onOpenProfile={(id, position) => setOpenProfile({ id, position })}
               />
               {membersOpen && (

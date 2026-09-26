@@ -3,6 +3,7 @@ import { Crown, Mic, Shield } from 'lucide-react';
 import type { CommunityMember } from '../../shared/community';
 import { groupMembers } from '../domain/members';
 import { Avatar } from './avatar';
+import { TagChip } from './profile-identity';
 import { Tooltip } from './ui/tooltip';
 
 /**
@@ -38,6 +39,8 @@ export function MemberSidebar({
               <button
                 className="member-entry flex min-h-9 w-full items-center gap-2.5 rounded-md px-2 py-1 text-left transition-colors hover:bg-accent/70 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 key={member.id}
+                // A moving picture plays while the row is under the pointer.
+                data-hover-scope
                 type="button"
                 aria-label={`View ${member.displayName}'s profile`}
                 onClick={(event) => {
@@ -66,9 +69,12 @@ export function MemberSidebar({
                   )}
                 </span>
                 <span className="flex min-w-0 flex-1 flex-col leading-tight">
-                  <span className="truncate text-[13px] font-medium text-foreground">
-                    {member.displayName}
-                    {member.id === userId && <span className="text-muted-foreground"> (you)</span>}
+                  <span className="flex min-w-0 items-center gap-1.5">
+                    <span className="truncate text-[13px] font-medium text-foreground">
+                      {member.displayName}
+                      {member.id === userId && <span className="text-muted-foreground"> (you)</span>}
+                    </span>
+                    {member.tag && <TagChip tag={member.tag} size="xs" />}
                   </span>
                   {/* The handle is what you type to find somebody, so the list
                       carries it rather than hiding it behind a pointer. */}

@@ -2,7 +2,6 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Avatar, ImagesProvider } from '../../src/renderer/components/avatar';
 import { ImageCache } from '../../src/renderer/infrastructure/image-cache';
-import { toSquareImage } from '../../src/renderer/infrastructure/square-image';
 import type { CommunityClient } from '../../src/renderer/infrastructure/community-client';
 
 afterEach(cleanup);
@@ -65,12 +64,5 @@ describe('ImageCache', () => {
 
     await expect(images.url('abc')).rejects.toThrow('denied');
     await expect(images.url('abc')).resolves.toContain('blob:');
-  });
-});
-
-describe('toSquareImage', () => {
-  it('refuses a document pretending to be a picture', async () => {
-    await expect(toSquareImage(new Blob(['<svg/>'], { type: 'image/svg+xml' }))).rejects.toThrow(/PNG/);
-    await expect(toSquareImage(new Blob(['{}'], { type: 'application/json' }))).rejects.toThrow(/PNG/);
   });
 });

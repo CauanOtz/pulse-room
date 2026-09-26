@@ -60,18 +60,27 @@ export const gif = Buffer.concat([Buffer.from('GIF89a', 'latin1'), Buffer.alloc(
 export const jpeg = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(64, 3)]);
 
 /**
- * A real, decodable animated GIF, one solid colour per frame, written by the
- * same encoder the desktop client uses.
+ * A real, decodable animated GIF written by the same encoder the desktop
+ * client uses: a different colour each frame, never black, with a white
+ * square that travels across it, so a screenshot shows both the crop and the
+ * motion rather than a dark rectangle.
  */
 export function animatedGif(width: number, height: number, frames: number): Buffer {
   const encoder = GIFEncoder();
+  const side = Math.max(4, Math.round(Math.min(width, height) / 4));
   for (let frame = 0; frame < frames; frame += 1) {
     const rgba = new Uint8Array(width * height * 4);
-    for (let pixel = 0; pixel < width * height; pixel += 1) {
-      rgba[pixel * 4] = (frame * 67) % 256;
-      rgba[pixel * 4 + 1] = (frame * 131) % 256;
-      rgba[pixel * 4 + 2] = (frame * 29) % 256;
-      rgba[pixel * 4 + 3] = 255;
+    const left = Math.round(((width - side) * frame) / Math.max(1, frames - 1));
+    const top = Math.round((height - side) / 2);
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        const pixel = (y * width + x) * 4;
+        const square = x >= left && x < left + side && y >= top && y < top + side;
+        rgba[pixel] = square ? 255 : 60 + ((frame * 67) % 180);
+        rgba[pixel + 1] = square ? 255 : 60 + ((frame * 131) % 180);
+        rgba[pixel + 2] = square ? 255 : 60 + ((frame * 29) % 180);
+        rgba[pixel + 3] = 255;
+      }
     }
     const palette = quantize(rgba, 16);
     encoder.writeFrame(applyPalette(rgba, palette), width, height, { palette, delay: 80 });

@@ -22,6 +22,7 @@ import { Modal } from './modal';
 import { ConfirmDialog, type Confirmation } from './confirm-dialog';
 import { Avatar } from './avatar';
 import { PictureField } from './picture-field';
+import { BannerField, ProfilePreview, ServerTagEditor, TagWearer, ThemeEditor } from './profile-editors';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -491,7 +492,7 @@ export function ServerDialog({
     },
     settings: {
       title: 'Server identity',
-      description: 'Keep the name and picture recognizable for everyone in the room.',
+      description: 'Keep the name, picture and tag recognizable for everyone in the room.',
     },
   }[tab];
   const requestRemoval = () =>
@@ -778,6 +779,7 @@ export function ServerDialog({
             name={detail.server.name}
             imageId={detail.server.iconId}
             label="Server picture"
+            kind="icon"
             canEdit={manager}
             onChoose={async (image) => {
               await api.upload(`${base}/icon`, image);
@@ -811,6 +813,13 @@ export function ServerDialog({
               </button>
             </form>
           </section>
+          <ServerTagEditor
+            api={api}
+            serverId={detail.server.id}
+            tag={detail.server.tag}
+            canEdit={manager}
+            onChanged={onChanged}
+          />
         </div>
       )}
       {error && (
@@ -854,6 +863,9 @@ export function AccountDialog({
   const [bioBusy, setBioBusy] = useState(false);
   const [bioMessage, setBioMessage] = useState('');
   useEffect(() => setBio(user.bio ?? ''), [user.id, user.bio]);
+  // The colours being tried, shown in the preview before they are kept.
+  const [previewTheme, setPreviewTheme] = useState(user.theme ?? null);
+  useEffect(() => setPreviewTheme(user.theme ?? null), [user.theme]);
   return (
     <Modal
       title="Your account"
@@ -865,6 +877,9 @@ export function AccountDialog({
         <h3 id="account-profile-heading" className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
           Profile
         </h3>
+        <div className="max-w-[22rem]">
+          <ProfilePreview user={user} theme={previewTheme} />
+        </div>
         <PictureField
           name={user.displayName}
           imageId={user.avatarId}
@@ -883,6 +898,33 @@ export function AccountDialog({
           }}
         />
       </section>
+      <div className="mt-5 border-t border-border/70 pt-4.5">
+        <BannerField
+          user={user}
+          theme={previewTheme}
+          onChoose={async (image) => {
+            await api.upload('/api/account/banner', image);
+            await onProfileChanged();
+          }}
+          onRemove={async () => {
+            await api.request('/api/account/banner', 'DELETE');
+            await onProfileChanged();
+          }}
+        />
+      </div>
+      <div className="mt-5 border-t border-border/70 pt-4.5">
+        <ThemeEditor
+          theme={user.theme ?? null}
+          onPreview={setPreviewTheme}
+          onSave={async (theme) => {
+            await api.request('/api/account/theme', 'PATCH', { theme });
+            await onProfileChanged();
+          }}
+        />
+      </div>
+      <div className="mt-5 border-t border-border/70 pt-4.5">
+        <TagWearer api={api} user={user} onChanged={onProfileChanged} />
+      </div>
       <section aria-labelledby="account-bio-heading" className="mt-5 space-y-3 border-t border-border/70 pt-4.5">
         <div className="section-heading flex flex-col gap-1">
           <h3 id="account-bio-heading" className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">

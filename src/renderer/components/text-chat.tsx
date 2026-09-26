@@ -1,9 +1,10 @@
 import { Hash, SendHorizontal, Trash2 } from 'lucide-react';
 import { Avatar } from './avatar';
+import { TagChip } from './profile-identity';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Tooltip } from './ui/tooltip';
 import { cn } from './ui/utils';
-import type { Account, ChatMessage, CommunityChannel } from '../../shared/community';
+import type { Account, ChatMessage, CommunityChannel, WornTag } from '../../shared/community';
 import type { CommunityClient } from '../infrastructure/community-client';
 
 const clock = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' });
@@ -38,6 +39,7 @@ export function TextChat({
   user,
   manager,
   avatars,
+  tags,
   onOpenProfile,
 }: {
   api: CommunityClient;
@@ -45,6 +47,8 @@ export function TextChat({
   user: Account;
   manager: boolean;
   avatars?: ReadonlyMap<string, string | null | undefined>;
+  /** The server tag each author wears, drawn beside their name. */
+  tags?: ReadonlyMap<string, WornTag>;
   onOpenProfile?(authorId: string, position: { x: number; y: number }): void;
 }) {
   const [latest, setLatest] = useState<ChatMessage[]>([]);
@@ -182,6 +186,7 @@ export function TextChat({
                     'chat-message group/message relative flex items-start gap-3 rounded-md px-2 text-sm transition-colors hover:bg-accent/55',
                     heading ? 'mt-3 py-1 first:mt-0' : 'py-px',
                   )}
+                  data-hover-scope
                 >
                   {heading ? (
                     <button
@@ -217,6 +222,9 @@ export function TextChat({
                         >
                           {message.authorName}
                         </button>
+                        {tags?.get(message.authorId) && (
+                          <TagChip tag={tags.get(message.authorId)!} size="xs" className="self-center" />
+                        )}
                         <time className="text-[11px] text-muted-foreground" dateTime={message.createdAt}>
                           {dayOf(when)} at {clock.format(when)}
                         </time>

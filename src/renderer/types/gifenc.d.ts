@@ -40,8 +40,9 @@ declare module 'gifenc' {
   export interface Encoder {
     writeFrame(index: Uint8Array, width: number, height: number, options?: FrameOptions): void;
     finish(): void;
-    bytes(): Uint8Array;
-    bytesView(): Uint8Array;
+    /** A copy of what has been written, in a buffer of its own. */
+    bytes(): Uint8Array<ArrayBuffer>;
+    bytesView(): Uint8Array<ArrayBuffer>;
     reset(): void;
   }
 

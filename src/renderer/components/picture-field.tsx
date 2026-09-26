@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { ImageUp, Trash2 } from 'lucide-react';
 import { Avatar } from './avatar';
-import { maxAvatarSourceBytes } from '../infrastructure/square-image';
+import { acceptedTypes, maxSourceBytes, type PictureKind } from '../infrastructure/prepare-image';
 import { cn } from './ui/utils';
 import { ImageCropDialog } from './image-crop-dialog';
 
@@ -13,6 +13,8 @@ interface PictureFieldProps {
   variant?: 'card' | 'identity';
   username?: string;
   statusLabel?: string;
+  /** What the picture is for, which decides the shape it is cropped to. */
+  kind?: PictureKind;
   onChoose(image: Blob): Promise<void>;
   onRemove(): Promise<void>;
 }
@@ -26,6 +28,7 @@ export function PictureField({
   variant = 'card',
   username,
   statusLabel,
+  kind = 'avatar',
   onChoose,
   onRemove,
 }: PictureFieldProps) {
@@ -102,7 +105,7 @@ export function PictureField({
               </small>
             ) : (
               <small className={cn('max-w-[30rem]', variant === 'identity' && 'leading-relaxed')}>
-                PNG, JPEG or WebP · Max 10 MB.
+                PNG, JPEG, WebP or GIF · Max 15 MB. A GIF keeps moving.
               </small>
             )}
           </>
@@ -114,18 +117,18 @@ export function PictureField({
         ref={input}
         className="picture-input pointer-events-none absolute size-px opacity-0"
         type="file"
-        accept="image/png,image/jpeg,image/webp"
+        accept={acceptedTypes.join(',')}
         aria-label={label}
         onChange={(event) => {
           const file = event.target.files?.[0];
           event.target.value = '';
           if (!file) return;
-          if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
-            setProblem('Choose a PNG, JPEG or WebP picture.');
+          if (!acceptedTypes.includes(file.type)) {
+            setProblem('Choose a PNG, JPEG, WebP or GIF picture.');
             return;
           }
-          if (file.size > maxAvatarSourceBytes) {
-            setProblem('Choose an image smaller than 10 MB.');
+          if (file.size > maxSourceBytes) {
+            setProblem('Choose an image smaller than 15 MB.');
             return;
           }
           setProblem(undefined);
@@ -136,6 +139,7 @@ export function PictureField({
         <ImageCropDialog
           file={editingFile}
           title={label}
+          kind={kind}
           onClose={() => setEditingFile(undefined)}
           onSave={async (image) => {
             await onChoose(image);

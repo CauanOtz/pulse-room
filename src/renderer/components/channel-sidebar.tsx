@@ -14,8 +14,9 @@ import {
   VolumeX,
 } from 'lucide-react';
 import type { ConnectionState, Participant, VoiceChannel } from '../domain/conference';
-import { channelRoster, type ChannelOccupancy, type RosterEntry } from '../domain/roster';
+import { accountOf, channelRoster, type ChannelOccupancy, type RosterEntry } from '../domain/roster';
 import { Avatar } from './avatar';
+import { TagChip } from './profile-identity';
 import { SignalBars } from './signal-bars';
 import { MediaOutput } from './media-output';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from './ui/hover-card';
@@ -25,7 +26,7 @@ import { Button } from './ui/button';
 import { Tooltip } from './ui/tooltip';
 import { cn } from './ui/utils';
 import { VoicePanel } from './voice-panel';
-import type { CommunityChannel } from '../../shared/community';
+import type { CommunityChannel, WornTag } from '../../shared/community';
 
 interface ChannelSidebarProps {
   serverName?: string;
@@ -45,6 +46,8 @@ interface ChannelSidebarProps {
   screenSharing: boolean;
   occupancy: ChannelOccupancy[];
   avatars?: ReadonlyMap<string, string | null | undefined>;
+  /** The server tag each account wears, drawn beside their name in a room. */
+  tags?: ReadonlyMap<string, WornTag>;
   onSelectChannel(channelId: string): void;
   onLeave(): void;
   onReturnToCall?(): void;
@@ -157,6 +160,7 @@ export function ChannelSidebar(props: ChannelSidebarProps) {
               />
 
               <ChannelRoster
+                tags={props.tags}
                 entries={rosterOf(channel.id)}
                 watching={props.watching}
                 onOpenParticipant={props.onOpenParticipant}
@@ -290,6 +294,7 @@ function ChannelRow({
 
 function ChannelRoster({
   entries,
+  tags,
   watching,
   onOpenParticipant,
   onOpenProfile,
@@ -302,13 +307,14 @@ function ChannelRoster({
   onOpenProfile?(identity: string, position: { x: number; y: number }): void;
   onWatch?(participantId: string, watching: boolean): void;
   onPreview?(participantId?: string): void;
+  tags?: ReadonlyMap<string, WornTag>;
 }) {
   if (entries.length === 0) return null;
 
   return (
     <div className="voice-roster mb-2 ml-5 flex flex-col gap-0.5 border-l border-border/70 pl-1.5">
       {entries.map((entry) => (
-        <div className="roster-row flex min-w-0 items-center gap-1.5" key={entry.id}>
+        <div className="roster-row flex min-w-0 items-center gap-1.5" key={entry.id} data-hover-scope>
           <button
             className={cn(
               'roster-entry flex min-h-7 min-w-0 flex-1 items-center gap-2 rounded-md px-1.5 py-1 text-left text-xs text-muted-foreground transition-colors',
@@ -341,6 +347,7 @@ function ChannelRoster({
               />
             </span>
             <span className="roster-name min-w-0 flex-1 truncate">{entry.name}</span>
+            {tags?.get(accountOf(entry.id)) && <TagChip tag={tags.get(accountOf(entry.id))!} size="xs" />}
             {entry.isMuted && (
               <MicOff aria-label={`${entry.name} is muted`} size={13} className="roster-flag shrink-0" />
             )}

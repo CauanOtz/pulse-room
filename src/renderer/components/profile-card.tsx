@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react';
 import { ImageUp, Trash2, UserRound } from 'lucide-react';
 import type { Account } from '../../shared/community';
-import { toSquareImage } from '../infrastructure/square-image';
+import { acceptedTypes, maxSourceBytes } from '../infrastructure/prepare-image';
+import { ImageCropDialog } from './image-crop-dialog';
 import { AppearanceChoice } from './appearance-choice';
 import { Avatar } from './avatar';
 import { Button } from './ui/button';
@@ -31,6 +32,7 @@ export function ProfileCard({
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string>();
+  const [editingFile, setEditingFile] = useState<File>();
 
   const run = async (action: () => Promise<void>) => {
     setBusy(true);
@@ -111,14 +113,38 @@ export function ProfileCard({
         ref={input}
         className="picture-input pointer-events-none absolute size-px opacity-0"
         type="file"
-        accept="image/png,image/jpeg,image/webp"
+        accept={acceptedTypes.join(',')}
         aria-label="Profile picture"
         onChange={(event) => {
           const file = event.target.files?.[0];
           event.target.value = '';
-          if (file) void run(async () => onChoosePicture(await toSquareImage(file)));
+          if (!file) return;
+          if (!acceptedTypes.includes(file.type)) {
+            setProblem('Choose a PNG, JPEG, WebP or GIF picture.');
+            return;
+          }
+          if (file.size > maxSourceBytes) {
+            setProblem('Choose an image smaller than 15 MB.');
+            return;
+          }
+          setProblem(undefined);
+          // The same framing the account settings use, so a GIF chosen here
+          // is cropped and kept moving rather than flattened to its first frame.
+          setEditingFile(file);
         }}
       />
+      {editingFile && (
+        <ImageCropDialog
+          file={editingFile}
+          title="Profile picture"
+          kind="avatar"
+          onClose={() => setEditingFile(undefined)}
+          onSave={async (image) => {
+            await onChoosePicture(image);
+            setEditingFile(undefined);
+          }}
+        />
+      )}
     </div>
   );
 }
