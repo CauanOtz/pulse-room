@@ -49,12 +49,36 @@ export function PictureField({
     }
   };
 
+  const hint = problem ? (
+    // A refused picture is the one thing here worth reading, so it is not left
+    // in the same grey as the hint it replaces.
+    <small className="picture-problem rounded-md bg-destructive/10 px-2 py-1 text-xs font-medium text-destructive" role="alert">
+      {problem}
+    </small>
+  ) : (
+    <small className="max-w-[30rem] text-[11px] font-normal text-muted-foreground">
+      PNG, JPEG, WebP or GIF · Max 15 MB. A GIF keeps moving.
+    </small>
+  );
+  const buttons = (replace: string) => (
+    <div className="flex flex-wrap items-center gap-2">
+      <button type="button" className="secondary-button inline-flex h-8 items-center justify-center gap-2 rounded-md border border-border bg-transparent px-3 text-xs font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50" disabled={busy} onClick={() => input.current?.click()}>
+        <ImageUp size={15} /> {imageId ? replace : 'Add picture'}
+      </button>
+      {imageId && (
+        <button type="button" className="secondary-button inline-flex h-8 items-center justify-center gap-2 rounded-md border border-border bg-transparent px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50" disabled={busy} onClick={() => void run(onRemove)}>
+          <Trash2 size={15} /> Remove
+        </button>
+      )}
+    </div>
+  );
+
   return (
     <div
       className={cn(
         'picture-field min-w-0',
         variant === 'identity'
-          ? 'grid grid-cols-[4rem_minmax(0,1fr)] items-start gap-x-4 py-1'
+          ? 'grid grid-cols-[4rem_minmax(0,1fr)] items-center gap-x-4 gap-y-3'
           : 'flex items-center gap-3.5 rounded-xl border border-border bg-background/60 p-3.5',
       )}
     >
@@ -68,51 +92,41 @@ export function PictureField({
             : 'size-17 rounded-2xl text-xl',
         )}
       />
-      <div className={cn('picture-actions flex min-w-0 flex-col gap-2', variant === 'identity' && 'pt-0.5')}>
-        {variant === 'identity' ? (
-          <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-1">
+      {variant === 'identity' ? (
+        <>
+          {/* Who this face belongs to beside it, and what to do with it below. */}
+          <div className="flex min-w-0 flex-col gap-1">
             <strong className="flex min-w-0 items-baseline gap-1.5 text-sm font-semibold text-foreground">
               <span className="truncate">{name}</span>
-              {username && <span className="truncate text-xs font-normal text-muted-foreground">· @{username}</span>}
+              {username && <span className="truncate text-xs font-normal text-muted-foreground">@{username}</span>}
             </strong>
             {statusLabel && (
-              <span className="inline-flex shrink-0 items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
                 <span className="size-1.5 rounded-full bg-success" aria-hidden="true" />
                 {statusLabel}
               </span>
             )}
           </div>
-        ) : (
-          <strong>{label}</strong>
-        )}
-        {canEdit ? (
-          <>
-            <div className={cn('flex flex-wrap items-center gap-2', variant === 'identity' && 'mt-1')}>
-              <button type="button" className="secondary-button inline-flex h-8 items-center justify-center gap-2 rounded-md border border-border bg-transparent px-3 text-xs font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50" disabled={busy} onClick={() => input.current?.click()}>
-                <ImageUp size={15} /> {imageId ? 'Replace' : 'Add picture'}
-              </button>
-              {imageId && (
-                <button type="button" className="secondary-button inline-flex h-8 items-center justify-center gap-2 rounded-md border border-border bg-transparent px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50" disabled={busy} onClick={() => void run(onRemove)}>
-                  <Trash2 size={15} /> Remove
-                </button>
-              )}
+          {canEdit && (
+            <div className="picture-actions col-span-2 flex min-w-0 flex-col gap-2">
+              {buttons('Change picture')}
+              {hint}
             </div>
-            {problem ? (
-              // A refused picture is the one thing here worth reading, so it is
-              // not left in the same grey as the hint it replaces.
-              <small className="picture-problem rounded-md bg-destructive/10 px-2 py-1 text-xs font-medium text-destructive" role="alert">
-                {problem}
-              </small>
-            ) : (
-              <small className={cn('max-w-[30rem] text-[11px] font-normal text-muted-foreground', variant === 'identity' && 'leading-relaxed')}>
-                PNG, JPEG, WebP or GIF · Max 15 MB. A GIF keeps moving.
-              </small>
-            )}
-          </>
-        ) : (
-          <small>Only the owner and administrators can change this.</small>
-        )}
-      </div>
+          )}
+        </>
+      ) : (
+        <div className="picture-actions flex min-w-0 flex-col gap-2">
+          <strong>{label}</strong>
+          {canEdit ? (
+            <>
+              {buttons('Replace')}
+              {hint}
+            </>
+          ) : (
+            <small>Only the owner and administrators can change this.</small>
+          )}
+        </div>
+      )}
       <input
         ref={input}
         className="picture-input pointer-events-none absolute size-px opacity-0"

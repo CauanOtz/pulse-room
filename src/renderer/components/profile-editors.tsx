@@ -210,11 +210,11 @@ export function BannerField({
       <ProfileBanner
         bannerId={user.bannerId}
         theme={theme}
-        className="aspect-[5/2] w-full max-w-[22rem] rounded-lg border border-border"
+        className="aspect-[5/2] w-full rounded-lg border border-border"
       />
       <div className="flex flex-wrap items-center gap-2">
         <button type="button" className={buttonClass} disabled={busy} onClick={() => input.current?.click()}>
-          <ImageUp size={15} /> {user.bannerId ? 'Replace banner' : 'Add banner'}
+          <ImageUp size={15} /> {user.bannerId ? 'Change banner' : 'Add banner'}
         </button>
         {user.bannerId && (
           <button type="button" className={cn(buttonClass, 'text-muted-foreground')} disabled={busy} onClick={() => void remove()}>

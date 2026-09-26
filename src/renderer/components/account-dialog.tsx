@@ -42,6 +42,25 @@ function Part({ id, title, hint, children }: { id: string; title: string; hint?:
 }
 
 /**
+ * What is being edited on the left, and the card it makes on the right. The
+ * card stays where it is while the settings scroll past it, so a change made at
+ * the bottom is still seen at the top. On a narrow window it comes first.
+ */
+function EditorWithPreview({ preview, children }: { preview: ReactNode; children: ReactNode }) {
+  return (
+    <div className="account-editor grid items-start gap-8 md:grid-cols-[minmax(0,1fr)_16.5rem]">
+      <div className="min-w-0 space-y-7">{children}</div>
+      <aside className="order-first space-y-2 md:sticky md:top-24 md:order-none" aria-label="Live preview">
+        <span className="block text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+          Preview
+        </span>
+        {preview}
+      </aside>
+    </div>
+  );
+}
+
+/**
  * Everything about you, in three places rather than one long page.
  *
  * The side stays put and only the section scrolls, so the way back to any part
@@ -172,10 +191,7 @@ export function AccountDialog({
 
             <div className="account-workspace-content space-y-7 px-6 py-5">
               {section === 'profile' && (
-                <>
-                  <div className="max-w-[20rem]">
-                    <ProfilePreview user={user} theme={theme} bio={bio} />
-                  </div>
+                <EditorWithPreview preview={<ProfilePreview user={user} theme={theme} bio={bio} />}>
                   <Part id="account-avatar-heading" title="Avatar">
                     <PictureField
                       name={user.displayName}
@@ -230,12 +246,11 @@ export function AccountDialog({
                     </label>
                     <small className="block text-right text-[11px] text-muted-foreground">{bio.length} / 200</small>
                   </Part>
-                </>
+                </EditorWithPreview>
               )}
 
               {section === 'personalization' && (
-                // The card sits beside the colours, where the eye already is.
-                <div className="grid items-start gap-6 md:grid-cols-[minmax(0,1fr)_17rem]">
+                <EditorWithPreview preview={<ProfilePreview user={user} theme={theme} bio={bio} />}>
                   <ThemeEditor
                     value={theme}
                     saved={savedTheme}
@@ -244,10 +259,7 @@ export function AccountDialog({
                       setSaveMessage('');
                     }}
                   />
-                  <div className="md:sticky md:top-24">
-                    <ProfilePreview user={user} theme={theme} bio={bio} />
-                  </div>
-                </div>
+                </EditorWithPreview>
               )}
 
               {section === 'security' && (

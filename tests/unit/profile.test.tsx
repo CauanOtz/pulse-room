@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Avatar, ImagesProvider } from '../../src/renderer/components/avatar';
 import { ProfilePopover } from '../../src/renderer/components/profile-popover';
@@ -325,6 +325,18 @@ describe('AccountDialog', () => {
 
     fireEvent.click(section('Personalization'));
     expect(screen.getByLabelText('Use my own colours')).toBeInTheDocument();
+  });
+
+  it('keeps the card beside what is being edited, drawn from the drafts', () => {
+    setUp();
+    const preview = () => screen.getByRole('complementary', { name: 'Live preview' });
+    fireEvent.change(screen.getByLabelText('Bio'), { target: { value: 'written, not saved' } });
+    expect(preview()).toHaveTextContent('written, not saved');
+
+    fireEvent.click(section('Personalization'));
+    fireEvent.click(screen.getByLabelText('Use my own colours'));
+    expect(preview()).toHaveTextContent('written, not saved');
+    expect(within(preview()).getByRole('img', { name: 'Profile preview' })).toHaveAttribute('data-themed', 'true');
   });
 
   it('holds nothing pending until something changes', () => {
