@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
-import type { Account, AccountSession } from '../src/shared/community.js';
+import type { Account, AccountSession, ProfileTheme } from '../src/shared/community.js';
 import type { Database } from './database.js';
+import { profileColumns, profileJoins, toAccount, type ProfileRow } from './profile.js';
 import { digest, HttpError, opaqueToken, PasswordHasher } from './security.js';
 
 /** Only the part of the image store an account needs, to keep the two apart. */
@@ -18,7 +19,16 @@ export class AccountService {
   async register(username: string, displayName: string, password: string): Promise<AccountSession> {
     const recoveryCode = opaqueToken();
     // Every path that returns an account describes it the same way.
-    const user = { id: randomUUID(), username: username.toLowerCase(), displayName, avatarId: null, bio: '' };
+    const user: Account = {
+      id: randomUUID(),
+      username: username.toLowerCase(),
+      displayName,
+      avatarId: null,
+      bio: '',
+      bannerId: null,
+      theme: null,
+      tag: null,
+    };
     const hash = await this.passwords.hash(password);
     try {
       await this.db.query(
@@ -53,10 +63,7 @@ export class AccountService {
         [row.id],
       );
       if (current.passwordHash !== row.passwordHash) throw new HttpError(401, 'Please sign in again.');
-      return this.createSession(
-        { id: row.id, username: row.username, displayName: row.displayName, avatarId: row.avatarId, bio: row.bio },
-        db,
-      );
+      return this.createSession(await this.profile(row.id, db), db);
     });
   }
 
@@ -115,18 +122,77 @@ export class AccountService {
     });
   }
 
+  /**
+   * The whole profile, as another member would see it.
+   *
+   * Kept out of authenticate(), which runs on every request and needs only a
+   * name to decide what somebody may do.
+   */
+  async profile(userId: string, db: Database = this.db): Promise<Account> {
+    const {
+      rows: [row],
+    } = await db.query<ProfileRow>(`SELECT ${profileColumns} FROM accounts a ${profileJoins} WHERE a.id=$1`, [
+      userId,
+    ]);
+    if (!row) throw new HttpError(404, 'That account no longer exists.');
+    return toAccount(row);
+  }
+
   /** Swaps the picture and drops the previous one once nothing points at it. */
   async setAvatar(userId: string, imageId: string | null, images: ImageOwner): Promise<void> {
+    await this.swapPicture(userId, 'avatar_id', imageId, images);
+  }
+
+  /** The same, for the wide picture across the top of the card. */
+  async setBanner(userId: string, imageId: string | null, images: ImageOwner): Promise<void> {
+    await this.swapPicture(userId, 'banner_id', imageId, images);
+  }
+
+  private async swapPicture(
+    userId: string,
+    column: 'avatar_id' | 'banner_id',
+    imageId: string | null,
+    images: ImageOwner,
+  ): Promise<void> {
     await this.db.transaction(async (db) => {
       const {
         rows: [current],
-      } = await db.query<{ avatarId: string | null }>(
-        'SELECT avatar_id AS "avatarId" FROM accounts WHERE id=$1 FOR UPDATE',
+      } = await db.query<{ imageId: string | null }>(
+        `SELECT ${column} AS "imageId" FROM accounts WHERE id=$1 FOR UPDATE`,
         [userId],
       );
-      await db.query('UPDATE accounts SET avatar_id=$2 WHERE id=$1', [userId, imageId]);
-      if (current?.avatarId && current.avatarId !== imageId) await images.collect(current.avatarId, db);
+      await db.query(`UPDATE accounts SET ${column}=$2 WHERE id=$1`, [userId, imageId]);
+      if (current?.imageId && current.imageId !== imageId) await images.collect(current.imageId, db);
     });
+  }
+
+  /** Paints the card, or with null hands it back to the application's colours. */
+  async setTheme(userId: string, theme: ProfileTheme | null): Promise<void> {
+    await this.db.query('UPDATE accounts SET theme_primary=$2, theme_accent=$3 WHERE id=$1', [
+      userId,
+      theme?.primary ?? null,
+      theme?.accent ?? null,
+    ]);
+  }
+
+  /**
+   * Wears a server's tag beside your name, or with null takes it off.
+   *
+   * Only a tag that exists, from a server you are actually in. Anything else
+   * would let a stranger dress up as a member of a room they never entered.
+   */
+  async wearTag(userId: string, serverId: string | null): Promise<void> {
+    if (serverId) {
+      const {
+        rows: [offered],
+      } = await this.db.query<{ ok: boolean }>(
+        `SELECT true AS ok FROM memberships m JOIN communities c ON c.id=m.server_id
+         WHERE m.server_id=$1 AND m.account_id=$2 AND c.tag_text IS NOT NULL`,
+        [serverId, userId],
+      );
+      if (!offered) throw new HttpError(403, 'You can only wear the tag of a server you are in.');
+    }
+    await this.db.query('UPDATE accounts SET tag_server_id=$2 WHERE id=$1', [userId, serverId]);
   }
 
   async setBio(userId: string, bio: string): Promise<void> {

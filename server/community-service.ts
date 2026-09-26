@@ -7,9 +7,12 @@ import type {
   CommunityInvite,
   CommunityMember,
   MemberRole,
+  ServerTag,
+  TagBadge,
 } from '../src/shared/community.js';
 import { canManage } from '../src/shared/community.js';
 import type { Database } from './database.js';
+import { profileColumns, profileJoins, toAccount, type ProfileRow } from './profile.js';
 import { digest, HttpError, opaqueToken } from './security.js';
 
 export type ChannelInput = Omit<CommunityChannel, 'id' | 'serverId'>;
@@ -17,17 +20,36 @@ const channelColumns = `c.id, c.server_id AS "serverId", c.name, c.type, c.priva
   c.allow_speak AS "allowSpeak", c.allow_share AS "allowShare", c.read_only AS "readOnly"`;
 
 /** Policy checks live beside repository operations, never in renderer-only code. */
+const serverColumns = `c.id,c.name,c.icon_id AS "iconId",
+  c.tag_text AS "tagText",c.tag_badge AS "tagBadge",c.tag_colour AS "tagColour"`;
+
+interface ServerRow {
+  id: string;
+  name: string;
+  iconId: string | null;
+  tagText: string | null;
+  tagBadge: TagBadge | null;
+  tagColour: string | null;
+}
+
+function toServer<T extends ServerRow>(row: T): Omit<T, 'tagText' | 'tagBadge' | 'tagColour'> & { tag: ServerTag | null } {
+  const { tagText, tagBadge, tagColour, ...rest } = row;
+  return {
+    ...rest,
+    tag: tagText && tagBadge && tagColour ? { text: tagText, badge: tagBadge, colour: tagColour } : null,
+  };
+}
+
 export class CommunityService {
   constructor(private readonly db: Database) {}
 
   async list(userId: string): Promise<Community[]> {
-    return (
-      await this.db.query<Community>(
-        `SELECT c.id,c.name,c.icon_id AS "iconId",m.role FROM communities c
+    const { rows } = await this.db.query<ServerRow & { role: MemberRole }>(
+      `SELECT ${serverColumns},m.role FROM communities c
       JOIN memberships m ON m.server_id=c.id WHERE m.account_id=$1 ORDER BY c.created_at,c.id`,
-        [userId],
-      )
-    ).rows;
+      [userId],
+    );
+    return rows.map(toServer);
   }
 
   async role(userId: string, serverId: string, db = this.db): Promise<MemberRole> {
@@ -75,11 +97,9 @@ export class CommunityService {
   async detail(userId: string, serverId: string): Promise<CommunityDetail> {
     const role = await this.role(userId, serverId);
     const {
-      rows: [server],
-    } = await this.db.query<{ id: string; name: string; iconId: string | null }>(
-      'SELECT id,name,icon_id AS "iconId" FROM communities WHERE id=$1',
-      [serverId],
-    );
+      rows: [serverRow],
+    } = await this.db.query<ServerRow>(`SELECT ${serverColumns} FROM communities c WHERE c.id=$1`, [serverId]);
+    const server = toServer(serverRow);
     const { rows: channels } = await this.db.query<CommunityChannel>(
       `SELECT ${channelColumns} FROM channels c
       WHERE c.server_id=$1 AND (NOT c.private OR $3 OR EXISTS(
@@ -96,11 +116,13 @@ export class CommunityService {
             )
           ).rows.map((x) => x.id)
         : [];
-    const { rows: members } = await this.db.query<CommunityMember>(
-      `SELECT a.id,a.username,a.display_name AS "displayName",a.avatar_id AS "avatarId",a.bio,m.role
-      FROM accounts a JOIN memberships m ON a.id=m.account_id WHERE m.server_id=$1 ORDER BY a.username`,
+    const { rows: memberRows } = await this.db.query<ProfileRow & { role: MemberRole }>(
+      `SELECT ${profileColumns},m.role
+      FROM accounts a JOIN memberships m ON a.id=m.account_id ${profileJoins}
+      WHERE m.server_id=$1 ORDER BY a.username`,
       [serverId],
     );
+    const members: CommunityMember[] = memberRows.map(toAccount);
     return { server: { ...server, role }, channels, members };
   }
 
@@ -160,6 +182,24 @@ export class CommunityService {
     });
   }
 
+  /**
+   * Gives the server a tag its members can wear, or with null takes it away.
+   * Taking it away also takes it off everybody wearing it: a tag that once
+   * meant this server should not quietly come back if another is set later.
+   */
+  async setTag(userId: string, serverId: string, tag: ServerTag | null): Promise<void> {
+    await this.mutate(userId, serverId, async (db, role) => {
+      this.requireManager(role);
+      await db.query('UPDATE communities SET tag_text=$2, tag_badge=$3, tag_colour=$4 WHERE id=$1', [
+        serverId,
+        tag?.text ?? null,
+        tag?.badge ?? null,
+        tag?.colour ?? null,
+      ]);
+      if (!tag) await db.query('UPDATE accounts SET tag_server_id=NULL WHERE tag_server_id=$1', [serverId]);
+    });
+  }
+
   async rename(userId: string, serverId: string, name: string): Promise<void> {
     await this.mutate(userId, serverId, async (db, role) => {
       this.requireManager(role);
@@ -199,6 +239,12 @@ export class CommunityService {
           [targetId, serverId],
         );
         await db.query('DELETE FROM memberships WHERE server_id=$1 AND account_id=$2', [serverId, targetId]);
+        // Somebody who leaves stops wearing the room's name, and does not
+        // start again by coming back.
+        await db.query('UPDATE accounts SET tag_server_id=NULL WHERE id=$1 AND tag_server_id=$2', [
+          targetId,
+          serverId,
+        ]);
       }
     });
   }

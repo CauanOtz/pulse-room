@@ -10,6 +10,7 @@ import { AccountService, type AuthenticatedAccount } from './account-service.js'
 import { CommunityService } from './community-service.js';
 import { ImageService, imageLimits } from './image-service.js';
 import { HttpError } from './security.js';
+import { tagBadges, tagTextPattern } from '../src/shared/community.js';
 import {
   publishSources,
   VoiceAccessService,
@@ -18,6 +19,14 @@ import {
 } from './voice-access-service.js';
 
 const name = z.string().trim().min(1).max(60);
+const colour = z
+  .string()
+  .regex(/^#[0-9a-fA-F]{6}$/)
+  .transform((value) => value.toLowerCase());
+const theme = z.object({ primary: colour, accent: colour }).strict();
+const serverTag = z
+  .object({ text: z.string().regex(tagTextPattern), badge: z.enum(tagBadges), colour })
+  .strict();
 const password = z.string().min(12).max(128);
 const username = z
   .string()
@@ -65,7 +74,7 @@ export async function createServer(
   // Pictures arrive as raw bytes. No multipart parser, no file names, no
   // temporary files: fewer moving parts is the whole security argument.
   server.addContentTypeParser(
-    ['image/png', 'image/webp'],
+    ['image/png', 'image/webp', 'image/gif'],
     { parseAs: 'buffer', bodyLimit: imageLimits.bytes },
     (_request, body, done) => done(null, body),
   );
@@ -124,10 +133,7 @@ export async function createServer(
       .parse(request.body);
     return accounts.recover(body.username, body.recoveryCode, body.password);
   });
-  server.get('/api/auth/me', async (request) => {
-    const { sessionId: _, ...user } = actor(request);
-    return { user };
-  });
+  server.get('/api/auth/me', async (request) => ({ user: await accounts.profile(actor(request).id) }));
   server.post('/api/auth/logout', async (request) => {
     await accounts.logout(actor(request).sessionId);
     return { ok: true };
@@ -140,6 +146,18 @@ export async function createServer(
     await accounts.changePassword(actor(request), body.currentPassword, body.password);
     return { ok: true };
   });
+  server.patch('/api/account/theme', async (request) => {
+    const body = z.object({ theme: theme.nullable() }).strict().parse(request.body);
+    await accounts.setTheme(actor(request).id, body.theme);
+    return { theme: body.theme };
+  });
+
+  server.patch('/api/account/tag', async (request) => {
+    const { serverId } = z.object({ serverId: z.uuid().nullable() }).strict().parse(request.body);
+    await accounts.wearTag(actor(request).id, serverId);
+    return { user: await accounts.profile(actor(request).id) };
+  });
+
   server.patch('/api/account/profile', async (request) => {
     const { bio } = z.object({ bio: z.string().trim().max(200) }).strict().parse(request.body);
     await accounts.setBio(actor(request).id, bio);
@@ -272,12 +290,12 @@ export async function createServer(
     config: { rateLimit: { max: 12, timeWindow: '10 minutes' } },
   };
   const uploaded = (request: FastifyRequest): Buffer => {
-    if (!Buffer.isBuffer(request.body)) throw new HttpError(415, 'Send a PNG or WebP image.');
+    if (!Buffer.isBuffer(request.body)) throw new HttpError(415, 'Send a PNG, WebP or GIF image.');
     return request.body;
   };
 
   server.post('/api/account/avatar', uploadLimit, async (request) => {
-    const imageId = await images.store(uploaded(request));
+    const imageId = await images.store(uploaded(request), 'avatar');
     await accounts.setAvatar(actor(request).id, imageId, images);
     return { avatarId: imageId };
   });
@@ -287,11 +305,22 @@ export async function createServer(
     return { avatarId: null };
   });
 
+  server.post('/api/account/banner', uploadLimit, async (request) => {
+    const imageId = await images.store(uploaded(request), 'banner');
+    await accounts.setBanner(actor(request).id, imageId, images);
+    return { bannerId: imageId };
+  });
+
+  server.delete('/api/account/banner', async (request) => {
+    await accounts.setBanner(actor(request).id, null, images);
+    return { bannerId: null };
+  });
+
   server.post('/api/servers/:serverId/icon', uploadLimit, async (request) => {
     const serverId = id(request, 'serverId');
     // Stored first, then attached: attaching is the step that checks the role,
     // and a picture that never attaches is collected rather than left behind.
-    const imageId = await images.store(uploaded(request));
+    const imageId = await images.store(uploaded(request), 'icon');
     try {
       await communities.setIcon(actor(request).id, serverId, imageId, images);
     } catch (error) {
@@ -299,6 +328,12 @@ export async function createServer(
       throw error;
     }
     return { iconId: imageId };
+  });
+
+  server.patch('/api/servers/:serverId/tag', async (request) => {
+    const body = z.object({ tag: serverTag.nullable() }).strict().parse(request.body);
+    await communities.setTag(actor(request).id, id(request, 'serverId'), body.tag);
+    return { tag: body.tag };
   });
 
   server.delete('/api/servers/:serverId/icon', async (request) => {

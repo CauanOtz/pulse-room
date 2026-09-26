@@ -8,8 +8,8 @@ import { TestDatabase } from '../helpers/database';
 import { CommunityService } from '../../server/community-service';
 import { VoiceAccessService, voiceRoomName } from '../../server/voice-access-service';
 import { AccountService } from '../../server/account-service';
-import type { AccountSession, Community, CommunityDetail } from '../../src/shared/community';
-import { png, svg } from '../helpers/images';
+import type { Account, AccountSession, Community, CommunityDetail } from '../../src/shared/community';
+import { animatedGif, png, svg } from '../helpers/images';
 
 const config: ServerConfiguration = {
   PORT: 3001,
@@ -571,5 +571,192 @@ describe('profile pictures', () => {
     expect((await request('GET', `/api/images/${'0'.repeat(64)}`, photographer)).statusCode).toBe(404);
     expect((await request('GET', '/api/images/short', photographer)).statusCode).toBe(400);
     expect((await request('GET', `/api/images/${'0'.repeat(63)}Z`, photographer)).statusCode).toBe(400);
+  });
+});
+
+describe('profiles', () => {
+  // A room of its own: who can see a banner or wear a tag depends on who shares
+  // which server, and borrowing the fixtures above would make that unreadable.
+  let host: AccountSession, guest: AccountSession, passerby: AccountSession;
+  let den: Community, attic: Community;
+
+  const upload = (url: string, session: AccountSession, bytes: Buffer, type: string) =>
+    app.inject({
+      method: 'POST',
+      url,
+      payload: bytes,
+      headers: {
+        authorization: `Bearer ${session.token}`,
+        'content-type': type,
+        'x-forwarded-for': `10.11.${Math.floor(requestId / 200)}.${(++requestId % 200) + 1}`,
+      },
+    });
+  const me = async (session: AccountSession) => (await request('GET', '/api/auth/me', session)).json().user as Account;
+  const memberIn = async (session: AccountSession, serverId: string, memberId: string) =>
+    ((await request('GET', `/api/servers/${serverId}`, session)).json() as CommunityDetail).members.find(
+      (member) => member.id === memberId,
+    );
+
+  beforeAll(async () => {
+    host = await createAccount('ProfileHost');
+    guest = await createAccount('ProfileGuest');
+    passerby = await createAccount('ProfilePasserby');
+    den = (await request('POST', '/api/servers', host, { name: 'Den' })).json();
+    attic = (await request('POST', '/api/servers', host, { name: 'Attic' })).json();
+    for (const server of [den, attic]) {
+      const { code } = (
+        await request('POST', `/api/servers/${server.id}/invites`, host, { maxUses: 1, hours: 24 })
+      ).json();
+      expect((await request('POST', '/api/invites/join', guest, { code })).statusCode).toBe(200);
+    }
+  }, 30_000);
+
+  it('keeps an animated face moving, served as the GIF it was sent as', async () => {
+    const moving = animatedGif(128, 128, 5);
+    const response = await upload('/api/account/avatar', guest, moving, 'image/gif');
+    expect(response.statusCode).toBe(200);
+    const { avatarId } = response.json();
+
+    const served = await request('GET', `/api/images/${avatarId}`, host);
+    expect(served.statusCode).toBe(200);
+    expect(served.headers['content-type']).toBe('image/gif');
+    // Byte for byte: the service never decodes or re-encodes what it stores.
+    expect(Buffer.compare(served.rawPayload, moving)).toBe(0);
+    expect((await request('GET', `/api/images/${avatarId}`, passerby)).statusCode).toBe(404);
+  });
+
+  it('puts a banner across the top of a profile, for the people who share a room', async () => {
+    const response = await upload('/api/account/banner', guest, png(600, 40, 50, 60, 240), 'image/png');
+    expect(response.statusCode).toBe(200);
+    const { bannerId } = response.json();
+    expect(bannerId).toMatch(/^[0-9a-f]{64}$/);
+
+    expect((await me(guest)).bannerId).toBe(bannerId);
+    expect((await memberIn(host, den.id, guest.user.id))?.bannerId).toBe(bannerId);
+    expect((await request('GET', `/api/images/${bannerId}`, host)).statusCode).toBe(200);
+    // A banner is no more public than a face.
+    expect((await request('GET', `/api/images/${bannerId}`, passerby)).statusCode).toBe(404);
+  });
+
+  it('takes an animated banner', async () => {
+    const response = await upload('/api/account/banner', host, animatedGif(600, 240, 3), 'image/gif');
+    expect(response.statusCode).toBe(200);
+    expect((await me(host)).bannerId).toBe(response.json().bannerId);
+  });
+
+  it('refuses a square as a banner, and keeps the banner it already had', async () => {
+    const before = (await me(guest)).bannerId;
+    const response = await upload('/api/account/banner', guest, png(256), 'image/png');
+    expect(response.statusCode).toBe(422);
+    expect((await me(guest)).bannerId).toBe(before);
+  });
+
+  it('forgets a replaced banner but never the face beside it', async () => {
+    const face = (await upload('/api/account/avatar', passerby, png(64, 7, 7, 7), 'image/png')).json().avatarId;
+    const first = (await upload('/api/account/banner', passerby, png(600, 1, 2, 3, 240), 'image/png')).json()
+      .bannerId;
+    const second = (await upload('/api/account/banner', passerby, png(600, 3, 2, 1, 240), 'image/png')).json()
+      .bannerId;
+
+    expect((await request('GET', `/api/images/${first}`, passerby)).statusCode).toBe(404);
+    expect((await request('GET', `/api/images/${second}`, passerby)).statusCode).toBe(200);
+    expect((await request('GET', `/api/images/${face}`, passerby)).statusCode).toBe(200);
+
+    expect((await request('DELETE', '/api/account/banner', passerby)).statusCode).toBe(200);
+    expect((await me(passerby)).bannerId).toBeNull();
+    expect((await request('GET', `/api/images/${second}`, passerby)).statusCode).toBe(404);
+  });
+
+  it('paints a profile in two colours, stored the one way whatever the case', async () => {
+    const response = await request('PATCH', '/api/account/theme', guest, {
+      theme: { primary: '#FF5500', accent: '#1a2B3c' },
+    });
+    expect(response.statusCode).toBe(200);
+    expect((await me(guest)).theme).toEqual({ primary: '#ff5500', accent: '#1a2b3c' });
+    expect((await memberIn(host, den.id, guest.user.id))?.theme).toEqual({ primary: '#ff5500', accent: '#1a2b3c' });
+  });
+
+  it('refuses a colour that is not one, and never half a theme', async () => {
+    for (const theme of [
+      { primary: 'red', accent: '#000000' },
+      { primary: '#12345', accent: '#000000' },
+      { primary: '#000000' },
+      { primary: '#000000', accent: '#000000', glow: '#ffffff' },
+    ]) {
+      expect((await request('PATCH', '/api/account/theme', guest, { theme })).statusCode).toBe(400);
+    }
+    expect((await me(guest)).theme).toEqual({ primary: '#ff5500', accent: '#1a2b3c' });
+  });
+
+  it('hands the card back to the application when the theme is cleared', async () => {
+    expect((await request('PATCH', '/api/account/theme', passerby, { theme: null })).statusCode).toBe(200);
+    expect((await me(passerby)).theme).toBeNull();
+  });
+
+  it('lets only a manager give a server its tag', async () => {
+    const tag = { text: 'DEN', badge: 'flame', colour: '#E0452B' };
+    expect((await request('PATCH', `/api/servers/${den.id}/tag`, guest, { tag })).statusCode).toBe(403);
+    expect((await request('PATCH', `/api/servers/${den.id}/tag`, host, { tag })).statusCode).toBe(200);
+
+    const listed = (await request('GET', '/api/servers', guest)).json().servers as Community[];
+    expect(listed.find((server) => server.id === den.id)?.tag).toEqual({
+      text: 'DEN',
+      badge: 'flame',
+      colour: '#e0452b',
+    });
+  });
+
+  it('refuses a tag that is too long, not letters, or wears a badge nobody drew', async () => {
+    for (const tag of [
+      { text: 'FIVES', badge: 'star', colour: '#ffffff' },
+      { text: 'a b', badge: 'star', colour: '#ffffff' },
+      { text: '', badge: 'star', colour: '#ffffff' },
+      { text: 'OK', badge: 'unicorn', colour: '#ffffff' },
+    ]) {
+      expect((await request('PATCH', `/api/servers/${attic.id}/tag`, host, { tag })).statusCode).toBe(400);
+    }
+  });
+
+  it('lets a member wear their server tag, and shows it wherever they appear', async () => {
+    const worn = await request('PATCH', '/api/account/tag', guest, { serverId: den.id });
+    expect(worn.statusCode).toBe(200);
+    const expected = { serverId: den.id, serverName: 'Den', text: 'DEN', badge: 'flame', colour: '#e0452b' };
+    expect(worn.json().user.tag).toEqual(expected);
+    // Worn beside the name in a different server too: that is the point of it.
+    expect((await memberIn(host, attic.id, guest.user.id))?.tag).toEqual(expected);
+  });
+
+  it('refuses a tag from a server you are not in, or one that has no tag', async () => {
+    expect((await request('PATCH', '/api/account/tag', passerby, { serverId: den.id })).statusCode).toBe(403);
+    expect((await request('PATCH', '/api/account/tag', guest, { serverId: attic.id })).statusCode).toBe(403);
+    expect((await request('PATCH', '/api/account/tag', guest, { serverId: randomUUID() })).statusCode).toBe(403);
+  });
+
+  it('takes the tag off everybody when the server stops offering it', async () => {
+    const tag = { text: 'ATIC', badge: 'moon', colour: '#6a5acd' };
+    expect((await request('PATCH', `/api/servers/${attic.id}/tag`, host, { tag })).statusCode).toBe(200);
+    expect((await request('PATCH', '/api/account/tag', guest, { serverId: attic.id })).statusCode).toBe(200);
+    expect((await me(guest)).tag?.text).toBe('ATIC');
+
+    expect((await request('PATCH', `/api/servers/${attic.id}/tag`, host, { tag: null })).statusCode).toBe(200);
+    expect((await me(guest)).tag).toBeNull();
+
+    // Giving the server a tag again does not quietly dress anybody back up.
+    expect((await request('PATCH', `/api/servers/${attic.id}/tag`, host, { tag })).statusCode).toBe(200);
+    expect((await me(guest)).tag).toBeNull();
+  });
+
+  it('takes the tag off somebody who leaves the server it names', async () => {
+    expect((await request('PATCH', '/api/account/tag', guest, { serverId: den.id })).statusCode).toBe(200);
+    const left = await request('DELETE', `/api/servers/${den.id}/members/${guest.user.id}`, guest);
+    expect(left.statusCode).toBeLessThan(300);
+    expect((await me(guest)).tag).toBeNull();
+  });
+
+  it('can take a tag off by choice', async () => {
+    expect((await request('PATCH', '/api/account/tag', host, { serverId: attic.id })).statusCode).toBe(200);
+    expect((await me(host)).tag?.serverId).toBe(attic.id);
+    expect((await request('PATCH', '/api/account/tag', host, { serverId: null })).statusCode).toBe(200);
+    expect((await me(host)).tag).toBeNull();
   });
 });

@@ -124,5 +124,52 @@ export async function migrate(database: Database): Promise<void> {
         CHECK (char_length(bio) <= 200);
       INSERT INTO schema_migrations(version) VALUES(3) ON CONFLICT DO NOTHING;
     `);
+    // Profiles: an animated picture, a banner across the top of the card, the
+    // two colours the card is painted in, and a server tag worn beside the
+    // name. The image table's own limits widen to admit a banner and a GIF;
+    // the exact shape each kind of picture must have is checked on the way
+    // in, so these are the outer bounds rather than the rules.
+    //
+    // Unlike the steps above this one replaces constraints, and re-adding a
+    // constraint re-reads every row it covers. It runs once, not every boot.
+    const {
+      rows: [profiles],
+    } = await db.query<{ applied: boolean }>(
+      'SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version=4) AS applied',
+    );
+    if (!profiles?.applied) await db.query(`
+      ALTER TABLE images DROP CONSTRAINT IF EXISTS images_mime_check;
+      ALTER TABLE images ADD CONSTRAINT images_mime_check
+        CHECK (mime IN ('image/png','image/webp','image/gif'));
+      ALTER TABLE images DROP CONSTRAINT IF EXISTS images_width_check;
+      ALTER TABLE images ADD CONSTRAINT images_width_check CHECK (width BETWEEN 16 AND 1500);
+      ALTER TABLE images DROP CONSTRAINT IF EXISTS images_height_check;
+      ALTER TABLE images ADD CONSTRAINT images_height_check CHECK (height BETWEEN 16 AND 1500);
+      ALTER TABLE images DROP CONSTRAINT IF EXISTS images_bytes_check;
+      ALTER TABLE images ADD CONSTRAINT images_bytes_check
+        CHECK (octet_length(bytes) BETWEEN 32 AND 8388608);
+
+      ALTER TABLE accounts ADD COLUMN IF NOT EXISTS banner_id text
+        REFERENCES images(id) ON DELETE SET NULL;
+      ALTER TABLE accounts ADD COLUMN IF NOT EXISTS theme_primary text
+        CHECK (theme_primary ~ '^#[0-9a-f]{6}$');
+      ALTER TABLE accounts ADD COLUMN IF NOT EXISTS theme_accent text
+        CHECK (theme_accent ~ '^#[0-9a-f]{6}$');
+      ALTER TABLE accounts ADD COLUMN IF NOT EXISTS tag_server_id uuid
+        REFERENCES communities(id) ON DELETE SET NULL;
+
+      ALTER TABLE communities ADD COLUMN IF NOT EXISTS tag_text text
+        CHECK (tag_text ~ '^[A-Za-z0-9]{1,4}$');
+      ALTER TABLE communities ADD COLUMN IF NOT EXISTS tag_badge text;
+      ALTER TABLE communities ADD COLUMN IF NOT EXISTS tag_colour text
+        CHECK (tag_colour ~ '^#[0-9a-f]{6}$');
+
+      -- Half a theme or half a tag is not a thing anybody can see.
+      ALTER TABLE accounts ADD CONSTRAINT accounts_theme_whole
+        CHECK ((theme_primary IS NULL) = (theme_accent IS NULL));
+      ALTER TABLE communities ADD CONSTRAINT communities_tag_whole
+        CHECK ((tag_text IS NULL) = (tag_badge IS NULL) AND (tag_text IS NULL) = (tag_colour IS NULL));
+      INSERT INTO schema_migrations(version) VALUES(4) ON CONFLICT DO NOTHING;
+    `);
   });
 }
