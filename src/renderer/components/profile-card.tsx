@@ -1,150 +1,71 @@
-import { useRef, useState } from 'react';
-import { ImageUp, Trash2, UserRound } from 'lucide-react';
+import { Pencil } from 'lucide-react';
 import type { Account } from '../../shared/community';
-import { acceptedTypes, maxSourceBytes } from '../infrastructure/prepare-image';
-import { ImageCropDialog } from './image-crop-dialog';
 import { AppearanceChoice } from './appearance-choice';
 import { Avatar } from './avatar';
-import { Button } from './ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from './ui/dropdown-menu';
+import { ProfileBanner, TagChip } from './profile-identity';
 
 interface ProfileCardProps {
   user: Account;
-  canEditPicture: boolean;
-  onChoosePicture(image: Blob): Promise<void>;
-  onRemovePicture(): Promise<void>;
   onOpenAccount?(): void;
 }
 
-/** Who somebody is, and for your own card, the way to change your picture. */
-export function ProfileCard({
-  user,
-  canEditPicture,
-  onChoosePicture,
-  onRemovePicture,
-  onOpenAccount,
-}: ProfileCardProps) {
-  const input = useRef<HTMLInputElement>(null);
-  const [busy, setBusy] = useState(false);
-  const [problem, setProblem] = useState<string>();
-  const [editingFile, setEditingFile] = useState<File>();
-
-  const run = async (action: () => Promise<void>) => {
-    setBusy(true);
-    setProblem(undefined);
-    try {
-      await action();
-    } catch (error) {
-      setProblem(error instanceof Error ? error.message : 'That picture could not be saved.');
-    } finally {
-      setBusy(false);
-    }
-  };
-
+/**
+ * Your own card, as the people in your servers see it: banner, colours, face,
+ * tag and bio. The face is also the way into the account, where every part of
+ * the card is changed, so the card needs no separate button for it.
+ */
+export function ProfileCard({ user, onOpenAccount }: ProfileCardProps) {
   const picture = (
     <Avatar
-      className="grid size-20 place-items-center rounded-full bg-secondary text-xl font-bold text-secondary-foreground"
+      className="grid size-16 place-items-center rounded-full border-[3px] border-popover bg-secondary text-lg font-bold text-secondary-foreground"
       name={user.displayName}
       imageId={user.avatarId}
+      animate="always"
     />
   );
 
   return (
-    <div className="profile-card flex flex-col gap-3">
-      <div className="flex items-center gap-3">
-        {canEditPicture ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                className="rounded-full ring-offset-2 ring-offset-popover transition hover:ring-2 hover:ring-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
-                aria-label="Your picture"
-                disabled={busy}
+    <div className="profile-card flex flex-col">
+      <ProfileBanner bannerId={user.bannerId} theme={user.theme} className="aspect-[5/2] w-full" />
+      <div className="flex flex-col gap-3 px-4 pb-4">
+        <div className="-mt-8 flex">
+          {onOpenAccount ? (
+            <button
+              type="button"
+              className="group relative rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-popover"
+              aria-label="Account settings"
+              title="Account settings"
+              onClick={onOpenAccount}
+            >
+              {picture}
+              <span
+                className="absolute inset-[3px] grid place-items-center rounded-full bg-black/55 text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
+                aria-hidden="true"
               >
-                {picture}
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="min-w-48">
-              <DropdownMenuItem onSelect={() => input.current?.click()}>
-                <ImageUp className="size-4" />
-                {user.avatarId ? 'Change photo' : 'Add photo'}
-              </DropdownMenuItem>
-              {user.avatarId && (
-                <DropdownMenuItem
-                  className="text-destructive focus:text-destructive"
-                  onSelect={() => void run(onRemovePicture)}
-                >
-                  <Trash2 className="size-4" />
-                  Remove photo
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : (
-          picture
-        )}
+                <Pencil className="size-4" />
+              </span>
+            </button>
+          ) : (
+            picture
+          )}
+        </div>
 
         <div className="flex min-w-0 flex-col">
-          <strong className="truncate text-base font-semibold" title={user.displayName}>
-            {user.displayName}
+          <strong className="flex min-w-0 items-center gap-1.5 text-base font-semibold" title={user.displayName}>
+            <span className="truncate">{user.displayName}</span>
+            {user.tag && <TagChip tag={user.tag} size="xs" />}
           </strong>
           <span className="truncate text-xs text-muted-foreground">@{user.username}</span>
+          {user.bio?.trim() && (
+            <p className="mt-2 line-clamp-3 whitespace-pre-wrap break-words text-xs leading-relaxed text-foreground/85">
+              {user.bio.trim()}
+            </p>
+          )}
         </div>
+
+        <div className="h-px bg-border" />
+        <AppearanceChoice />
       </div>
-
-      {problem && <p className="text-xs text-destructive">{problem}</p>}
-
-      {onOpenAccount && (
-        <Button variant="secondary" size="sm" className="w-full" onClick={onOpenAccount}>
-          <UserRound className="size-4" />
-          Account settings
-        </Button>
-      )}
-
-      <div className="h-px bg-border" />
-      <AppearanceChoice />
-
-      <input
-        ref={input}
-        className="picture-input pointer-events-none absolute size-px opacity-0"
-        type="file"
-        accept={acceptedTypes.join(',')}
-        aria-label="Profile picture"
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          event.target.value = '';
-          if (!file) return;
-          if (!acceptedTypes.includes(file.type)) {
-            setProblem('Choose a PNG, JPEG, WebP or GIF picture.');
-            return;
-          }
-          if (file.size > maxSourceBytes) {
-            setProblem('Choose an image smaller than 15 MB.');
-            return;
-          }
-          setProblem(undefined);
-          // The same framing the account settings use, so a GIF chosen here
-          // is cropped and kept moving rather than flattened to its first frame.
-          setEditingFile(file);
-        }}
-      />
-      {editingFile && (
-        <ImageCropDialog
-          file={editingFile}
-          title="Profile picture"
-          kind="avatar"
-          onClose={() => setEditingFile(undefined)}
-          onSave={async (image) => {
-            await onChoosePicture(image);
-            setEditingFile(undefined);
-          }}
-        />
-      )}
     </div>
   );
 }

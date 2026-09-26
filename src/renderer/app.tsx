@@ -486,20 +486,6 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
         onSelectMicrophone={(deviceId) => handleSettingsSaved({ ...settings, microphoneDeviceId: deviceId })}
         onSelectSpeaker={(deviceId) => handleSettingsSaved({ ...settings, speakerDeviceId: deviceId })}
         user={workspace?.user}
-        onChoosePicture={
-          workspace &&
-          (async (image) => {
-            await workspace.api.upload('/api/account/avatar', image);
-            await workspace.onProfileChanged();
-          })
-        }
-        onRemovePicture={
-          workspace &&
-          (async () => {
-            await workspace.api.request('/api/account/avatar', 'DELETE');
-            await workspace.onProfileChanged();
-          })
-        }
         onOpenAccount={workspace?.onAccount}
         onOpenSettings={() => setSettingsOpen(true)}
       />

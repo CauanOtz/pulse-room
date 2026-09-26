@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Headphones, Mic, MicOff, Settings } from 'lucide-react';
 import type { Account } from '../../shared/community';
 import type { AvailableMediaDevices } from '../infrastructure/media/media-devices-service';
@@ -5,6 +6,7 @@ import { AppearanceChoice } from './appearance-choice';
 import { Avatar } from './avatar';
 import { DeviceMenu } from './device-menu';
 import { ProfileCard } from './profile-card';
+import { themedCard } from './profile-identity';
 import { Button } from './ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { GooeyFilter, StatusTooltip } from './status-tooltip';
@@ -15,8 +17,6 @@ interface ProfileBarProps {
   displayName: string;
   avatarId?: string | null;
   user?: Account;
-  onChoosePicture?(image: Blob): Promise<void>;
-  onRemovePicture?(): Promise<void>;
   joined: boolean;
   busy: boolean;
   microphoneEnabled: boolean;
@@ -45,12 +45,19 @@ export function ProfileBar(props: ProfileBarProps) {
     displayName: props.displayName,
     avatarId: props.avatarId,
   };
+  const [cardOpen, setCardOpen] = useState(false);
+  const openAccount =
+    props.onOpenAccount &&
+    (() => {
+      setCardOpen(false);
+      props.onOpenAccount?.();
+    });
 
   return (
     <div className="profile-strip col-span-2 col-start-1 row-start-2 flex h-[61px] items-center gap-1.5 border-r border-t border-border bg-sidebar px-2 py-1.5">
       <GooeyFilter />
       {/* One person, one panel: the picture and the name open the same card. */}
-      <Popover>
+      <Popover open={cardOpen} onOpenChange={setCardOpen}>
         <StatusTooltip label={props.joined ? 'In voice' : 'Ready'} tone={props.joined ? 'live' : 'idle'}>
           <PopoverTrigger asChild>
             <button
@@ -85,14 +92,9 @@ export function ProfileBar(props: ProfileBarProps) {
             </button>
           </PopoverTrigger>
         </StatusTooltip>
-        <PopoverContent side="top">
-          <ProfileCard
-            user={person}
-            canEditPicture={Boolean(props.onChoosePicture)}
-            onChoosePicture={async (image) => props.onChoosePicture?.(image)}
-            onRemovePicture={async () => props.onRemovePicture?.()}
-            onOpenAccount={props.onOpenAccount}
-          />
+        {/* The card runs to the popover's edges so the banner can. */}
+        <PopoverContent side="top" className="profile-card-popover overflow-hidden p-0" style={themedCard(person.theme)}>
+          <ProfileCard user={person} onOpenAccount={openAccount} />
         </PopoverContent>
       </Popover>
 

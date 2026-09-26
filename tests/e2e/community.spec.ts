@@ -249,13 +249,12 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
     window = await application.firstWindow();
     await expect(window.getByRole('button', { name: 'Just us', exact: true })).toBeVisible();
     await expect(window.getByRole('heading', { name: 'Welcome back' })).toHaveCount(0);
-    // The picture opens the person; the person's own picture offers its actions.
+    // The picture opens the person; the person's own face opens the account,
+    // and the card steps aside for it.
     await window.getByRole('button', { name: 'Your profile' }).click();
     await expect(window.locator('.profile-card').getByText('@owner')).toBeVisible();
-    await window.getByRole('button', { name: 'Your picture' }).click();
-    await expect(window.getByRole('menuitem', { name: /photo/ })).toBeVisible();
-    await window.keyboard.press('Escape');
-    await window.getByRole('button', { name: 'Account settings' }).click();
+    await window.locator('.profile-card').getByRole('button', { name: 'Account settings' }).click();
+    await expect(window.locator('.profile-card')).toHaveCount(0);
     await expectContainedDialog(window);
     // The password lives in its own section, beside the profile rather than
     // at the bottom of it.
@@ -306,23 +305,21 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
     await appearance.getByRole('radio', { name: 'Light' }).click();
     await expect(window.locator('html')).toHaveClass(/theme-light/);
     // The whole window repaints, panels included, once the colours settle: the
-    // panel wears the theme's own secondary, and the page is on paper rather
+    // card wears the theme's own surface, and the page is on paper rather
     // than on the black it was a moment ago.
     await expect
       .poll(async () =>
         window.evaluate(() => {
-          const account = [...document.querySelectorAll('button')].find((button) =>
-            button.textContent?.includes('Account settings'),
-          );
+          const card = document.querySelector('.profile-card-popover');
           const probe = document.createElement('div');
-          probe.style.backgroundColor = 'var(--secondary)';
+          probe.style.backgroundColor = 'var(--popover)';
           document.body.append(probe);
-          const secondary = getComputedStyle(probe).backgroundColor;
+          const surface = getComputedStyle(probe).backgroundColor;
           probe.remove();
           const ground = getComputedStyle(document.body).backgroundColor;
           const lightness = (ground.match(/\d+/g) ?? ['0']).slice(0, 3).map(Number);
           return {
-            matches: account ? getComputedStyle(account).backgroundColor === secondary : false,
+            matches: card ? getComputedStyle(card).backgroundColor === surface : false,
             onPaper: lightness.every((channel) => channel > 200),
           };
         }),

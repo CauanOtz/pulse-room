@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Avatar, ImagesProvider } from '../../src/renderer/components/avatar';
+import { ProfileCard } from '../../src/renderer/components/profile-card';
 import { ProfilePopover } from '../../src/renderer/components/profile-popover';
 import { ServerTagEditor, TagWearer, ThemeEditor } from '../../src/renderer/components/profile-editors';
 import { AccountDialog } from '../../src/renderer/components/account-dialog';
@@ -151,6 +152,45 @@ describe('ProfilePopover', () => {
     expect(screen.getByRole('heading', { name: /merge/ })).toContainElement(
       screen.getByLabelText('DEN, the tag of Den'),
     );
+  });
+});
+
+describe('ProfileCard, your own', () => {
+  const show = (user: Account, onOpenAccount?: () => void) =>
+    render(
+      <TooltipProvider>
+        <ImagesProvider images={fakeImages(false)}>
+          <ProfileCard user={user} onOpenAccount={onOpenAccount} />
+        </ImagesProvider>
+      </TooltipProvider>,
+    );
+  const banner = () => document.querySelector('.profile-card .profile-banner');
+
+  it('wears the banner you chose, with your tag and bio', async () => {
+    show({ ...owner, bannerId: 'b'.repeat(64), tag: worn, bio: 'up late' });
+    await waitFor(() => expect(banner()).toHaveAttribute('data-banner', 'picture'));
+    expect(screen.getByLabelText('DEN, the tag of Den')).toBeInTheDocument();
+    expect(screen.getByText('up late')).toBeInTheDocument();
+  });
+
+  it('paints your colours across the top when there is no banner', () => {
+    show({ ...owner, theme: { primary: '#112233', accent: '#445566' } });
+    expect(banner()).toHaveAttribute('data-banner', 'theme');
+  });
+
+  it('opens the account from your face, with no separate button for it', () => {
+    const onOpenAccount = vi.fn();
+    show(owner, onOpenAccount);
+    const face = screen.getByRole('button', { name: 'Account settings' });
+    expect(face).toContainElement(document.querySelector('.avatar'));
+    expect(screen.getAllByRole('button', { name: 'Account settings' })).toHaveLength(1);
+    fireEvent.click(face);
+    expect(onOpenAccount).toHaveBeenCalledTimes(1);
+  });
+
+  it('is only a picture where there is no account to open', () => {
+    show(owner);
+    expect(screen.queryByRole('button', { name: 'Account settings' })).toBeNull();
   });
 });
 

@@ -198,6 +198,24 @@ test('an animated picture, a banner, colours and a server tag, end to end', asyn
     const bannerShape = await card.locator('.profile-banner').boundingBox();
     expect(bannerShape!.width / bannerShape!.height).toBeCloseTo(2.5, 1);
     await window.screenshot({ path: 'test-results/profile-card.png' });
+    await window.keyboard.press('Escape');
+
+    // ------------------------------------------------ your own card, at the foot
+    await window.getByRole('button', { name: 'Your profile' }).click();
+    const own = window.locator('.profile-card-popover');
+    await expect(own.locator('.profile-banner')).toHaveAttribute('data-banner', 'picture');
+    await expect(own.locator('.server-tag')).toHaveText('club');
+    await expect(own).toContainText('Still here at three in the morning.');
+    // Painted in the same colours as the card other people open.
+    await expect(own).toHaveAttribute('style', /linear-gradient/);
+    const ownBanner = await own.locator('.profile-banner').boundingBox();
+    const ownCard = await own.boundingBox();
+    // The banner runs to the card's edges rather than sitting inside its padding.
+    expect(Math.abs(ownBanner!.x - ownCard!.x)).toBeLessThanOrEqual(1.5);
+    await window.screenshot({ path: 'test-results/profile-own-card.png' });
+    await own.getByRole('button', { name: 'Account settings' }).click();
+    await expect(own).toHaveCount(0);
+    await expect(window.getByRole('dialog', { name: 'Your account' })).toBeVisible();
   } finally {
     await application.close();
     await vite.close();
