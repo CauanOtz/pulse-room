@@ -35,7 +35,10 @@ export function ImageCropDialog({ file, title, onClose, onSave }: ImageCropDialo
   const dragRef = useRef<DragState | undefined>(undefined);
   const [sourceUrl, setSourceUrl] = useState('');
   const [imageSize, setImageSize] = useState<ImageSize>();
-  const [frameSide, setFrameSide] = useState(0);
+  // The editor is capped at 17rem (272px). Starting with that measured design
+  // size lets the image paint immediately; ResizeObserver replaces it with the
+  // actual width on narrower windows.
+  const [frameSide, setFrameSide] = useState(272);
   const [offset, setOffset] = useState<Offset>({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [busy, setBusy] = useState(false);
@@ -50,10 +53,18 @@ export function ImageCropDialog({ file, title, onClose, onSave }: ImageCropDialo
   useEffect(() => {
     const frame = frameRef.current;
     if (!frame) return undefined;
-    const observer = new ResizeObserver(() => setFrameSide(frame.clientWidth));
+    const measure = () => {
+      const width = frame.clientWidth || frame.getBoundingClientRect().width;
+      if (width > 0) setFrameSide(width);
+    };
+    const observer = new ResizeObserver(measure);
     observer.observe(frame);
-    setFrameSide(frame.clientWidth);
-    return () => observer.disconnect();
+    measure();
+    window.addEventListener('resize', measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', measure);
+    };
   }, []);
 
   const scale = imageSize && frameSide
@@ -177,10 +188,17 @@ export function ImageCropDialog({ file, title, onClose, onSave }: ImageCropDialo
             src={sourceUrl}
             alt=""
             draggable={false}
-            onLoad={(event) => setImageSize({
-              width: event.currentTarget.naturalWidth,
-              height: event.currentTarget.naturalHeight,
-            })}
+            onLoad={(event) => {
+              const { naturalWidth: width, naturalHeight: height } = event.currentTarget;
+              if (!width || !height) {
+                setProblem('That picture could not be read.');
+                return;
+              }
+              setImageSize({ width, height });
+              const frame = frameRef.current;
+              const frameWidth = frame?.clientWidth || frame?.getBoundingClientRect().width;
+              if (frameWidth) setFrameSide(frameWidth);
+            }}
             onError={() => setProblem('That picture could not be read.')}
             className="pointer-events-none absolute max-w-none select-none"
             style={{
