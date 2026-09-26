@@ -1,8 +1,9 @@
 import { useRef, useState } from 'react';
 import { ImageUp, Trash2 } from 'lucide-react';
 import { Avatar } from './avatar';
-import { toSquareImage } from '../infrastructure/square-image';
+import { maxAvatarSourceBytes } from '../infrastructure/square-image';
 import { cn } from './ui/utils';
+import { ImageCropDialog } from './image-crop-dialog';
 
 interface PictureFieldProps {
   name: string;
@@ -31,6 +32,7 @@ export function PictureField({
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string>();
+  const [editingFile, setEditingFile] = useState<File>();
 
   const run = async (action: () => Promise<void>) => {
     setBusy(true);
@@ -100,7 +102,7 @@ export function PictureField({
               </small>
             ) : (
               <small className={cn('max-w-[30rem]', variant === 'identity' && 'leading-relaxed')}>
-                PNG, JPEG or WebP. It is cropped to a square and shrunk before it is sent.
+                PNG, JPEG or WebP · Max 10 MB.
               </small>
             )}
           </>
@@ -117,9 +119,30 @@ export function PictureField({
         onChange={(event) => {
           const file = event.target.files?.[0];
           event.target.value = '';
-          if (file) void run(async () => onChoose(await toSquareImage(file)));
+          if (!file) return;
+          if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+            setProblem('Choose a PNG, JPEG or WebP picture.');
+            return;
+          }
+          if (file.size > maxAvatarSourceBytes) {
+            setProblem('Choose an image smaller than 10 MB.');
+            return;
+          }
+          setProblem(undefined);
+          setEditingFile(file);
         }}
       />
+      {editingFile && (
+        <ImageCropDialog
+          file={editingFile}
+          title={label}
+          onClose={() => setEditingFile(undefined)}
+          onSave={async (image) => {
+            await onChoose(image);
+            setEditingFile(undefined);
+          }}
+        />
+      )}
     </div>
   );
 }
