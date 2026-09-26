@@ -7,7 +7,7 @@ import { createServer } from '../../server/app';
 import { inspectImage } from '../../server/image-service';
 import { TestDatabase } from '../helpers/database';
 import { animatedGif, png } from '../helpers/images';
-import type { Account } from '../../src/shared/community';
+import type { Account, CommunityDetail } from '../../src/shared/community';
 
 /**
  * A profile made the way a person would make one: an animated picture chosen
@@ -91,17 +91,20 @@ test('an animated picture, a banner, colours and a server tag, end to end', asyn
 
     // ------------------------------------------------ the server's tag
     await window.getByRole('button', { name: 'Server settings and members' }).click();
-    await window.getByRole('button', { name: 'Settings', exact: true }).click();
-    const tagEditor = window.locator('.server-tag-editor');
+    await window.getByRole('button', { name: 'Tags', exact: true }).click();
+    await window.getByRole('button', { name: /Create tag/ }).click();
+    const tagEditor = window.locator('.tag-editor');
     await expect(tagEditor).toBeVisible();
     await tagEditor.getByLabel('Tag', { exact: true }).fill('club!');
     // Only letters and digits survive typing: the exclamation mark is gone.
     await expect(tagEditor.getByLabel('Tag', { exact: true })).toHaveValue('club');
+    await tagEditor.getByLabel('What it stands for').fill('Regulars');
     await tagEditor.getByRole('radio', { name: 'Flame' }).click();
     await tagEditor.getByRole('button', { name: 'Colour: #e8508a' }).click();
     await tagEditor.getByRole('button', { name: 'Save tag' }).click();
-    await expect(tagEditor.getByRole('status')).toHaveText('Tag saved.');
-    await tagEditor.scrollIntoViewIfNeeded();
+    const tagCard = window.locator('.server-tag-card');
+    await expect(tagCard).toContainText('Regulars');
+    await expect(tagCard).toContainText('Available to everyone');
     await window.screenshot({ path: 'test-results/profile-server-tag.png' });
     await window.getByRole('button', { name: 'Close dialog' }).click();
 
@@ -169,9 +172,14 @@ test('an animated picture, a banner, colours and a server tag, end to end', asyn
     expect((await me()).bio).toBe('Still here at three in the morning.');
 
     // ------------------------------------------------ wearing the tag
-    await account.getByRole('radio', { name: 'Wear the club tag of Clube' }).check();
+    await account.getByRole('combobox', { name: 'Tag in Clube' }).click();
+    await window.getByRole('option', { name: /club/ }).click();
+    await expect(account.getByRole('combobox', { name: 'Tag in Clube' })).toContainText('club');
+    // Worn in this server, which is the one open behind the dialog.
     await expect(preview.locator('.server-tag')).toHaveText('club');
-    expect((await me()).tag).toMatchObject({ text: 'club', badge: 'flame', colour: '#e8508a', serverName: 'Clube' });
+    const serverId = (await read<{ servers: { id: string }[] }>('/api/servers')).servers[0].id;
+    const self = (await read<CommunityDetail>(`/api/servers/${serverId}`)).members.find((m) => m.username === 'owner');
+    expect(self?.tag).toMatchObject({ text: 'club', badge: 'flame', colour: '#e8508a', serverName: 'Clube' });
     await window.screenshot({ path: 'test-results/profile-account.png' });
     await window.getByRole('button', { name: 'Close dialog' }).click();
 

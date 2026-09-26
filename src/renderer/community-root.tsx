@@ -8,7 +8,13 @@ import type {
 } from '../shared/community';
 import { App } from './app';
 import { AccountScreen } from './components/account-screen';
-import { AccountDialog, AddServerDialog, ChannelDialog, ServerDialog } from './components/community-dialogs';
+import {
+  AccountDialog,
+  AddServerDialog,
+  CategoryDialog,
+  ChannelDialog,
+  ServerDialog,
+} from './components/community-dialogs';
 import { Modal } from './components/modal';
 import { LoaderCircle } from 'lucide-react';
 import { ServerRail } from './components/server-rail';
@@ -24,8 +30,10 @@ export interface WorkspaceBindings {
   onSelectServer(id: string): void;
   onAddServer(): void;
   onManage(): void;
-  onCreateChannel(type: 'text' | 'voice'): void;
+  onCreateChannel(type: 'text' | 'voice', categoryId?: string): void;
   onEditChannel(channel: CommunityChannel): void;
+  onCreateCategory(): void;
+  onEditCategory(categoryId: string): void;
   onAccount(): void;
   onProfileChanged(): Promise<void>;
 }
@@ -41,9 +49,11 @@ export function CommunityRoot({ apiUrl }: { apiUrl: string }) {
   const [detail, setDetail] = useState<CommunityDetail>();
   const selectedServer = useRef(serverId);
   selectedServer.current = serverId;
-  const [dialog, setDialog] = useState<'add' | 'server' | 'channel' | 'account'>();
+  const [dialog, setDialog] = useState<'add' | 'server' | 'channel' | 'category' | 'account'>();
   const [editingChannel, setEditingChannel] = useState<CommunityChannel>();
   const [newChannelType, setNewChannelType] = useState<'text' | 'voice'>('voice');
+  const [newChannelCategory, setNewChannelCategory] = useState<string>();
+  const [editingCategory, setEditingCategory] = useState<string>();
   const [retry, setRetry] = useState(0);
   const clearSession = () => {
     api.token = '';
@@ -174,8 +184,11 @@ export function CommunityRoot({ apiUrl }: { apiUrl: string }) {
       clearTimeout(timer);
     };
   }, [api, user, serverId]);
+  // A profile is also read through the open server, where the tag worn there
+  // and the picture beside every message come from, so both are read again.
   const refreshProfile = async () => {
     setUser(await api.request<{ user: Account }>('/api/auth/me').then((result) => result.user));
+    if (serverId) await refresh();
   };
   const selectServer = (id: string) => {
     if (id !== serverId) {
@@ -219,10 +232,19 @@ export function CommunityRoot({ apiUrl }: { apiUrl: string }) {
             onSelectServer: selectServer,
             onAddServer: () => setDialog('add'),
             onManage: () => setDialog('server'),
-            onCreateChannel: (type) => {
+            onCreateChannel: (type, categoryId) => {
               setEditingChannel(undefined);
               setNewChannelType(type);
+              setNewChannelCategory(categoryId);
               setDialog('channel');
+            },
+            onCreateCategory: () => {
+              setEditingCategory(undefined);
+              setDialog('category');
+            },
+            onEditCategory: (categoryId) => {
+              setEditingCategory(categoryId);
+              setDialog('category');
             },
             onEditChannel: (channel) => {
               setEditingChannel(channel);
@@ -314,8 +336,20 @@ export function CommunityRoot({ apiUrl }: { apiUrl: string }) {
         <ChannelDialog
           api={api}
           detail={detail}
+          userId={user.id}
           channel={editingChannel}
           type={newChannelType}
+          categoryId={newChannelCategory}
+          onSaved={refresh}
+          onClose={() => setDialog(undefined)}
+        />
+      )}
+      {dialog === 'category' && detail && (
+        <CategoryDialog
+          api={api}
+          detail={detail}
+          userId={user.id}
+          categoryId={editingCategory}
           onSaved={refresh}
           onClose={() => setDialog(undefined)}
         />
@@ -323,7 +357,9 @@ export function CommunityRoot({ apiUrl }: { apiUrl: string }) {
       {dialog === 'account' && (
         <AccountDialog
           api={api}
-          user={user}
+          // The tag worn is one per server; the preview shows the one worn in
+          // the server that is open.
+          user={{ ...user, tag: detail?.members.find((member) => member.id === user.id)?.tag ?? null }}
           onClose={() => setDialog(undefined)}
           onProfileChanged={refreshProfile}
           onLogout={async () => {

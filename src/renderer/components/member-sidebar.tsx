@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Crown, Mic, Shield } from 'lucide-react';
-import type { CommunityMember } from '../../shared/community';
+import type { CommunityMember, Role } from '../../shared/community';
 import { groupMembers } from '../domain/members';
 import { Avatar } from './avatar';
 import { TagChip } from './profile-identity';
@@ -13,16 +13,19 @@ import { Tooltip } from './ui/tooltip';
  */
 export function MemberSidebar({
   members,
+  roles,
   userId,
   voiceIds,
   onOpenProfile,
 }: {
   members: readonly CommunityMember[];
+  /** The server's roles, for listing people under the ones displayed separately. */
+  roles?: readonly Role[];
   userId: string;
   voiceIds: ReadonlySet<string>;
   onOpenProfile?(memberId: string, position: { x: number; y: number }): void;
 }) {
-  const groups = useMemo(() => groupMembers(members, voiceIds), [members, voiceIds]);
+  const groups = useMemo(() => groupMembers(members, voiceIds, roles), [members, voiceIds, roles]);
   return (
     <aside
       className="member-sidebar flex w-58 flex-none flex-col gap-4 overflow-y-auto border-l border-border px-2 py-3"
@@ -80,6 +83,8 @@ export function MemberSidebar({
                       carries it rather than hiding it behind a pointer. */}
                   <span className="truncate text-[11px] text-muted-foreground">@{member.username}</span>
                 </span>
+                {/* Names stay in the room's own colour whatever roles they hold;
+                    only the owner and administrators carry a mark. */}
                 {member.role !== 'member' && (
                   <Tooltip label={member.role === 'owner' ? 'Owner' : 'Administrator'}>
                     <span className="shrink-0 text-muted-foreground">

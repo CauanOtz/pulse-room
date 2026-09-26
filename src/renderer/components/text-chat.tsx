@@ -37,7 +37,9 @@ export function TextChat({
   api,
   channel,
   user,
-  manager,
+  canSend,
+  sendHint,
+  canManageMessages,
   avatars,
   tags,
   onOpenProfile,
@@ -45,7 +47,11 @@ export function TextChat({
   api: CommunityClient;
   channel: CommunityChannel;
   user: Account;
-  manager: boolean;
+  /** Whether you may write here now; `sendHint` says why not. */
+  canSend: boolean;
+  sendHint?: string;
+  /** Whether you may delete what other people wrote. */
+  canManageMessages: boolean;
   avatars?: ReadonlyMap<string, string | null | undefined>;
   /** The server tag each author wears, drawn beside their name. */
   tags?: ReadonlyMap<string, WornTag>;
@@ -167,7 +173,7 @@ export function TextChat({
             const when = new Date(message.createdAt);
             const dayBreak = !previous || dayOf(new Date(previous.createdAt)) !== dayOf(when);
             const heading = dayBreak || startsRun(message, previous);
-            const mine = manager || message.authorId === user.id;
+            const mine = canManageMessages || message.authorId === user.id;
             return (
               <div key={message.id}>
                 {dayBreak && (
@@ -293,9 +299,9 @@ export function TextChat({
             rows={1}
             aria-label="Message"
             placeholder={
-              channel.readOnly && !manager ? 'This channel is read-only.' : `Message #${channel.name}`
+              canSend ? `Message #${channel.name}` : (sendHint ?? 'This channel is read-only.')
             }
-            disabled={channel.readOnly && !manager}
+            disabled={!canSend}
             maxLength={2000}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
@@ -309,7 +315,7 @@ export function TextChat({
           <button
             className="primary-action grid size-10 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
             aria-label="Send"
-            disabled={busy || !draft.trim() || (channel.readOnly && !manager)}
+            disabled={busy || !draft.trim() || !canSend}
           >
             <SendHorizontal aria-hidden="true" className="size-4" />
           </button>

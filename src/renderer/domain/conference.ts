@@ -69,6 +69,8 @@ export interface VoiceChannel {
   name: string;
   /** Shown with a lock, since not everyone in the server can enter. */
   private?: boolean;
+  /** The category it is listed under, if any. */
+  categoryId?: string | null;
 }
 
 export const voiceChannels: VoiceChannel[] = [

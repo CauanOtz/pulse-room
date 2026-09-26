@@ -1,6 +1,8 @@
 import { useState, type ReactNode } from 'react';
 import {
   ChevronDown,
+  ChevronRight,
+  FolderPlus,
   Hash,
   LockKeyhole,
   Plus,
@@ -54,9 +56,13 @@ interface ChannelSidebarProps {
   onShare(): void;
   onOpenParticipant(entry: RosterEntry, position: { x: number; y: number }): void;
   onOpenProfile?(identity: string, position: { x: number; y: number }): void;
+  /** Headings channels can be gathered under; the rest are listed by type. */
+  categories?: { id: string; name: string }[];
   /** Absent for anyone who may not shape the server, which hides the controls. */
-  onCreateChannel?(type: 'text' | 'voice'): void;
+  onCreateChannel?(type: 'text' | 'voice', categoryId?: string): void;
   onEditChannel?(channelId: string): void;
+  onCreateCategory?(): void;
+  onEditCategory?(categoryId: string): void;
   /** Whose screens this client asked for, and how to ask for another. */
   watching?: string[];
   onWatch?(participantId: string, watching: boolean): void;
@@ -75,6 +81,47 @@ export function ChannelSidebar(props: ChannelSidebarProps) {
       props.occupancy,
       props.avatars,
     );
+  const categories = props.categories ?? [];
+  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set());
+  const listed = (categoryId?: string | null) => Boolean(categoryId && categories.some((c) => c.id === categoryId));
+  const looseText = props.textChannels?.filter((channel) => !listed(channel.categoryId));
+  const looseVoice = props.channels.filter((channel) => !listed(channel.categoryId));
+
+  const textRow = (channel: CommunityChannel) => (
+    <ChannelRow
+      key={channel.id}
+      icon={<Hash size={15} />}
+      name={channel.name}
+      isPrivate={channel.private}
+      selected={props.selectedTextId === channel.id}
+      onSelect={() => props.onSelectText?.(channel.id)}
+      onEdit={props.onEditChannel && (() => props.onEditChannel?.(channel.id))}
+    />
+  );
+  const voiceRow = (channel: VoiceChannel, icon: ReactNode) => (
+    <div key={channel.id}>
+      <ChannelRow
+        icon={icon}
+        name={channel.name}
+        isPrivate={channel.private}
+        selected={isConnected && channel.id === props.activeChannelId}
+        current={isConnected && channel.id === props.activeChannelId}
+        disabled={props.busy}
+        onSelect={() => props.onSelectChannel(channel.id)}
+        onEdit={props.onEditChannel && (() => props.onEditChannel?.(channel.id))}
+      />
+
+      <ChannelRoster
+        tags={props.tags}
+        entries={rosterOf(channel.id)}
+        watching={props.watching}
+        onOpenParticipant={props.onOpenParticipant}
+        onOpenProfile={props.onOpenProfile}
+        onWatch={props.onWatch}
+        onPreview={props.onPreview}
+      />
+    </div>
+  );
 
   return (
     <aside className="channel-sidebar relative flex min-w-0 flex-col bg-sidebar text-sidebar-foreground">
@@ -97,18 +144,8 @@ export function ChannelSidebar(props: ChannelSidebarProps) {
             createLabel="Create text channel"
             onCreate={props.textChannels && props.onCreateChannel && (() => props.onCreateChannel?.('text'))}
           />
-          {props.textChannels ? (
-            props.textChannels.map((channel) => (
-              <ChannelRow
-                key={channel.id}
-                icon={<Hash size={15} />}
-                name={channel.name}
-                isPrivate={channel.private}
-                selected={props.selectedTextId === channel.id}
-                onSelect={() => props.onSelectText?.(channel.id)}
-                onEdit={props.onEditChannel && (() => props.onEditChannel?.(channel.id))}
-              />
-            ))
+          {looseText ? (
+            looseText.map(textRow)
           ) : (
             <>
               <button
@@ -146,31 +183,52 @@ export function ChannelSidebar(props: ChannelSidebarProps) {
             createLabel="Create voice channel"
             onCreate={props.onCreateChannel && (() => props.onCreateChannel?.('voice'))}
           />
-          {props.channels.map((channel, index) => (
-            <div key={channel.id}>
-              <ChannelRow
-                icon={index === 0 ? <Volume2 size={15} /> : <Radio size={15} />}
-                name={channel.name}
-                isPrivate={channel.private}
-                selected={isConnected && channel.id === props.activeChannelId}
-                current={isConnected && channel.id === props.activeChannelId}
-                disabled={props.busy}
-                onSelect={() => props.onSelectChannel(channel.id)}
-                onEdit={props.onEditChannel && (() => props.onEditChannel?.(channel.id))}
-              />
-
-              <ChannelRoster
-                tags={props.tags}
-                entries={rosterOf(channel.id)}
-                watching={props.watching}
-                onOpenParticipant={props.onOpenParticipant}
-                onOpenProfile={props.onOpenProfile}
-                onWatch={props.onWatch}
-                onPreview={props.onPreview}
-              />
-            </div>
-          ))}
+          {looseVoice.map((channel, index) =>
+            voiceRow(channel, index === 0 ? <Volume2 size={15} /> : <Radio size={15} />),
+          )}
         </section>
+
+        {categories.map((category) => {
+          const text = props.textChannels?.filter((channel) => channel.categoryId === category.id) ?? [];
+          const voice = props.channels.filter((channel) => channel.categoryId === category.id);
+          const isCollapsed = collapsed.has(category.id);
+          // A folded category still shows the channel you are in, so folding
+          // never hides where you are.
+          const shownText = isCollapsed ? text.filter((channel) => channel.id === props.selectedTextId) : text;
+          const shownVoice = isCollapsed
+            ? voice.filter((channel) => isConnected && channel.id === props.activeChannelId)
+            : voice;
+          return (
+            <section className="channel-group channel-category mb-4 flex flex-col gap-0.5" key={category.id}>
+              <CategoryHeading
+                name={category.name}
+                collapsed={isCollapsed}
+                onToggle={() =>
+                  setCollapsed((current) => {
+                    const next = new Set(current);
+                    if (next.has(category.id)) next.delete(category.id);
+                    else next.add(category.id);
+                    return next;
+                  })
+                }
+                onCreate={props.onCreateChannel && (() => props.onCreateChannel?.('text', category.id))}
+                onEdit={props.onEditCategory && (() => props.onEditCategory?.(category.id))}
+              />
+              {shownText.map(textRow)}
+              {shownVoice.map((channel) => voiceRow(channel, <Volume2 size={15} />))}
+            </section>
+          );
+        })}
+
+        {props.onCreateCategory && (
+          <button
+            className="create-category mt-1 flex h-8 w-full items-center gap-2 rounded-md px-2.5 text-left text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            type="button"
+            onClick={props.onCreateCategory}
+          >
+            <FolderPlus size={14} /> Create category
+          </button>
+        )}
       </div>
 
       {isConnected && (
@@ -213,6 +271,63 @@ function GroupHeading({
             className="grid size-6 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             type="button"
             aria-label={createLabel}
+            onClick={onCreate}
+          >
+            <Plus size={14} />
+          </button>
+        </Tooltip>
+      )}
+    </div>
+  );
+}
+
+/**
+ * A category's name, which folds it away; beside it the plus that makes a
+ * channel in it and the gear for its own settings, both only for somebody who
+ * may use them.
+ */
+function CategoryHeading({
+  name,
+  collapsed,
+  onToggle,
+  onCreate,
+  onEdit,
+}: {
+  name: string;
+  collapsed: boolean;
+  onToggle(): void;
+  onCreate?: false | undefined | (() => void);
+  onEdit?: false | undefined | (() => void);
+}) {
+  return (
+    <div className="channel-heading group/category flex h-7 items-center justify-between gap-1 pl-0.5 pr-1">
+      <button
+        className="flex min-w-0 flex-1 items-center gap-1 rounded-md py-1 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        type="button"
+        aria-expanded={!collapsed}
+        onClick={onToggle}
+      >
+        {collapsed ? <ChevronRight className="size-3 shrink-0" /> : <ChevronDown className="size-3 shrink-0" />}
+        <span className="min-w-0 truncate">{name}</span>
+      </button>
+      {onEdit && (
+        <Tooltip label="Edit category">
+          <button
+            className="grid size-6 shrink-0 place-items-center rounded-md text-muted-foreground opacity-0 transition-[opacity,color] hover:text-foreground group-hover/category:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            type="button"
+            aria-label={`Edit ${name}`}
+            onClick={onEdit}
+          >
+            <Settings size={13} />
+          </button>
+        </Tooltip>
+      )}
+      {onCreate && (
+        <Tooltip label={`Create channel in ${name}`}>
+          <button
+            className="grid size-6 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            type="button"
+            aria-label={`Create channel in ${name}`}
             onClick={onCreate}
           >
             <Plus size={14} />

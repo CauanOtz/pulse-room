@@ -107,9 +107,7 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
     await window.getByRole('button', { name: 'Create voice channel' }).click();
     await window.getByLabel('Channel name', { exact: true }).fill('Game room');
     await window.getByLabel('Private channel', { exact: true }).check();
-    await window.getByLabel('Share screen and system audio').uncheck();
     await expectContainedDialog(window);
-    await window.screenshot({ path: 'test-results/community-channel-permissions.png' });
     await window.getByRole('button', { name: 'Save channel' }).click();
     const gameRoom = window.locator('.channel-item', { hasText: 'Game room' });
     await expect(gameRoom).toBeVisible();
@@ -125,8 +123,22 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
     }).toPass({ timeout: 15_000 });
     await window.screenshot({ path: 'test-results/community-channel-hover.png' });
     await gear.click();
-    await expect(window.getByRole('dialog', { name: 'Edit channel', exact: true })).toBeVisible();
-    await window.keyboard.press('Escape');
+    const editor = window.getByRole('dialog', { name: 'Edit channel', exact: true });
+    await expect(editor).toBeVisible();
+    // Who may do what lives on its own tab: @everyone first, every permission
+    // in one of three states.
+    await editor.getByRole('tab', { name: 'Permissions' }).click();
+    await expect(editor.getByRole('option', { name: /@everyone/ })).toHaveAttribute('aria-selected', 'true');
+    const view = editor.getByRole('radiogroup', { name: 'View channels' });
+    await expect(view.getByRole('radio', { name: 'Deny' })).toHaveAttribute('aria-checked', 'true');
+    await editor.getByRole('radiogroup', { name: 'Share screen' }).getByRole('radio', { name: 'Deny' }).click();
+    await expectContainedDialog(window);
+    await window.screenshot({ path: 'test-results/community-channel-permissions.png' });
+    await editor.getByRole('button', { name: 'Save channel' }).click();
+    await expect(editor).toHaveCount(0);
+    // Focus goes back to the gear that opened the editor, tooltip and all;
+    // it is let go here so the next gear's tooltip is the only one.
+    await window.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
 
     // The gear opens the channel it belongs to, tooltip and all.
     const lounge = window.locator('.channel-item', { hasText: 'Lounge' });
@@ -343,7 +355,7 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
     ).toBe(1);
     // One row's menu at a time, and while it is open the rows behind it are
     // out of reach, so a click meant for another member cannot land on
-    // 'Remove from server'.
+    // 'Kick'.
     await window.getByRole('button', { name: 'Manage Friend' }).click();
     await expect(window.getByRole('menu')).toHaveCount(1);
     await expect(window.getByRole('button', { name: 'Manage Neighbour' })).toHaveCount(0);
@@ -351,8 +363,8 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
     await expect(window.getByRole('menu')).toHaveCount(0);
     await window.getByRole('button', { name: 'Manage Neighbour' }).click();
     await expect(window.getByRole('menu')).toHaveCount(1);
-    await expect(window.getByRole('menuitem', { name: 'Remove from server' })).toHaveCount(1);
-    const removeItem = window.getByRole('menuitem', { name: 'Remove from server' });
+    await expect(window.getByRole('menuitem', { name: 'Kick' })).toHaveCount(1);
+    const removeItem = window.getByRole('menuitem', { name: 'Kick' });
     const transferItem = window.getByRole('menuitem', { name: 'Transfer ownership' });
     const resting = await transferItem.evaluate((element) => getComputedStyle(element).backgroundColor);
     await transferItem.hover();
@@ -373,8 +385,8 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
     await window.screenshot({ path: 'test-results/community-member-menu.png' });
     // What cannot be undone is asked in front of the dialog, not appended to
     // the end of it.
-    await window.getByRole('menuitem', { name: 'Remove from server' }).click();
-    const confirm = window.getByRole('dialog', { name: 'Remove member' });
+    await window.getByRole('menuitem', { name: 'Kick' }).click();
+    const confirm = window.getByRole('dialog', { name: 'Kick member' });
     await expect(confirm).toContainText('Neighbour');
     await expect(confirm).toContainText('new invitation');
     await window.screenshot({ path: 'test-results/community-confirm.png' });
@@ -389,19 +401,17 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
     await expect(confirm).toHaveCount(0);
     await expect(rows).toHaveCount(3);
     await expect(window.getByRole('menu')).toHaveCount(0);
-    await window.getByRole('combobox', { name: 'Role for Friend' }).click();
-    await expect(window.getByRole('option', { name: 'Administrator' })).toBeVisible();
-    await window.keyboard.press('Escape');
     await window.getByRole('button', { name: 'Manage Friend' }).click();
     await expect(window.getByRole('menuitem', { name: 'Transfer ownership' })).toBeVisible();
-    await expect(window.getByRole('menuitem', { name: 'Remove from server' })).toBeVisible();
+    await expect(window.getByRole('menuitem', { name: 'Kick' })).toBeVisible();
+    await expect(window.getByRole('menuitem', { name: 'Ban' })).toBeVisible();
     await window.keyboard.press('Escape');
     await window.screenshot({ path: 'test-results/community-members.png' });
     await window.getByRole('button', { name: 'Close dialog' }).click();
     await window.getByRole('button', { name: 'Just us', exact: true }).click();
 
     await window.getByRole('button', { name: 'Server settings and members' }).click();
-    await window.getByRole('button', { name: 'Settings', exact: true }).click();
+    await window.getByRole('button', { name: 'Server', exact: true }).click();
     // A picture given to the server is stored, attached, and drawn back on the
     // rail beside every other server.
     await window

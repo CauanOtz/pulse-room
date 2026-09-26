@@ -127,6 +127,8 @@ function workspace(current: CommunityDetail, onSelectServer = vi.fn()): Workspac
     onManage: vi.fn(),
     onCreateChannel: vi.fn(),
     onEditChannel: vi.fn(),
+    onCreateCategory: vi.fn(),
+    onEditCategory: vi.fn(),
     onAccount: vi.fn(),
     onProfileChanged: vi.fn(async () => {}),
   };

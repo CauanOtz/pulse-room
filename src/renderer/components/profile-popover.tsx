@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Crown, Mic, Settings2, Shield, UserRound } from 'lucide-react';
-import type { MemberRole, ProfileTheme, WornTag } from '../../shared/community';
+import type { MemberRole, ProfileTheme, Role, WornTag } from '../../shared/community';
 import { Avatar } from './avatar';
 import { ProfileBanner, TagChip, themedCard } from './profile-identity';
 
@@ -14,6 +14,8 @@ export interface ProfileSummary {
   tag?: WornTag | null;
   bio?: string;
   role?: MemberRole;
+  /** Their roles in this server, highest first. */
+  roles?: Role[];
   voiceChannelName?: string;
   isYou?: boolean;
 }
@@ -43,7 +45,11 @@ export function ProfilePopover({
   // A banner is drawn at its own shape, two and a half times as wide as tall;
   // without one the strip stays short, as it always was.
   const bannerHeight = profile.bannerId ? width / 2.5 : 56;
-  const height = (onAudioOptions ? 250 : 218) + (profile.bio?.trim() ? 80 : 0) + (bannerHeight - 56);
+  const height =
+    (onAudioOptions ? 250 : 218) +
+    (profile.bio?.trim() ? 80 : 0) +
+    (profile.roles?.length ? 56 : 0) +
+    (bannerHeight - 56);
   // Open into the conversation/stage instead of covering the member list or
   // other participant tiles. Only flip to the right when the window edge makes
   // the preferred side impossible.
@@ -104,6 +110,22 @@ export function ProfilePopover({
             <p className="mt-3 whitespace-pre-wrap break-words text-xs leading-relaxed text-foreground/85">
               {profile.bio}
             </p>
+          )}
+          {profile.roles && profile.roles.length > 0 && (
+            <div className="mt-3 space-y-1.5">
+              <h3 className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Roles</h3>
+              <ul className="flex flex-wrap gap-1" aria-label="Roles">
+                {profile.roles.map((role) => (
+                  <li
+                    key={role.id}
+                    className="profile-role inline-flex items-center gap-1 rounded-md border border-border bg-secondary/60 px-1.5 py-0.5 text-[10px] font-medium text-foreground/85"
+                  >
+                    <span className="size-1.5 rounded-full" style={{ background: role.colour ?? 'var(--muted-foreground)' }} />
+                    {role.name}
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
           {onAudioOptions && (
             <button

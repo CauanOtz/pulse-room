@@ -3,13 +3,22 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Avatar, ImagesProvider } from '../../src/renderer/components/avatar';
 import { ProfileCard } from '../../src/renderer/components/profile-card';
 import { ProfilePopover } from '../../src/renderer/components/profile-popover';
-import { ServerTagEditor, TagWearer, ThemeEditor } from '../../src/renderer/components/profile-editors';
+import { TagWearer, ThemeEditor } from '../../src/renderer/components/profile-editors';
+import { TagManager } from '../../src/renderer/components/tag-manager';
+import { Permission } from '../../src/shared/permissions';
 import { AccountDialog } from '../../src/renderer/components/account-dialog';
 import { TagChip } from '../../src/renderer/components/profile-identity';
 import { TooltipProvider } from '../../src/renderer/components/ui/tooltip';
 import { ImageCache } from '../../src/renderer/infrastructure/image-cache';
 import type { CommunityClient } from '../../src/renderer/infrastructure/community-client';
-import type { Account, Community, WornTag } from '../../src/shared/community';
+import type {
+  Account,
+  CommunityDetail,
+  Role,
+  ServerTagDefinition,
+  TagChoice,
+  WornTag,
+} from '../../src/shared/community';
 
 afterEach(() => {
   cleanup();
@@ -195,91 +204,122 @@ describe('ProfileCard, your own', () => {
 });
 
 describe('TagWearer', () => {
-  const servers: Community[] = [
-    { id: 's1', name: 'Den', role: 'member', tag: { text: 'DEN', badge: 'flame', colour: '#e0452b' } },
-    { id: 's2', name: 'Attic', role: 'owner', tag: null },
+  const choices: TagChoice[] = [
+    {
+      serverId: 's1',
+      serverName: 'Den',
+      tags: [
+        { id: 't1', text: 'DEN', badge: 'flame', colour: '#e0452b', name: 'Regulars' },
+        { id: 't2', text: 'MOD', badge: 'star', colour: '#6a5acd', name: '' },
+      ],
+      activeId: 't2',
+    },
+    { serverId: 's2', serverName: 'Attic', tags: [{ id: 't3', text: 'ATC', badge: 'moon', colour: '#45cf8a', name: '' }], activeId: null },
   ];
-  const clientWith = (patch: () => Promise<unknown>) =>
-    ({
-      request: vi.fn(async (url: string, method?: string) => (method === 'PATCH' ? patch() : { servers })),
-    }) as unknown as CommunityClient;
+  const clientWith = (list: TagChoice[]) =>
+    ({ request: vi.fn(async () => ({ choices: list })) }) as unknown as CommunityClient;
 
-  it('offers only the servers that have a tag, and none', async () => {
+  it('offers one choice per server, showing the tag worn there', async () => {
     render(
       <TooltipProvider>
-        <TagWearer api={clientWith(async () => ({}))} user={owner} onChanged={async () => undefined} />
+        <TagWearer api={clientWith(choices)} onChanged={async () => undefined} />
       </TooltipProvider>,
     );
-    expect(await screen.findByRole('radio', { name: 'Wear the DEN tag of Den' })).toBeInTheDocument();
-    expect(screen.queryByText('Attic')).toBeNull();
-    expect(screen.getByRole('radio', { name: 'None' })).toBeChecked();
+    const den = await screen.findByRole('combobox', { name: 'Tag in Den' });
+    expect(den).toHaveTextContent('MOD');
+    expect(screen.getByRole('combobox', { name: 'Tag in Attic' })).toHaveTextContent('None');
   });
 
-  it('puts the tag on, and says so', async () => {
-    const onChanged = vi.fn(async () => undefined);
-    const api = clientWith(async () => ({}));
+  it('says so when no server offers a tag', async () => {
     render(
       <TooltipProvider>
-        <TagWearer api={api} user={owner} onChanged={onChanged} />
+        <TagWearer api={clientWith([])} onChanged={async () => undefined} />
       </TooltipProvider>,
     );
-    fireEvent.click(await screen.findByRole('radio', { name: 'Wear the DEN tag of Den' }));
-    // The dot moves at once, before the service has answered.
-    expect(screen.getByRole('radio', { name: 'Wear the DEN tag of Den' })).toBeChecked();
-    await waitFor(() => expect(onChanged).toHaveBeenCalled());
-    expect(api.request).toHaveBeenCalledWith('/api/account/tag', 'PATCH', { serverId: 's1' });
-  });
-
-  it('puts the dot back and says why when the service refuses', async () => {
-    render(
-      <TooltipProvider>
-        <TagWearer
-          api={clientWith(async () => Promise.reject(new Error('You can only wear the tag of a server you are in.')))}
-          user={owner}
-          onChanged={async () => undefined}
-        />
-      </TooltipProvider>,
-    );
-    fireEvent.click(await screen.findByRole('radio', { name: 'Wear the DEN tag of Den' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('server you are in');
-    expect(screen.getByRole('radio', { name: 'None' })).toBeChecked();
+    expect(await screen.findByText(/None of your servers offers you a tag yet/)).toBeInTheDocument();
   });
 });
 
-describe('ServerTagEditor', () => {
-  const renderEditor = (canEdit: boolean, api = { request: vi.fn(async () => ({})) } as unknown as CommunityClient) =>
+describe('TagManager', () => {
+  const roles: Role[] = [
+    { id: 'r-everyone', name: '@everyone', colour: null, position: 0, permissions: 0, isDefault: true, hoist: false },
+    { id: 'r-dev', name: 'Developer', colour: '#45cf8a', position: 1, permissions: 0, isDefault: false, hoist: false },
+  ];
+  const tags: ServerTagDefinition[] = [
+    { id: 't1', text: 'DEV', badge: 'gamepad', colour: '#45cf8a', name: 'Developers', mode: 'roles', roleIds: ['r-dev'], holderIds: [] },
+    { id: 't2', text: 'WIN', badge: 'crown', colour: '#ffcc00', name: '', mode: 'assigned', roleIds: [], holderIds: ['u1'] },
+  ];
+  const detailWith = (permissions: number): CommunityDetail => ({
+    server: { id: 's1', name: 'Den', role: 'member', permissions },
+    channels: [],
+    members: [{ ...owner, role: 'member', roleIds: [] }],
+    roles,
+    tags,
+  });
+  const show = (permissions: number, api = { request: vi.fn(async () => ({})) } as unknown as CommunityClient) =>
     render(
-      <ServerTagEditor api={api} serverId="s1" tag={null} canEdit={canEdit} onChanged={async () => undefined} />,
+      <TooltipProvider>
+        <TagManager api={api} detail={detailWith(permissions)} userId={owner.id} onChanged={async () => undefined} />
+      </TooltipProvider>,
     );
 
-  it('keeps only letters and digits, and will not save an empty tag', () => {
-    renderEditor(true);
+  it('describes who may wear each tag', () => {
+    show(Permission.ManageTags);
+    expect(screen.getByText('Available to: Developer. Members can equip it.')).toBeInTheDocument();
+    expect(screen.getByText('Staff assign it · 1 holder.')).toBeInTheDocument();
+  });
+
+  it('keeps the controls to people with Manage tags', () => {
+    show(0);
+    expect(screen.queryByRole('button', { name: /Create tag/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Edit DEV' })).toBeNull();
+  });
+
+  it('keeps only letters and digits, and will not save an empty tag or a role tag with no role', () => {
+    show(Permission.ManageTags);
+    fireEvent.click(screen.getByRole('button', { name: /Create tag/ }));
     const field = screen.getByLabelText('Tag');
     fireEvent.change(field, { target: { value: 'a-b c!' } });
     expect(field).toHaveValue('abc');
     fireEvent.change(field, { target: { value: '' } });
     expect(screen.getByRole('button', { name: 'Save tag' })).toBeDisabled();
+    fireEvent.change(field, { target: { value: 'OK' } });
+    fireEvent.click(screen.getByRole('radio', { name: /Selected roles/ }));
+    expect(screen.getByRole('button', { name: 'Save tag' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('checkbox', { name: /Developer/ }));
+    expect(screen.getByRole('button', { name: 'Save tag' })).toBeEnabled();
   });
 
-  it('saves the text, the badge and the colour together', async () => {
+  it('creates a tag with its text, badge, colour, name and rule together', async () => {
     const api = { request: vi.fn(async () => ({})) } as unknown as CommunityClient;
-    renderEditor(true, api);
+    show(Permission.ManageTags, api);
+    fireEvent.click(screen.getByRole('button', { name: /Create tag/ }));
     fireEvent.change(screen.getByLabelText('Tag'), { target: { value: 'NYX' } });
+    fireEvent.change(screen.getByLabelText('What it stands for'), { target: { value: 'Night owls' } });
     fireEvent.click(screen.getByRole('radio', { name: 'Moon' }));
     fireEvent.click(screen.getByRole('button', { name: 'Colour: #6a5acd' }));
+    fireEvent.click(screen.getByRole('radio', { name: /Staff assign it/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Save tag' }));
     await waitFor(() =>
-      expect(api.request).toHaveBeenCalledWith('/api/servers/s1/tag', 'PATCH', {
-        tag: { text: 'NYX', badge: 'moon', colour: '#6a5acd' },
+      expect(api.request).toHaveBeenCalledWith('/api/servers/s1/tags', 'POST', {
+        text: 'NYX',
+        badge: 'moon',
+        colour: '#6a5acd',
+        name: 'Night owls',
+        mode: 'assigned',
+        roleIds: [],
       }),
     );
-    expect(await screen.findByRole('status')).toHaveTextContent('Tag saved.');
   });
 
-  it('shows the rule, not the controls, to somebody who cannot change it', () => {
-    renderEditor(false);
-    expect(screen.queryByLabelText('Tag')).toBeNull();
-    expect(screen.getByText('This server has no tag yet.')).toBeInTheDocument();
+  it('hands an assigned tag out from its own editor', async () => {
+    const api = { request: vi.fn(async () => ({})) } as unknown as CommunityClient;
+    show(Permission.ManageTags, api);
+    fireEvent.click(screen.getByRole('button', { name: 'Edit WIN' }));
+    const holder = screen.getByRole('checkbox', { name: `Give ${owner.displayName} this tag` });
+    expect(holder).toBeChecked();
+    fireEvent.click(holder);
+    await waitFor(() => expect(api.request).toHaveBeenCalledWith(`/api/tags/t2/holders/${owner.id}`, 'DELETE'));
   });
 });
 

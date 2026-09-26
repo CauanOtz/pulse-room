@@ -25,7 +25,9 @@ import {
 } from './infrastructure/media/media-devices-service';
 import { LocalSettingsRepository } from './infrastructure/persistence/local-settings-repository';
 import type { WorkspaceBindings } from './community-root';
-import { canManage, type CommunityChannel, type CommunityMember, type WornTag } from '../shared/community';
+import type { CommunityChannel, CommunityMember, WornTag } from '../shared/community';
+import { has, Permission } from '../shared/permissions';
+import { myAccess, rolesOf } from './domain/access';
 import { TextChat } from './components/text-chat';
 import { MemberSidebar } from './components/member-sidebar';
 import { ProfilePopover, type ProfileSummary } from './components/profile-popover';
@@ -47,6 +49,20 @@ interface ActiveCall {
   canShare: boolean;
   avatars: ReadonlyMap<string, string | null | undefined>;
   tags: ReadonlyMap<string, WornTag>;
+}
+
+/**
+ * Whether you may do something in a channel. The service works it out; one
+ * from before roles only said whether a channel let members speak, share and
+ * write, and let managers do everything.
+ */
+function channelAllows(channel: CommunityChannel, flag: number, manager: boolean): boolean {
+  if (channel.permissions !== undefined) return has(channel.permissions, flag);
+  if (manager) return true;
+  if (flag === Permission.Speak) return channel.allowSpeak;
+  if (flag === Permission.ShareScreen) return channel.allowShare;
+  if (flag === Permission.SendMessages) return !channel.readOnly;
+  return flag !== Permission.ManageMessages;
 }
 
 /** The tag each member wears, for anything that draws a name. */
@@ -135,7 +151,11 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
   const joined = snapshot.connectionState !== 'disconnected';
   const activeChannelName =
     activeCall?.channelName ?? channels.find((channel) => channel.id === settings.roomId)?.name;
-  const manager = canManage(workspace?.detail.server.role);
+  const access = workspace ? myAccess(workspace.detail, workspace.user.id) : undefined;
+  const manager = Boolean(access?.isAdministrator);
+  const shapesChannels = Boolean(access?.can(Permission.ManageChannels));
+  const me = workspace?.detail.members.find((member) => member.id === workspace.user.id);
+  const timedOut = Boolean(me?.timeoutUntil && new Date(me.timeoutUntil) > new Date());
   /**
    * Who can see this place. A lock in the channel list says a channel is
    * private but never says private to whom, and the answer is the thing you
@@ -147,12 +167,10 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
     const channel = textChannel;
     if (!channel) return `Voice channel · ${server}`;
     const parts: string[] = [];
-    parts.push(
-      channel.private
-        ? `Private · ${channel.memberIds.length} ${channel.memberIds.length === 1 ? 'member' : 'members'}`
-        : `Everyone in ${server}`,
-    );
-    if (channel.readOnly) parts.push(manager ? 'Read-only for members' : 'Read-only');
+    const category = workspace.detail.categories?.find((entry) => entry.id === channel.categoryId);
+    parts.push(channel.private ? 'Private' : `Everyone in ${server}`);
+    if (category) parts.push(category.name);
+    if (!channelAllows(channel, Permission.SendMessages, manager)) parts.push(timedOut ? 'You are in a timeout' : 'Read-only');
     return parts.join(' · ');
   })();
   const canSpeak = activeCall?.canSpeak ?? true;
@@ -217,8 +235,8 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
             ...current,
             serverName: workspace.detail.server.name,
             channelName: channel.name,
-            canSpeak: manager || channel.allowSpeak,
-            canShare: manager || channel.allowShare,
+            canSpeak: channelAllows(channel, Permission.Speak, manager),
+            canShare: channelAllows(channel, Permission.ShareScreen, manager),
             avatars: nextAvatars,
             tags: nextTags,
           }
@@ -359,6 +377,7 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
       tag: member?.tag ?? tags.get(accountId),
       bio: member?.bio,
       role: member?.role,
+      roles: member && workspace ? rolesOf(workspace.detail, member) : undefined,
       voiceChannelName: voiceChannel?.name ?? (isCurrentCall ? activeCall?.channelName : undefined),
       isYou: accountId === workspace?.user.id || Boolean(participant?.isLocal),
     };
@@ -376,8 +395,8 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
         serverName: workspace.detail.server.name,
         channelId,
         channelName: channel.name,
-        canSpeak: manager || channel.allowSpeak,
-        canShare: manager || channel.allowShare,
+        canSpeak: channelAllows(channel, Permission.Speak, manager),
+        canShare: channelAllows(channel, Permission.ShareScreen, manager),
         avatars,
         tags,
       });
@@ -438,6 +457,7 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
         channels={channels}
         serverName={workspace?.detail.server.name}
         textChannels={workspace?.detail.channels.filter((c) => c.type === 'text')}
+        categories={workspace?.detail.categories}
         selectedTextId={textChannel?.id}
         onSelectText={setViewId}
         onManage={workspace?.onManage}
@@ -460,9 +480,11 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
         watching={snapshot.watching}
         onWatch={(participantId, watching) => controller.gateway.watchScreen(participantId, watching)}
         onPreview={(participantId) => controller.gateway.previewScreen(participantId)}
-        onCreateChannel={manager ? workspace?.onCreateChannel : undefined}
+        onCreateChannel={shapesChannels ? workspace?.onCreateChannel : undefined}
+        onCreateCategory={shapesChannels ? workspace?.onCreateCategory : undefined}
+        onEditCategory={shapesChannels ? workspace?.onEditCategory : undefined}
         onEditChannel={
-          manager && workspace
+          shapesChannels && workspace
             ? (channelId) => {
                 const channel = workspace.detail.channels.find((each) => each.id === channelId);
                 if (channel) workspace.onEditChannel(channel);
@@ -485,7 +507,7 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
         onToggleDeafen={() => void run(() => controller.toggleDeafen())}
         onSelectMicrophone={(deviceId) => handleSettingsSaved({ ...settings, microphoneDeviceId: deviceId })}
         onSelectSpeaker={(deviceId) => handleSettingsSaved({ ...settings, speakerDeviceId: deviceId })}
-        user={workspace?.user}
+        user={workspace && { ...workspace.user, tag: me?.tag ?? null }}
         onOpenAccount={workspace?.onAccount}
         onOpenSettings={() => setSettingsOpen(true)}
       />
@@ -536,7 +558,9 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
                 api={workspace.api}
                 user={workspace.user}
                 channel={textChannel}
-                manager={manager}
+                canSend={channelAllows(textChannel, Permission.SendMessages, manager)}
+                sendHint={timedOut ? 'You are in a timeout and cannot write yet.' : undefined}
+                canManageMessages={channelAllows(textChannel, Permission.ManageMessages, manager)}
                 avatars={avatars}
                 tags={tags}
                 onOpenProfile={(id, position) => setOpenProfile({ id, position })}
@@ -544,6 +568,7 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
               {membersOpen && (
                 <MemberSidebar
                   members={workspace.detail.members}
+                  roles={workspace.detail.roles}
                   userId={workspace.user.id}
                   voiceIds={inVoice}
                   onOpenProfile={(id, position) => setOpenProfile({ id, position })}
@@ -590,7 +615,11 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
           )}
           {joined && !canSpeak && (
             <p className="permission-note mx-4 mb-2 rounded-lg border border-border bg-card px-3 py-2 text-xs text-muted-foreground">
-              You can listen in this channel. Speaking is restricted by its permissions.
+              {timedOut
+                ? 'You are in a timeout: you can listen, but not speak.'
+                : me?.muted
+                  ? 'You are muted in this server.'
+                  : 'You can listen in this channel. Speaking is restricted by its permissions.'}
             </p>
           )}
           {joined && !canShare && (

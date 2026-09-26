@@ -1,5 +1,5 @@
 import * as Primitive from '@radix-ui/react-dropdown-menu';
-import { Check } from 'lucide-react';
+import { Check, ChevronRight } from 'lucide-react';
 import type { ComponentProps } from 'react';
 import { cn } from './utils';
 
@@ -87,5 +87,65 @@ export function DropdownMenuRadioItem({
         <Check className="size-4" />
       </Primitive.ItemIndicator>
     </Primitive.RadioItem>
+  );
+}
+
+/** One of several that can be on at once, such as the roles somebody holds. */
+export function DropdownMenuCheckboxItem({
+  className,
+  children,
+  ...props
+}: ComponentProps<typeof Primitive.CheckboxItem>) {
+  return (
+    <Primitive.CheckboxItem
+      className={cn(
+        'relative flex cursor-default select-none items-center gap-2 rounded-lg py-2 pl-2 pr-8 text-sm outline-none transition-colors',
+        'hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground',
+        'data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground',
+        'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+        className,
+      )}
+      {...props}
+    >
+      <span className="flex min-w-0 flex-1 items-center gap-2 truncate">{children}</span>
+      <Primitive.ItemIndicator className="absolute right-2 flex size-4 items-center justify-center">
+        <Check className="size-4" />
+      </Primitive.ItemIndicator>
+    </Primitive.CheckboxItem>
+  );
+}
+
+export const DropdownMenuSub = Primitive.Sub;
+
+export function DropdownMenuSubTrigger({ className, children, ...props }: ComponentProps<typeof Primitive.SubTrigger>) {
+  return (
+    <Primitive.SubTrigger
+      className={cn(
+        'relative flex cursor-default select-none items-center gap-2 rounded-lg px-2 py-2 text-sm outline-none transition-colors',
+        'hover:bg-accent focus:bg-accent data-[highlighted]:bg-accent data-[state=open]:bg-accent',
+        'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+        className,
+      )}
+      {...props}
+    >
+      {children}
+      <ChevronRight className="ml-auto size-4 text-muted-foreground" aria-hidden="true" />
+    </Primitive.SubTrigger>
+  );
+}
+
+export function DropdownMenuSubContent({ className, ...props }: ComponentProps<typeof Primitive.SubContent>) {
+  return (
+    <Primitive.Portal>
+      <Primitive.SubContent
+        collisionPadding={12}
+        className={cn(
+          'z-50 min-w-48 max-w-[min(20rem,calc(100vw-2rem))] overflow-y-auto rounded-xl border border-border bg-popover p-1 text-popover-foreground shadow-xl',
+          'max-h-[min(22rem,var(--radix-dropdown-menu-content-available-height))]',
+          className,
+        )}
+        {...props}
+      />
+    </Primitive.Portal>
   );
 }

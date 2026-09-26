@@ -223,7 +223,7 @@ export function AccountDialog({
                       await onProfileChanged();
                     }}
                   />
-                  <TagWearer api={api} user={user} onChanged={onProfileChanged} />
+                  <TagWearer api={api} onChanged={onProfileChanged} />
                   <Part
                     id="account-bio-heading"
                     title="About me"
