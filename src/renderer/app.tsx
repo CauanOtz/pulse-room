@@ -28,6 +28,7 @@ import type { WorkspaceBindings } from './community-root';
 import { canManage, type CommunityChannel } from '../shared/community';
 import { TextChat } from './components/text-chat';
 import { MemberSidebar } from './components/member-sidebar';
+import { ProfilePopover, type ProfileSummary } from './components/profile-popover';
 
 const mediaDevicesService = new MediaDevicesService();
 const roomSoundPlayer = new RoomSoundPlayer();
@@ -112,6 +113,10 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
   // deployment delays or omits those reports.
   const [heardSpeaking, setHeardSpeaking] = useState<ReadonlySet<string>>(() => new Set());
   const [openParticipant, setOpenParticipant] = useState<{
+    id: string;
+    position: { x: number; y: number };
+  }>();
+  const [openProfile, setOpenProfile] = useState<{
     id: string;
     position: { x: number; y: number };
   }>();
@@ -318,6 +323,36 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
     };
   }, [openParticipant?.id, visibleParticipants]);
 
+  const profileSummary: ProfileSummary | undefined = useMemo(() => {
+    if (!openProfile) return undefined;
+    const accountId = accountOf(openProfile.id);
+    const member = workspace?.detail.members.find((candidate) => candidate.id === accountId);
+    const participant = visibleParticipants.find((candidate) => accountOf(candidate.id) === accountId);
+    const room = occupancy.find((candidate) =>
+      candidate.occupants.some((occupant) => accountOf(occupant.identity) === accountId),
+    );
+    const voiceChannel = workspace?.detail.channels.find(
+      (candidate) => candidate.type === 'voice' && candidate.id === room?.roomId,
+    );
+    const isCurrentCall = Boolean(
+      activeCall &&
+      accountId === workspace?.user.id &&
+      activeCall.serverId === workspace?.detail.server.id,
+    ) || Boolean(
+      activeCall && participant && activeCall.serverId === workspace?.detail.server.id,
+    );
+    return {
+      id: accountId,
+      displayName: member?.displayName ?? participant?.name ?? accountId,
+      username: member?.username,
+      avatarId: member?.avatarId ?? avatars.get(accountId),
+      bio: member?.bio,
+      role: member?.role,
+      voiceChannelName: voiceChannel?.name ?? (isCurrentCall ? activeCall?.channelName : undefined),
+      isYou: accountId === workspace?.user.id || Boolean(participant?.isLocal),
+    };
+  }, [activeCall, avatars, occupancy, openProfile, visibleParticipants, workspace]);
+
   const handleChannelSelect = (channelId: string) => {
     setViewId(channelId);
     if (channelId === settings.roomId && joined) return;
@@ -408,6 +443,7 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
         onShare={handleShareRequest}
         onSelectChannel={handleChannelSelect}
         onOpenParticipant={(entry, position) => setOpenParticipant({ id: entry.id, position })}
+        onOpenProfile={(id, position) => setOpenProfile({ id, position })}
         watching={snapshot.watching}
         onWatch={(participantId, watching) => controller.gateway.watchScreen(participantId, watching)}
         onPreview={(participantId) => controller.gateway.previewScreen(participantId)}
@@ -503,12 +539,14 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
                 channel={textChannel}
                 manager={manager}
                 avatars={avatars}
+                onOpenProfile={(id, position) => setOpenProfile({ id, position })}
               />
               {membersOpen && (
                 <MemberSidebar
                   members={workspace.detail.members}
                   userId={workspace.user.id}
                   voiceIds={inVoice}
+                  onOpenProfile={(id, position) => setOpenProfile({ id, position })}
                 />
               )}
             </div>
@@ -599,6 +637,26 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
           watching={snapshot.watching.includes(popoverEntry.id)}
           onStopWatching={() => controller.gateway.watchScreen(popoverEntry.id, false)}
           onClose={() => setOpenParticipant(undefined)}
+        />
+      )}
+
+      {profileSummary && openProfile && (
+        <ProfilePopover
+          profile={profileSummary}
+          position={openProfile.position}
+          onAudioOptions={
+            visibleParticipants.some(
+              (participant) => accountOf(participant.id) === profileSummary.id && !participant.isLocal,
+            )
+              ? () => {
+                  const participant = visibleParticipants.find(
+                    (candidate) => accountOf(candidate.id) === profileSummary.id && !candidate.isLocal,
+                  );
+                  if (participant) setOpenParticipant({ id: participant.id, position: openProfile.position });
+                }
+              : undefined
+          }
+          onClose={() => setOpenProfile(undefined)}
         />
       )}
 

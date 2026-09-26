@@ -50,6 +50,7 @@ interface ChannelSidebarProps {
   onReturnToCall?(): void;
   onShare(): void;
   onOpenParticipant(entry: RosterEntry, position: { x: number; y: number }): void;
+  onOpenProfile?(identity: string, position: { x: number; y: number }): void;
   /** Absent for anyone who may not shape the server, which hides the controls. */
   onCreateChannel?(type: 'text' | 'voice'): void;
   onEditChannel?(channelId: string): void;
@@ -159,6 +160,7 @@ export function ChannelSidebar(props: ChannelSidebarProps) {
                 entries={rosterOf(channel.id)}
                 watching={props.watching}
                 onOpenParticipant={props.onOpenParticipant}
+                onOpenProfile={props.onOpenProfile}
                 onWatch={props.onWatch}
                 onPreview={props.onPreview}
               />
@@ -290,12 +292,14 @@ function ChannelRoster({
   entries,
   watching,
   onOpenParticipant,
+  onOpenProfile,
   onWatch,
   onPreview,
 }: {
   entries: RosterEntry[];
   watching?: string[];
   onOpenParticipant(entry: RosterEntry, position: { x: number; y: number }): void;
+  onOpenProfile?(identity: string, position: { x: number; y: number }): void;
   onWatch?(participantId: string, watching: boolean): void;
   onPreview?(participantId?: string): void;
 }) {
@@ -308,14 +312,15 @@ function ChannelRoster({
           <button
             className={cn(
               'roster-entry flex min-h-7 min-w-0 flex-1 items-center gap-2 rounded-md px-1.5 py-1 text-left text-xs text-muted-foreground transition-colors',
-              'enabled:hover:bg-accent enabled:hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              'hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
               entry.isSpeaking && 'is-speaking text-foreground',
             )}
             type="button"
-            disabled={!entry.detailed || entry.isLocal}
-            aria-label={entry.detailed && !entry.isLocal ? `Audio options for ${entry.name}` : entry.name}
+            aria-label={`View ${entry.name}'s profile`}
+            onClick={(event) => onOpenProfile?.(entry.id, { x: event.clientX, y: event.clientY })}
             onContextMenu={(event) => {
               event.preventDefault();
+              if (!entry.detailed || entry.isLocal) return;
               onOpenParticipant(entry, { x: event.clientX, y: event.clientY });
             }}
           >

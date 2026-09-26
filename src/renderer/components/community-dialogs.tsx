@@ -850,6 +850,10 @@ export function AccountDialog({
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
+  const [bio, setBio] = useState(user.bio ?? '');
+  const [bioBusy, setBioBusy] = useState(false);
+  const [bioMessage, setBioMessage] = useState('');
+  useEffect(() => setBio(user.bio ?? ''), [user.id, user.bio]);
   return (
     <Modal
       title="Your account"
@@ -878,6 +882,54 @@ export function AccountDialog({
             await onProfileChanged();
           }}
         />
+      </section>
+      <section aria-labelledby="account-bio-heading" className="mt-5 space-y-3 border-t border-border/70 pt-4.5">
+        <div className="section-heading flex flex-col gap-1">
+          <h3 id="account-bio-heading" className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+            About me
+          </h3>
+          <p className="text-xs text-muted-foreground">A short bio shown on your profile to people in your servers.</p>
+        </div>
+        <form
+          className="space-y-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            setBioBusy(true);
+            setBioMessage('');
+            void api
+              .request<{ bio: string }>('/api/account/profile', 'PATCH', { bio: bio.trim() })
+              .then(async () => {
+                await onProfileChanged();
+                setBioMessage('Bio saved.');
+              })
+              .catch((error) => setBioMessage(errorMessage(error)))
+              .finally(() => setBioBusy(false));
+          }}
+        >
+          <label className="form-field flex flex-col gap-1.5 text-xs font-medium text-muted-foreground">
+            Bio
+            <textarea
+              aria-label="Bio"
+              rows={3}
+              maxLength={200}
+              placeholder="A little about you…"
+              value={bio}
+              onChange={(event) => setBio(event.target.value)}
+              className="resize-y"
+            />
+          </label>
+          <div className="flex items-center justify-between gap-3">
+            <small className="text-[11px] text-muted-foreground">{bio.length}/200</small>
+            <button
+              className="primary-action inline-flex h-8 items-center justify-center rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+              type="submit"
+              disabled={bioBusy || bio.trim() === (user.bio ?? '')}
+            >
+              {bioBusy ? 'Saving…' : 'Save bio'}
+            </button>
+          </div>
+        </form>
+        {bioMessage && <p className="text-xs text-muted-foreground" role="status">{bioMessage}</p>}
       </section>
       <section className="account-security mt-5 space-y-3.5 border-t border-border/70 pt-4.5">
         <div className="section-heading flex flex-col gap-1">

@@ -38,12 +38,14 @@ export function TextChat({
   user,
   manager,
   avatars,
+  onOpenProfile,
 }: {
   api: CommunityClient;
   channel: CommunityChannel;
   user: Account;
   manager: boolean;
   avatars?: ReadonlyMap<string, string | null | undefined>;
+  onOpenProfile?(authorId: string, position: { x: number; y: number }): void;
 }) {
   const [latest, setLatest] = useState<ChatMessage[]>([]);
   const [history, setHistory] = useState<ChatMessage[]>([]);
@@ -182,11 +184,18 @@ export function TextChat({
                   )}
                 >
                   {heading ? (
-                    <Avatar
-                      className="profile-avatar mt-0.5 grid size-8.5 shrink-0 place-items-center rounded-[10px] bg-secondary text-[11px] font-bold text-secondary-foreground"
-                      name={message.authorName}
-                      imageId={avatars?.get(message.authorId)}
-                    />
+                    <button
+                      className="mt-0.5 shrink-0 rounded-[10px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      type="button"
+                      aria-label={`View ${message.authorName}'s profile`}
+                      onClick={(event) => onOpenProfile?.(message.authorId, { x: event.clientX, y: event.clientY })}
+                    >
+                      <Avatar
+                        className="profile-avatar grid size-8.5 place-items-center rounded-[10px] bg-secondary text-[11px] font-bold text-secondary-foreground"
+                        name={message.authorName}
+                        imageId={avatars?.get(message.authorId)}
+                      />
+                    </button>
                   ) : (
                     // The gutter keeps its width, and only gives up the hour to
                     // somebody who reaches for it.
@@ -200,9 +209,14 @@ export function TextChat({
                   <div className="min-w-0 flex-1">
                     {heading && (
                       <header className="flex flex-wrap items-baseline gap-x-2">
-                        <strong className="text-sm font-semibold text-foreground">
+                        <button
+                          className="text-sm font-semibold text-foreground hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                          type="button"
+                          aria-label={`View ${message.authorName}'s profile`}
+                          onClick={(event) => onOpenProfile?.(message.authorId, { x: event.clientX, y: event.clientY })}
+                        >
                           {message.authorName}
-                        </strong>
+                        </button>
                         <time className="text-[11px] text-muted-foreground" dateTime={message.createdAt}>
                           {dayOf(when)} at {clock.format(when)}
                         </time>

@@ -18,7 +18,7 @@ export class AccountService {
   async register(username: string, displayName: string, password: string): Promise<AccountSession> {
     const recoveryCode = opaqueToken();
     // Every path that returns an account describes it the same way.
-    const user = { id: randomUUID(), username: username.toLowerCase(), displayName, avatarId: null };
+    const user = { id: randomUUID(), username: username.toLowerCase(), displayName, avatarId: null, bio: '' };
     const hash = await this.passwords.hash(password);
     try {
       await this.db.query(
@@ -37,7 +37,7 @@ export class AccountService {
     const {
       rows: [row],
     } = await this.db.query<Account & { passwordHash: string }>(
-      `SELECT id, username, display_name AS "displayName", avatar_id AS "avatarId",
+      `SELECT id, username, display_name AS "displayName", avatar_id AS "avatarId", bio,
               password_hash AS "passwordHash" FROM accounts WHERE username=$1`,
       [username.toLowerCase()],
     );
@@ -54,7 +54,7 @@ export class AccountService {
       );
       if (current.passwordHash !== row.passwordHash) throw new HttpError(401, 'Please sign in again.');
       return this.createSession(
-        { id: row.id, username: row.username, displayName: row.displayName, avatarId: row.avatarId },
+        { id: row.id, username: row.username, displayName: row.displayName, avatarId: row.avatarId, bio: row.bio },
         db,
       );
     });
@@ -66,7 +66,7 @@ export class AccountService {
       rows: [account],
     } = await this.db.query<AuthenticatedAccount>(
       `
-      SELECT a.id, a.username, a.display_name AS "displayName", a.avatar_id AS "avatarId", s.id AS "sessionId"
+      SELECT a.id, a.username, a.display_name AS "displayName", a.avatar_id AS "avatarId", a.bio, s.id AS "sessionId"
       FROM sessions s JOIN accounts a ON a.id=s.account_id
       WHERE s.token_hash=$1 AND s.expires_at > now()`,
       [digest(token)],
@@ -127,6 +127,10 @@ export class AccountService {
       await db.query('UPDATE accounts SET avatar_id=$2 WHERE id=$1', [userId, imageId]);
       if (current?.avatarId && current.avatarId !== imageId) await images.collect(current.avatarId, db);
     });
+  }
+
+  async setBio(userId: string, bio: string): Promise<void> {
+    await this.db.query('UPDATE accounts SET bio=$2 WHERE id=$1', [userId, bio]);
   }
 
   private async createSession(user: Account, db = this.db): Promise<AccountSession> {

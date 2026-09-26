@@ -14,10 +14,12 @@ export function MemberSidebar({
   members,
   userId,
   voiceIds,
+  onOpenProfile,
 }: {
   members: readonly CommunityMember[];
   userId: string;
   voiceIds: ReadonlySet<string>;
+  onOpenProfile?(memberId: string, position: { x: number; y: number }): void;
 }) {
   const groups = useMemo(() => groupMembers(members, voiceIds), [members, voiceIds]);
   return (
@@ -33,9 +35,18 @@ export function MemberSidebar({
           {group.members.map((member) => {
             const speaking = voiceIds.has(member.id);
             return (
-              <div
-                className="member-entry flex min-h-9 items-center gap-2.5 rounded-md px-2 py-1 transition-colors hover:bg-accent/70"
+              <button
+                className="member-entry flex min-h-9 w-full items-center gap-2.5 rounded-md px-2 py-1 text-left transition-colors hover:bg-accent/70 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 key={member.id}
+                type="button"
+                aria-label={`View ${member.displayName}'s profile`}
+                onClick={(event) => {
+                  const sidebar = event.currentTarget.closest('.member-sidebar');
+                  const edge = sidebar?.getBoundingClientRect().left ?? event.clientX;
+                  // Profile cards open into the conversation and stop exactly
+                  // at the member sidebar divider.
+                  onOpenProfile?.(member.id, { x: edge + 12, y: event.clientY });
+                }}
               >
                 <span className="relative shrink-0">
                   <Avatar
@@ -74,7 +85,7 @@ export function MemberSidebar({
                     </span>
                   </Tooltip>
                 )}
-              </div>
+              </button>
             );
           })}
         </section>

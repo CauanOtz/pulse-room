@@ -3,6 +3,8 @@ export interface Account {
   id: string;
   username: string;
   displayName: string;
+  /** Short profile text shown to other members of shared servers. */
+  bio?: string;
   /** Content address of the picture, fetched from /api/images. */
   avatarId?: string | null;
 }

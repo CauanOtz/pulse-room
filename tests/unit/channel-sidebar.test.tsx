@@ -87,7 +87,8 @@ describe('ChannelSidebar', () => {
       occupancy: [{ roomId: 'game-room', occupants: [{ identity: 'babi-1', name: 'babi' }] }],
     });
 
-    expect(screen.getByRole('button', { name: 'babi' })).toBeInTheDocument();
+    // Somebody in a room you have not joined is still somebody you can look up.
+    expect(screen.getByRole('button', { name: "View babi's profile" })).toBeInTheDocument();
   });
 
   it('says who is live, and offers their screen to nobody who has not asked', () => {
@@ -144,7 +145,8 @@ describe('ChannelSidebar', () => {
       ],
     });
 
-    fireEvent.contextMenu(screen.getByRole('button', { name: 'Audio options for babi' }));
+    // A left click opens the person; the right click still reaches their audio.
+    fireEvent.contextMenu(screen.getByRole('button', { name: "View babi's profile" }));
 
     expect(onOpenParticipant).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'babi', name: 'babi' }),

@@ -140,6 +140,11 @@ export async function createServer(
     await accounts.changePassword(actor(request), body.currentPassword, body.password);
     return { ok: true };
   });
+  server.patch('/api/account/profile', async (request) => {
+    const { bio } = z.object({ bio: z.string().trim().max(200) }).strict().parse(request.body);
+    await accounts.setBio(actor(request).id, bio);
+    return { bio };
+  });
   server.get('/api/servers', async (request) => ({ servers: await communities.list(actor(request).id) }));
   server.post('/api/servers', async (request) =>
     communities.create(actor(request).id, z.object({ name }).strict().parse(request.body).name),

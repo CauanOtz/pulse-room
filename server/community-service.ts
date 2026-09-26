@@ -97,7 +97,7 @@ export class CommunityService {
           ).rows.map((x) => x.id)
         : [];
     const { rows: members } = await this.db.query<CommunityMember>(
-      `SELECT a.id,a.username,a.display_name AS "displayName",a.avatar_id AS "avatarId",m.role
+      `SELECT a.id,a.username,a.display_name AS "displayName",a.avatar_id AS "avatarId",a.bio,m.role
       FROM accounts a JOIN memberships m ON a.id=m.account_id WHERE m.server_id=$1 ORDER BY a.username`,
       [serverId],
     );

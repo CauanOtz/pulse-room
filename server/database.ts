@@ -119,5 +119,10 @@ export async function migrate(database: Database): Promise<void> {
       ALTER TABLE communities ADD COLUMN IF NOT EXISTS icon_id text REFERENCES images(id) ON DELETE SET NULL;
       INSERT INTO schema_migrations(version) VALUES(2) ON CONFLICT DO NOTHING;
     `);
+    await db.query(`
+      ALTER TABLE accounts ADD COLUMN IF NOT EXISTS bio text NOT NULL DEFAULT ''
+        CHECK (char_length(bio) <= 200);
+      INSERT INTO schema_migrations(version) VALUES(3) ON CONFLICT DO NOTHING;
+    `);
   });
 }
