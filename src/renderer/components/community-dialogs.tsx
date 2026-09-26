@@ -854,29 +854,36 @@ export function AccountDialog({
     <Modal
       title="Your account"
       onClose={onClose}
-      contentClassName="w-[min(38rem,calc(100vw-2rem))]"
+      contentClassName="w-[min(35rem,calc(100vw-2rem))]"
       bodyClassName="space-y-0 px-6 py-5 sm:px-7"
     >
-      <PictureField
-        name={user.displayName}
-        imageId={user.avatarId}
-        username={user.username}
-        statusLabel="Signed in"
-        variant="identity"
-        label="Profile picture"
-        canEdit
-        onChoose={async (image) => {
-          await api.upload('/api/account/avatar', image);
-          await onProfileChanged();
-        }}
-        onRemove={async () => {
-          await api.request('/api/account/avatar', 'DELETE');
-          await onProfileChanged();
-        }}
-      />
-      <section className="account-security mt-6 space-y-4 border-t border-border/70 pt-5">
+      <section aria-labelledby="account-profile-heading" className="space-y-3">
+        <h3 id="account-profile-heading" className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+          Profile
+        </h3>
+        <PictureField
+          name={user.displayName}
+          imageId={user.avatarId}
+          username={user.username}
+          statusLabel="Signed in"
+          variant="identity"
+          label="Profile picture"
+          canEdit
+          onChoose={async (image) => {
+            await api.upload('/api/account/avatar', image);
+            await onProfileChanged();
+          }}
+          onRemove={async () => {
+            await api.request('/api/account/avatar', 'DELETE');
+            await onProfileChanged();
+          }}
+        />
+      </section>
+      <section className="account-security mt-5 space-y-3.5 border-t border-border/70 pt-4.5">
         <div className="section-heading flex flex-col gap-1">
-          <h3 className="text-sm font-semibold tracking-[-0.01em] text-foreground">Password &amp; security</h3>
+          <h3 className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+            Password &amp; security
+          </h3>
           <p className="text-xs text-muted-foreground">
             Use a unique password to keep your rooms private.
           </p>
@@ -922,9 +929,9 @@ export function AccountDialog({
                 aria-describedby="password-hint"
               />
             </label>
-            <small id="password-hint">At least 12 characters. Other devices will be signed out.</small>
           </div>
-          <div className="form-actions flex flex-wrap items-center justify-end gap-2 pt-1">
+          <div className="form-actions flex flex-wrap items-center justify-between gap-2 pt-0.5">
+            <small id="password-hint">At least 12 characters. Other devices will be signed out.</small>
             <button className="primary-action inline-flex h-9 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50" disabled={busy}>
               {busy ? 'Please wait…' : 'Change password'}
             </button>
@@ -936,14 +943,14 @@ export function AccountDialog({
           </p>
         )}
       </section>
-      <footer className="account-session mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-border/70 pt-4 text-sm">
+      <footer className="account-session mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-border/70 pt-4 text-sm">
         <div className="flex min-w-0 flex-col gap-1">
-          <strong className="text-sm font-semibold">This device</strong>
-          <small className="text-xs text-muted-foreground">Sign out of Pulse Room on this computer.</small>
+          <strong className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">This device</strong>
+          <small className="text-xs text-muted-foreground">Signed in on Pulse Room on this computer.</small>
         </div>
         <button
           disabled={busy}
-          className="danger-action inline-flex h-8 items-center justify-center gap-2 rounded-md bg-transparent px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+          className="danger-action inline-flex h-8 items-center justify-center gap-2 rounded-md border border-transparent bg-transparent px-3 text-xs font-medium text-muted-foreground transition-colors hover:border-destructive/35 hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
           onClick={() => {
             setBusy(true);
             void onLogout().catch((e) => {

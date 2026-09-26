@@ -47,10 +47,10 @@ export function PictureField({
   return (
     <div
       className={cn(
-        'picture-field flex min-w-0 items-center gap-4',
+        'picture-field min-w-0',
         variant === 'identity'
-          ? 'py-1'
-          : 'rounded-xl border border-border bg-background/60 p-3.5',
+          ? 'grid grid-cols-[4rem_minmax(0,1fr)] items-start gap-x-4 py-1'
+          : 'flex items-center gap-3.5 rounded-xl border border-border bg-background/60 p-3.5',
       )}
     >
       <Avatar
@@ -59,19 +59,19 @@ export function PictureField({
         className={cn(
           'picture-preview grid shrink-0 place-items-center bg-secondary font-bold text-secondary-foreground',
           variant === 'identity'
-            ? 'size-15 rounded-[1.1rem] text-lg'
+            ? 'size-16 rounded-[1.1rem] text-lg'
             : 'size-17 rounded-2xl text-xl',
         )}
       />
-      <div className="picture-actions flex min-w-0 flex-1 flex-col gap-2">
+      <div className={cn('picture-actions flex min-w-0 flex-col gap-2', variant === 'identity' && 'pt-0.5')}>
         {variant === 'identity' ? (
-          <div className="flex min-w-0 flex-wrap items-start justify-between gap-x-4 gap-y-1">
-            <div className="flex min-w-0 flex-col leading-tight">
-              <strong className="truncate text-sm font-semibold text-foreground">{name}</strong>
-              {username && <span className="truncate text-xs text-muted-foreground">@{username}</span>}
-            </div>
+          <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-1">
+            <strong className="flex min-w-0 items-baseline gap-1.5 text-sm font-semibold text-foreground">
+              <span className="truncate">{name}</span>
+              {username && <span className="truncate text-xs font-normal text-muted-foreground">· @{username}</span>}
+            </strong>
             {statusLabel && (
-              <span className="inline-flex shrink-0 items-center gap-1.5 pt-0.5 text-[11px] font-medium text-muted-foreground">
+              <span className="inline-flex shrink-0 items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
                 <span className="size-1.5 rounded-full bg-success" aria-hidden="true" />
                 {statusLabel}
               </span>
@@ -82,7 +82,7 @@ export function PictureField({
         )}
         {canEdit ? (
           <>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className={cn('flex flex-wrap items-center gap-2', variant === 'identity' && 'mt-1')}>
               <button type="button" className="secondary-button inline-flex h-8 items-center justify-center gap-2 rounded-md border border-border bg-transparent px-3 text-xs font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50" disabled={busy} onClick={() => input.current?.click()}>
                 <ImageUp size={15} /> {imageId ? 'Replace' : 'Add picture'}
               </button>
@@ -99,7 +99,9 @@ export function PictureField({
                 {problem}
               </small>
             ) : (
-              <small className="max-w-[30rem]">PNG, JPEG or WebP. It is cropped to a square and shrunk before it is sent.</small>
+              <small className={cn('max-w-[30rem]', variant === 'identity' && 'leading-relaxed')}>
+                PNG, JPEG or WebP. It is cropped to a square and shrunk before it is sent.
+              </small>
             )}
           </>
         ) : (
