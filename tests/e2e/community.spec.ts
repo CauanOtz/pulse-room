@@ -276,11 +276,14 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
     const changeBounds = await changeButton.boundingBox();
     const signOutBounds = await window.getByRole('button', { name: 'Sign out', exact: true }).boundingBox();
     expect(signOutBounds!.y - (changeBounds!.y + changeBounds!.height)).toBeGreaterThanOrEqual(20);
-    // A picture picked here is squared and re-encoded in the client, stored by
-    // the service, and drawn back from its own address.
+    // A picture picked here is framed, re-encoded in the client, stored by the
+    // service, and drawn back from its own address.
     await window
       .locator('.picture-input')
       .setInputFiles({ name: 'me.png', mimeType: 'image/png', buffer: png(320) });
+    const framing = window.getByRole('dialog', { name: 'Add profile picture' });
+    await framing.getByRole('button', { name: 'Save picture' }).click();
+    await expect(framing).toHaveCount(0);
     await expect(window.locator('.picture-preview img')).toBeVisible();
     await expect(window.getByRole('button', { name: 'Remove' })).toBeVisible();
 
@@ -403,6 +406,9 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
     await window
       .getByLabel('Server picture', { exact: true })
       .setInputFiles({ name: 'crest.png', mimeType: 'image/png', buffer: png(256) });
+    const crest = window.getByRole('dialog', { name: 'Add server picture' });
+    await crest.getByRole('button', { name: 'Save picture' }).click();
+    await expect(crest).toHaveCount(0);
     await expect(window.locator('.picture-preview img')).toBeVisible();
     await window.screenshot({ path: 'test-results/community-server-icon.png' });
     const longServerName = 'Our private room for games and conversations with friends';

@@ -48,8 +48,9 @@ test('launches the secured desktop shell and completes the join flow', async () 
     // is present, so the test can never walk into a real call.
     await expect(window.locator('.voice-roster')).toContainText('Maya');
 
-    // Audio options live on the person, reached with a right click.
-    await window.getByRole('button', { name: 'Audio options for Maya' }).click({ button: 'right' });
+    // A left click on a person opens their profile; their audio options are
+    // still on the same row, a right click away.
+    await window.getByRole('button', { name: "View Maya's profile" }).click({ button: 'right' });
     const popover = window.getByRole('dialog', { name: 'Maya audio' });
     await expect(popover).toBeVisible();
     await window.screenshot({ path: 'test-results/pulse-room-popover.png' });
