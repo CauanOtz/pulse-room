@@ -130,7 +130,16 @@ export function ColourField({
  * A small copy of the card other people will see, redrawn as settings change.
  * The popover itself is what it imitates: banner, face, name, tag.
  */
-export function ProfilePreview({ user, theme }: { user: Account; theme: ProfileTheme | null }) {
+export function ProfilePreview({
+  user,
+  theme,
+  bio = user.bio,
+}: {
+  user: Account;
+  theme: ProfileTheme | null;
+  /** The bio as it is being written, rather than as it was last saved. */
+  bio?: string;
+}) {
   return (
     <div
       className="profile-preview overflow-hidden rounded-xl border border-border bg-popover"
@@ -152,6 +161,11 @@ export function ProfilePreview({ user, theme }: { user: Account; theme: ProfileT
           {user.tag && <TagChip tag={user.tag} size="xs" />}
         </div>
         <p className="truncate text-[11px] text-muted-foreground">@{user.username}</p>
+        {bio?.trim() && (
+          <p className="mt-2 line-clamp-2 whitespace-pre-wrap break-words text-[11.5px] leading-snug text-foreground/85">
+            {bio.trim()}
+          </p>
+        )}
       </div>
     </div>
   );
@@ -255,33 +269,28 @@ export function BannerField({
   );
 }
 
-const defaultTheme: ProfileTheme = { primary: '#6a5acd', accent: '#e8508a' };
+export const defaultTheme: ProfileTheme = { primary: '#6a5acd', accent: '#e8508a' };
+
+/** Whether two themes paint the same card. */
+export const sameTheme = (a: ProfileTheme | null, b: ProfileTheme | null): boolean =>
+  a === b || (!!a && !!b && a.primary === b.primary && a.accent === b.accent);
 
 /**
- * The two colours a profile is painted in. Changes show in the preview as they
- * are made and are only kept when saved, so trying a colour costs nothing.
+ * The two colours a profile is painted in. Nothing here is kept on its own:
+ * the dialog that holds it saves every pending change together, so trying a
+ * colour costs nothing and the preview beside it shows the result at once.
  */
 export function ThemeEditor({
-  theme,
-  onPreview,
-  onSave,
+  value,
+  saved,
+  onChange,
 }: {
-  theme: ProfileTheme | null;
-  onPreview(theme: ProfileTheme | null): void;
-  onSave(theme: ProfileTheme | null): Promise<void>;
+  /** What is being tried right now. */
+  value: ProfileTheme | null;
+  /** What the service holds, for switching the colours back on. */
+  saved: ProfileTheme | null;
+  onChange(theme: ProfileTheme | null): void;
 }) {
-  const [draft, setDraft] = useState<ProfileTheme | null>(theme);
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState('');
-  useEffect(() => setDraft(theme), [theme]);
-
-  const update = (next: ProfileTheme | null) => {
-    setDraft(next);
-    setMessage('');
-    onPreview(next);
-  };
-  const unchanged = JSON.stringify(draft) === JSON.stringify(theme);
-
   return (
     <section aria-labelledby="account-theme-heading" className="theme-editor space-y-3">
       <Heading
@@ -293,48 +302,17 @@ export function ThemeEditor({
         <input
           type="checkbox"
           className="size-4 accent-foreground"
-          checked={draft !== null}
-          onChange={(event) => update(event.target.checked ? (theme ?? defaultTheme) : null)}
+          checked={value !== null}
+          onChange={(event) => onChange(event.target.checked ? (saved ?? defaultTheme) : null)}
         />
         Use my own colours
       </label>
-      {draft && (
-        <div className="grid gap-4 sm:grid-cols-2">
-          <ColourField label="Primary" value={draft.primary} onChange={(primary) => update({ ...draft, primary })} />
-          <ColourField label="Accent" value={draft.accent} onChange={(accent) => update({ ...draft, accent })} />
+      {value && (
+        <div className="grid gap-4">
+          <ColourField label="Primary" value={value.primary} onChange={(primary) => onChange({ ...value, primary })} />
+          <ColourField label="Accent" value={value.accent} onChange={(accent) => onChange({ ...value, accent })} />
         </div>
       )}
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          className={primaryClass}
-          disabled={busy || unchanged}
-          onClick={async () => {
-            setBusy(true);
-            setMessage('');
-            try {
-              await onSave(draft);
-              setMessage('Colours saved.');
-            } catch (error) {
-              setMessage(errorMessage(error));
-            } finally {
-              setBusy(false);
-            }
-          }}
-        >
-          {busy ? 'Saving…' : 'Save colours'}
-        </button>
-        {!unchanged && (
-          <button type="button" className="text-xs text-muted-foreground hover:text-foreground" onClick={() => update(theme)}>
-            Undo
-          </button>
-        )}
-        {message && (
-          <span className="text-xs text-muted-foreground" role="status">
-            {message}
-          </span>
-        )}
-      </div>
     </section>
   );
 }

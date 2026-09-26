@@ -146,7 +146,8 @@ test('an animated picture, a banner, colours and a server tag, end to end', asyn
     expect(inspectImage(moving.bytes, 'banner')).toEqual({ mime: 'image/gif', width: 600, height: 240, frames: 6 });
     await expect(account.locator('.banner-field .profile-banner')).toHaveAttribute('data-banner', 'picture');
 
-    // ------------------------------------------------ colours
+    // ------------------------------------------------ colours, in their own section
+    await account.getByRole('button', { name: /^Personalization/ }).click();
     const preview = account.getByRole('img', { name: 'Profile preview' });
     await expect(preview).not.toHaveAttribute('data-themed', 'true');
     await account.getByLabel('Use my own colours').check();
@@ -155,9 +156,17 @@ test('an animated picture, a banner, colours and a server tag, end to end', asyn
     await account.getByRole('button', { name: 'Primary: #2bb5a8' }).click();
     await account.getByRole('button', { name: 'Accent: #6a5acd' }).click();
     expect((await me()).theme).toBeNull();
-    await account.getByRole('button', { name: 'Save colours' }).click();
-    await expect(account.locator('.theme-editor').getByRole('status')).toHaveText('Colours saved.');
+
+    // A bio written in another section waits in the same bar as the colours.
+    await account.getByRole('button', { name: /^Profile/ }).click();
+    await account.getByLabel('Bio').fill('Still here at three in the morning.');
+    const pending = account.getByRole('region', { name: 'Unsaved changes' });
+    await expect(pending).toBeVisible();
+    await window.screenshot({ path: 'test-results/profile-account-pending.png' });
+    await pending.getByRole('button', { name: 'Save changes' }).click();
+    await expect(pending.getByRole('status')).toHaveText('Changes saved.');
     expect((await me()).theme).toEqual({ primary: '#2bb5a8', accent: '#6a5acd' });
+    expect((await me()).bio).toBe('Still here at three in the morning.');
 
     // ------------------------------------------------ wearing the tag
     await account.getByRole('radio', { name: 'Wear the club tag of Clube' }).check();

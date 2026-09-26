@@ -104,7 +104,7 @@ export function PictureField({
                 {problem}
               </small>
             ) : (
-              <small className={cn('max-w-[30rem]', variant === 'identity' && 'leading-relaxed')}>
+              <small className={cn('max-w-[30rem] text-[11px] font-normal text-muted-foreground', variant === 'identity' && 'leading-relaxed')}>
                 PNG, JPEG, WebP or GIF · Max 15 MB. A GIF keeps moving.
               </small>
             )}

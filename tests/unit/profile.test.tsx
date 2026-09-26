@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Avatar, ImagesProvider } from '../../src/renderer/components/avatar';
 import { ProfilePopover } from '../../src/renderer/components/profile-popover';
 import { ServerTagEditor, TagWearer, ThemeEditor } from '../../src/renderer/components/profile-editors';
+import { AccountDialog } from '../../src/renderer/components/account-dialog';
 import { TagChip } from '../../src/renderer/components/profile-identity';
 import { TooltipProvider } from '../../src/renderer/components/ui/tooltip';
 import { ImageCache } from '../../src/renderer/infrastructure/image-cache';
@@ -243,39 +244,150 @@ describe('ServerTagEditor', () => {
 });
 
 describe('ThemeEditor', () => {
-  it('previews a colour before it is kept, and can take it back', () => {
-    const onPreview = vi.fn();
-    render(<ThemeEditor theme={null} onPreview={onPreview} onSave={async () => undefined} />);
-    expect(screen.getByRole('button', { name: 'Save colours' })).toBeDisabled();
+  const edit = (value: Parameters<typeof ThemeEditor>[0]['value'], saved = value) => {
+    const onChange = vi.fn();
+    render(<ThemeEditor value={value} saved={saved} onChange={onChange} />);
+    return onChange;
+  };
 
+  it('switches the colours on from what was saved, or from a pair that works', () => {
+    expect(edit(null)).not.toHaveBeenCalled();
     fireEvent.click(screen.getByLabelText('Use my own colours'));
-    expect(onPreview).toHaveBeenLastCalledWith({ primary: '#6a5acd', accent: '#e8508a' });
-    fireEvent.click(screen.getByRole('button', { name: 'Primary: #45cf8a' }));
-    expect(onPreview).toHaveBeenLastCalledWith({ primary: '#45cf8a', accent: '#e8508a' });
-
-    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
-    expect(onPreview).toHaveBeenLastCalledWith(null);
     expect(screen.getByLabelText('Use my own colours')).not.toBeChecked();
+    cleanup();
+
+    const onChange = edit(null);
+    fireEvent.click(screen.getByLabelText('Use my own colours'));
+    expect(onChange).toHaveBeenLastCalledWith({ primary: '#6a5acd', accent: '#e8508a' });
+    cleanup();
+
+    const back = edit(null, { primary: '#111111', accent: '#222222' });
+    fireEvent.click(screen.getByLabelText('Use my own colours'));
+    expect(back).toHaveBeenLastCalledWith({ primary: '#111111', accent: '#222222' });
+  });
+
+  it('changes one colour at a time', () => {
+    const onChange = edit({ primary: '#111111', accent: '#222222' });
+    fireEvent.click(screen.getByRole('button', { name: 'Primary: #45cf8a' }));
+    expect(onChange).toHaveBeenLastCalledWith({ primary: '#45cf8a', accent: '#222222' });
   });
 
   it('only takes a real colour from the text box', () => {
-    const onPreview = vi.fn();
-    render(
-      <ThemeEditor theme={{ primary: '#111111', accent: '#222222' }} onPreview={onPreview} onSave={async () => undefined} />,
-    );
+    const onChange = edit({ primary: '#111111', accent: '#222222' });
     const hex = screen.getByLabelText('Primary, hex');
     fireEvent.change(hex, { target: { value: '#12' } });
-    expect(onPreview).not.toHaveBeenCalled();
+    expect(onChange).not.toHaveBeenCalled();
     fireEvent.change(hex, { target: { value: 'ABCDEF' } });
-    expect(onPreview).toHaveBeenLastCalledWith({ primary: '#abcdef', accent: '#222222' });
+    expect(onChange).toHaveBeenLastCalledWith({ primary: '#abcdef', accent: '#222222' });
   });
 
-  it('hands the card back to the application colours when switched off', async () => {
-    const onSave = vi.fn(async () => undefined);
-    render(<ThemeEditor theme={{ primary: '#111111', accent: '#222222' }} onPreview={() => undefined} onSave={onSave} />);
+  it('hands the card back to the application colours when switched off', () => {
+    const onChange = edit({ primary: '#111111', accent: '#222222' });
     fireEvent.click(screen.getByLabelText('Use my own colours'));
-    fireEvent.click(screen.getByRole('button', { name: 'Save colours' }));
-    await waitFor(() => expect(onSave).toHaveBeenCalledWith(null));
-    expect(await screen.findByRole('status')).toHaveTextContent('Colours saved.');
+    expect(onChange).toHaveBeenLastCalledWith(null);
+  });
+});
+
+describe('AccountDialog', () => {
+  const account: Account = { ...owner, bio: 'hi', theme: null };
+  const setUp = () => {
+    const api = {
+      request: vi.fn(async (url: string) => (url === '/api/servers' ? { servers: [] } : {})),
+      upload: vi.fn(async () => ({})),
+    } as unknown as CommunityClient;
+    const onProfileChanged = vi.fn(async () => undefined);
+    const onClose = vi.fn();
+    render(
+      <TooltipProvider>
+        <AccountDialog
+          api={api}
+          user={account}
+          onClose={onClose}
+          onLogout={async () => undefined}
+          onProfileChanged={onProfileChanged}
+        />
+      </TooltipProvider>,
+    );
+    return { api, onProfileChanged, onClose };
+  };
+  const section = (name: string) => screen.getByRole('button', { name: new RegExp(`^${name}`) });
+
+  it('opens on the profile, and keeps each part of the account in its own section', () => {
+    setUp();
+    expect(section('Profile')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByLabelText('Bio')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Change password' })).toBeNull();
+
+    fireEvent.click(section('Security'));
+    expect(screen.getByRole('button', { name: 'Change password' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Sign out/ })).toBeInTheDocument();
+    expect(screen.queryByLabelText('Bio')).toBeNull();
+
+    fireEvent.click(section('Personalization'));
+    expect(screen.getByLabelText('Use my own colours')).toBeInTheDocument();
+  });
+
+  it('holds nothing pending until something changes', () => {
+    setUp();
+    expect(screen.queryByRole('region', { name: 'Unsaved changes' })).toBeNull();
+  });
+
+  it('keeps a change pending across sections, and marks where it is', () => {
+    setUp();
+    fireEvent.change(screen.getByLabelText('Bio'), { target: { value: 'new words' } });
+    expect(screen.getByRole('region', { name: 'Unsaved changes' })).toBeInTheDocument();
+
+    fireEvent.click(section('Security'));
+    // Still there from another section, and the section it came from says so.
+    expect(screen.getByRole('region', { name: 'Unsaved changes' })).toBeInTheDocument();
+    expect(section('Profile')).toContainElement(screen.getByLabelText('Unsaved changes', { selector: 'span' }));
+
+    fireEvent.click(section('Profile'));
+    expect(screen.getByLabelText('Bio')).toHaveValue('new words');
+  });
+
+  it('saves the bio and the colours together, and nothing that did not change', async () => {
+    const { api, onProfileChanged } = setUp();
+    fireEvent.change(screen.getByLabelText('Bio'), { target: { value: '  new words  ' } });
+    fireEvent.click(section('Personalization'));
+    fireEvent.click(screen.getByLabelText('Use my own colours'));
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    await waitFor(() => expect(onProfileChanged).toHaveBeenCalled());
+    expect(api.request).toHaveBeenCalledWith('/api/account/profile', 'PATCH', { bio: 'new words' });
+    expect(api.request).toHaveBeenCalledWith('/api/account/theme', 'PATCH', {
+      theme: { primary: '#6a5acd', accent: '#e8508a' },
+    });
+  });
+
+  it('only sends the part that changed', async () => {
+    const { api, onProfileChanged } = setUp();
+    fireEvent.change(screen.getByLabelText('Bio'), { target: { value: 'only this' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+    await waitFor(() => expect(onProfileChanged).toHaveBeenCalled());
+    expect(api.request).not.toHaveBeenCalledWith('/api/account/theme', 'PATCH', expect.anything());
+  });
+
+  it('puts everything back with Reset', () => {
+    setUp();
+    fireEvent.change(screen.getByLabelText('Bio'), { target: { value: 'changed my mind' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Reset' }));
+    expect(screen.getByLabelText('Bio')).toHaveValue('hi');
+    expect(screen.queryByRole('region', { name: 'Unsaved changes' })).toBeNull();
+  });
+
+  it('asks before throwing away a change on the way out', async () => {
+    const { onClose } = setUp();
+    fireEvent.change(screen.getByLabelText('Bio'), { target: { value: 'unsaved' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Close dialog' }));
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.click(await screen.findByRole('button', { name: 'Discard' }));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+  });
+
+  it('closes at once when there is nothing to lose', () => {
+    const { onClose } = setUp();
+    fireEvent.click(screen.getByRole('button', { name: 'Close dialog' }));
+    expect(onClose).toHaveBeenCalled();
   });
 });

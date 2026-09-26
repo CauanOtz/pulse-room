@@ -257,6 +257,9 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
     await window.keyboard.press('Escape');
     await window.getByRole('button', { name: 'Account settings' }).click();
     await expectContainedDialog(window);
+    // The password lives in its own section, beside the profile rather than
+    // at the bottom of it.
+    await window.getByRole('button', { name: /^Security/ }).click();
     await expect(window.getByRole('heading', { name: 'Password & security' })).toBeVisible();
     const changeButton = window.getByRole('button', { name: 'Change password', exact: true });
     // The primary action wears the theme's primary colour, whatever it is set
@@ -278,6 +281,7 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
     expect(signOutBounds!.y - (changeBounds!.y + changeBounds!.height)).toBeGreaterThanOrEqual(20);
     // A picture picked here is framed, re-encoded in the client, stored by the
     // service, and drawn back from its own address.
+    await window.getByRole('button', { name: /^Profile/ }).click();
     await window
       .locator('.picture-input')
       .setInputFiles({ name: 'me.png', mimeType: 'image/png', buffer: png(320) });
@@ -443,6 +447,7 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
     await window.screenshot({ path: 'test-results/community-long-name.png' });
     await window.getByRole('button', { name: 'Your profile' }).click();
     await window.getByRole('button', { name: 'Account settings' }).click();
+    await window.getByRole('button', { name: /^Security/ }).click();
     await window.getByLabel('Current password', { exact: true }).fill('Testing private communities!');
     await window.getByLabel('New password', { exact: true }).fill('A different secure password!');
     await changeButton.click();
