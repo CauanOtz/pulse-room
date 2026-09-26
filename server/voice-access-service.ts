@@ -1,18 +1,16 @@
 import { RoomServiceClient, TrackSource } from 'livekit-server-sdk';
-import { canManage } from '../src/shared/community.js';
-import type { CommunityChannel, MemberRole } from '../src/shared/community.js';
+import { has, Permission } from '../src/shared/permissions.js';
 import { selectLiveKitConnection, type ServerConfiguration } from './config.js';
 import type { Database } from './database.js';
 import { CommunityService } from './community-service.js';
 import { HttpError } from './security.js';
 
 export const voiceRoomName = (id: string): string => `channel_${id}`;
-export function publishSources(channel: CommunityChannel, role: MemberRole): TrackSource[] {
+/** What somebody may send into a call, from what they may do in its channel. */
+export function publishSources(permissions: number): TrackSource[] {
   return [
-    ...(channel.allowSpeak || canManage(role) ? [TrackSource.MICROPHONE] : []),
-    ...(channel.allowShare || canManage(role)
-      ? [TrackSource.SCREEN_SHARE, TrackSource.SCREEN_SHARE_AUDIO]
-      : []),
+    ...(has(permissions, Permission.Speak) ? [TrackSource.MICROPHONE] : []),
+    ...(has(permissions, Permission.ShareScreen) ? [TrackSource.SCREEN_SHARE, TrackSource.SCREEN_SHARE_AUDIO] : []),
   ];
 }
 export interface VoiceAdministration {
@@ -52,6 +50,13 @@ export class VoiceAccessService {
         connection.apiSecret,
       );
   }
+  /** Takes one person out of whichever calls they are in. */
+  async disconnect(userId: string): Promise<void> {
+    for (const room of await this.client.listRooms())
+      for (const person of await this.client.listParticipants(room.name))
+        if (person.identity.startsWith(`${userId}:`)) await this.client.removeParticipant(room.name, person.identity);
+  }
+
   reconcile(): Promise<void> {
     if (this.running) return this.running;
     this.running = this.check().finally(() => {
@@ -82,12 +87,13 @@ export class VoiceAccessService {
           continue;
         }
         try {
-          const { channel, role } = await this.communities.channel(userId, room.name.slice(8));
+          const { channel, permissions, access } = await this.communities.channel(userId, room.name.slice(8));
           if (channel.type !== 'voice') throw new HttpError(404, 'Not a voice channel');
-          const sources = publishSources(channel, role);
+          if (!has(permissions, Permission.Connect)) throw new HttpError(403, 'Not allowed in this call');
+          const sources = publishSources(permissions);
           await this.client.updateParticipant(room.name, person.identity, undefined, {
             canPublish: sources.length > 0,
-            canSubscribe: true,
+            canSubscribe: !access.deafened,
             canPublishData: false,
             canPublishSources: sources,
           });

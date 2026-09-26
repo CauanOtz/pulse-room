@@ -10,7 +10,10 @@ import { AccountService, type AuthenticatedAccount } from './account-service.js'
 import { CommunityService } from './community-service.js';
 import { ImageService, imageLimits } from './image-service.js';
 import { HttpError } from './security.js';
-import { tagBadges, tagTextPattern } from '../src/shared/community.js';
+import { tagBadges, tagModes, tagTextPattern } from '../src/shared/community.js';
+import { allPermissions, channelScoped, has, Permission } from '../src/shared/permissions.js';
+import { RoleService } from './role-service.js';
+import { TagService, type TagInput } from './tag-service.js';
 import {
   publishSources,
   VoiceAccessService,
@@ -24,8 +27,38 @@ const colour = z
   .regex(/^#[0-9a-fA-F]{6}$/)
   .transform((value) => value.toLowerCase());
 const theme = z.object({ primary: colour, accent: colour }).strict();
-const serverTag = z
-  .object({ text: z.string().regex(tagTextPattern), badge: z.enum(tagBadges), colour })
+const tagInput = z
+  .object({
+    text: z.string().regex(tagTextPattern),
+    badge: z.enum(tagBadges),
+    colour,
+    name: z.string().trim().max(32),
+    mode: z.enum(tagModes as [TagInput['mode'], ...TagInput['mode'][]]),
+    roleIds: z.array(z.uuid()).max(50),
+  })
+  .strict();
+const bits = (mask: number) =>
+  z
+    .number()
+    .int()
+    .min(0)
+    .refine((value) => (value & ~mask) === 0);
+const override = z
+  .object({
+    targetType: z.enum(['role', 'member']),
+    targetId: z.uuid(),
+    allow: bits(channelScoped),
+    deny: bits(channelScoped),
+  })
+  .strict();
+const overrides = z.object({ overrides: z.array(override).max(100) }).strict();
+const roleInput = z
+  .object({
+    name: z.string().trim().min(1).max(32),
+    colour: colour.nullable(),
+    permissions: bits(allPermissions),
+    hoist: z.boolean(),
+  })
   .strict();
 const password = z.string().min(12).max(128);
 const username = z
@@ -34,17 +67,23 @@ const username = z
   .min(3)
   .max(32)
   .regex(/^[a-zA-Z0-9_]+$/);
-const channelSchema = z
-  .object({
-    name,
-    type: z.enum(['voice', 'text']),
-    private: z.boolean(),
-    memberIds: z.array(z.uuid()).max(100),
-    allowSpeak: z.boolean(),
-    allowShare: z.boolean(),
-    readOnly: z.boolean(),
-  })
-  .strict();
+// Older clients describe a channel by the switches of the fixed roles; this
+// version by where it lives. Both are accepted, and the old form is turned
+// into overrides on the way in.
+const channelSchema = z.union([
+  z
+    .object({
+      name,
+      type: z.enum(['voice', 'text']),
+      private: z.boolean(),
+      memberIds: z.array(z.uuid()).max(100),
+      allowSpeak: z.boolean(),
+      allowShare: z.boolean(),
+      readOnly: z.boolean(),
+    })
+    .strict(),
+  z.object({ name, type: z.enum(['voice', 'text']), categoryId: z.uuid().nullable().optional() }).strict(),
+]);
 const publicRoutes = new Set(['/health', '/api/auth/register', '/api/auth/login', '/api/auth/recover']);
 
 export async function createServer(
@@ -62,6 +101,8 @@ export async function createServer(
   const images = new ImageService(db);
   const tokens = new TokenService(configuration);
   const voice = new VoiceAccessService(db, communities, configuration, voiceClient);
+  const roles = new RoleService(db);
+  const tags = new TagService(db);
   const server = Fastify({
     bodyLimit: 16_384,
     logger: database
@@ -84,7 +125,7 @@ export async function createServer(
     z.uuid().parse((request.params as Record<string, string>)[key]);
   await server.register(cors, {
     origin: true,
-    methods: ['GET', 'HEAD', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   });
   await server.register(rateLimit, { max: 300, timeWindow: '1 minute' });
   server.addHook('onRequest', async (request, reply) => {
@@ -108,6 +149,8 @@ export async function createServer(
     return reply.code(503).send({ error: 'Service unavailable. Please try again.' });
   });
   const authLimit = { rateLimit: { max: 10, timeWindow: '1 minute' } };
+  /** Pushes a change of who may speak or hear into the calls now, not at the next sweep. */
+  const enforce = () => void voice.reconcile().catch(() => server.log.warn('Voice access reconciliation failed'));
   server.get('/health', async () => {
     await db.query('SELECT 1');
     return { status: 'ok', service: 'pulse-room-token-server' };
@@ -152,10 +195,20 @@ export async function createServer(
     return { theme: body.theme };
   });
 
-  server.patch('/api/account/tag', async (request) => {
-    const { serverId } = z.object({ serverId: z.uuid().nullable() }).strict().parse(request.body);
-    await accounts.wearTag(actor(request).id, serverId);
-    return { user: await accounts.profile(actor(request).id) };
+  // One tag is worn per server now, and roles replace the fixed standings; the
+  // calls of older clients for those answer with why they no longer work.
+  const updateRequired = async () => {
+    throw new HttpError(410, 'Update Pulse Room to use roles and server tags.');
+  };
+  server.patch('/api/account/tag', updateRequired);
+  server.patch('/api/servers/:serverId/tag', updateRequired);
+  server.patch('/api/servers/:serverId/members/:userId', updateRequired);
+
+  server.get('/api/account/tags', async (request) => ({ choices: await tags.choices(actor(request).id) }));
+  server.put('/api/servers/:serverId/worn-tag', async (request) => {
+    const { tagId } = z.object({ tagId: z.uuid().nullable() }).strict().parse(request.body);
+    await tags.wear(actor(request).id, id(request, 'serverId'), tagId);
+    return { ok: true };
   });
 
   server.patch('/api/account/profile', async (request) => {
@@ -199,38 +252,154 @@ export async function createServer(
     );
     return { ok: true };
   });
-  server.patch('/api/servers/:serverId/members/:userId', async (request) => {
-    await communities.setMember(
+  server.delete('/api/servers/:serverId/members/:userId', async (request) => {
+    await communities.removeFromServer(actor(request).id, id(request, 'serverId'), id(request, 'userId'));
+    enforce();
+    return { ok: true };
+  });
+
+  // ------------------------------------------------------------ roles
+  server.post('/api/servers/:serverId/roles', async (request) => ({
+    id: await roles.create(actor(request).id, id(request, 'serverId'), roleInput.parse(request.body)),
+  }));
+  server.patch('/api/servers/:serverId/roles/:roleId', async (request) => {
+    await roles.update(
       actor(request).id,
       id(request, 'serverId'),
-      id(request, 'userId'),
-      z
-        .object({ role: z.enum(['admin', 'member']) })
-        .strict()
-        .parse(request.body).role,
+      id(request, 'roleId'),
+      roleInput.parse(request.body),
     );
+    enforce();
     return { ok: true };
   });
-  server.delete('/api/servers/:serverId/members/:userId', async (request) => {
-    await communities.setMember(actor(request).id, id(request, 'serverId'), id(request, 'userId'), null);
+  server.delete('/api/servers/:serverId/roles/:roleId', async (request) => {
+    await roles.remove(actor(request).id, id(request, 'serverId'), id(request, 'roleId'));
+    enforce();
     return { ok: true };
   });
+  server.put('/api/servers/:serverId/roles', async (request) => {
+    const { roleIds } = z.object({ roleIds: z.array(z.uuid()).max(50) }).strict().parse(request.body);
+    await roles.reorder(actor(request).id, id(request, 'serverId'), roleIds);
+    return { ok: true };
+  });
+  server.put('/api/servers/:serverId/members/:userId/roles', async (request) => {
+    const { roleIds } = z.object({ roleIds: z.array(z.uuid()).max(50) }).strict().parse(request.body);
+    await roles.setMemberRoles(actor(request).id, id(request, 'serverId'), id(request, 'userId'), roleIds);
+    enforce();
+    return { ok: true };
+  });
+
+  // ------------------------------------------------------- moderation
+  server.patch('/api/servers/:serverId/members/:userId/moderation', async (request) => {
+    const body = z
+      .object({
+        timeoutMinutes: z.number().int().min(1).max(40_320).nullable().optional(),
+        muted: z.boolean().optional(),
+        deafened: z.boolean().optional(),
+      })
+      .strict()
+      .parse(request.body);
+    await roles.moderate(actor(request).id, id(request, 'serverId'), id(request, 'userId'), body);
+    enforce();
+    return { ok: true };
+  });
+  server.post('/api/servers/:serverId/members/:userId/disconnect', async (request) => {
+    const userId = id(request, 'userId');
+    await roles.checkDisconnect(actor(request).id, id(request, 'serverId'), userId);
+    await voice.disconnect(userId);
+    return { ok: true };
+  });
+  server.get('/api/servers/:serverId/bans', async (request) => ({
+    bans: await roles.bans(actor(request).id, id(request, 'serverId')),
+  }));
+  server.post('/api/servers/:serverId/bans', async (request) => {
+    const body = z
+      .object({ userId: z.uuid(), reason: z.string().trim().max(200).default('') })
+      .strict()
+      .parse(request.body);
+    await roles.ban(actor(request).id, id(request, 'serverId'), body.userId, body.reason);
+    enforce();
+    return { ok: true };
+  });
+  server.delete('/api/servers/:serverId/bans/:userId', async (request) => {
+    await roles.unban(actor(request).id, id(request, 'serverId'), id(request, 'userId'));
+    return { ok: true };
+  });
+
+  // ------------------------------------------------------------- tags
+  server.post('/api/servers/:serverId/tags', async (request) => ({
+    id: await tags.create(actor(request).id, id(request, 'serverId'), tagInput.parse(request.body)),
+  }));
+  server.patch('/api/tags/:tagId', async (request) => {
+    await tags.update(actor(request).id, id(request, 'tagId'), tagInput.parse(request.body));
+    return { ok: true };
+  });
+  server.delete('/api/tags/:tagId', async (request) => {
+    await tags.remove(actor(request).id, id(request, 'tagId'));
+    return { ok: true };
+  });
+  server.put('/api/tags/:tagId/holders/:userId', async (request) => {
+    await tags.assign(actor(request).id, id(request, 'tagId'), id(request, 'userId'), true);
+    return { ok: true };
+  });
+  server.delete('/api/tags/:tagId/holders/:userId', async (request) => {
+    await tags.assign(actor(request).id, id(request, 'tagId'), id(request, 'userId'), false);
+    return { ok: true };
+  });
+
+  // ------------------------------------------------ channels, categories
   server.post('/api/servers/:serverId/channels', async (request) => ({
-    id: await communities.saveChannel(
+    id: await communities.createChannel(
       actor(request).id,
       id(request, 'serverId'),
       channelSchema.parse(request.body),
     ),
   }));
   server.patch('/api/channels/:channelId', async (request) => {
-    const channelId = id(request, 'channelId');
-    const { channel } = await communities.channel(actor(request).id, channelId);
-    await communities.saveChannel(
+    await communities.updateChannel(actor(request).id, id(request, 'channelId'), channelSchema.parse(request.body));
+    enforce();
+    return { ok: true };
+  });
+  server.put('/api/channels/:channelId/overrides', async (request) => {
+    await communities.setChannelOverrides(
       actor(request).id,
-      channel.serverId,
-      channelSchema.parse(request.body),
-      channelId,
+      id(request, 'channelId'),
+      overrides.parse(request.body).overrides,
     );
+    enforce();
+    return { ok: true };
+  });
+  server.post('/api/channels/:channelId/sync', async (request) => {
+    await communities.syncChannel(actor(request).id, id(request, 'channelId'));
+    enforce();
+    return { ok: true };
+  });
+  server.post('/api/servers/:serverId/categories', async (request) => ({
+    id: await communities.createCategory(
+      actor(request).id,
+      id(request, 'serverId'),
+      z.object({ name }).strict().parse(request.body).name,
+    ),
+  }));
+  server.patch('/api/categories/:categoryId', async (request) => {
+    await communities.renameCategory(
+      actor(request).id,
+      id(request, 'categoryId'),
+      z.object({ name }).strict().parse(request.body).name,
+    );
+    return { ok: true };
+  });
+  server.put('/api/categories/:categoryId/overrides', async (request) => {
+    await communities.setCategoryOverrides(
+      actor(request).id,
+      id(request, 'categoryId'),
+      overrides.parse(request.body).overrides,
+    );
+    enforce();
+    return { ok: true };
+  });
+  server.delete('/api/categories/:categoryId', async (request) => {
+    await communities.deleteCategory(actor(request).id, id(request, 'categoryId'));
     return { ok: true };
   });
   server.delete('/api/channels/:channelId', async (request) => {
@@ -276,13 +445,15 @@ export async function createServer(
   });
   server.post('/api/rooms/:roomId/token', async (request) => {
     const user = actor(request);
-    const { channel, role } = await communities.channel(user.id, id(request, 'roomId'));
+    const { channel, permissions, access } = await communities.channel(user.id, id(request, 'roomId'));
     if (channel.type !== 'voice') throw new HttpError(400, 'Choose a voice channel.');
+    if (!has(permissions, Permission.Connect)) throw new HttpError(403, 'You cannot join this call.');
     return tokens.issueRoomToken({
       roomId: voiceRoomName(channel.id),
       identity: `${user.id}:${user.sessionId}`,
       participantName: user.displayName,
-      sources: publishSources(channel, role),
+      sources: publishSources(permissions),
+      canSubscribe: !access.deafened,
     });
   });
   const uploadLimit = {
@@ -328,12 +499,6 @@ export async function createServer(
       throw error;
     }
     return { iconId: imageId };
-  });
-
-  server.patch('/api/servers/:serverId/tag', async (request) => {
-    const body = z.object({ tag: serverTag.nullable() }).strict().parse(request.body);
-    await communities.setTag(actor(request).id, id(request, 'serverId'), body.tag);
-    return { tag: body.tag };
   });
 
   server.delete('/api/servers/:serverId/icon', async (request) => {

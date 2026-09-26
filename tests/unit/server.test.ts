@@ -32,7 +32,7 @@ let presenceDown = false;
 let requestId = 1;
 const password = 'A long test passphrase!';
 const request = (
-  method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
   url: string,
   session?: AccountSession,
   payload?: unknown,
@@ -278,10 +278,36 @@ describe('server and channel isolation', () => {
     presenceDown = false;
   });
   it('enforces role hierarchy, protects ownership and blocks self promotion', async () => {
+    const everyone = coupleDetail.roles!.find((role) => role.isDefault)!;
     expect(
-      (await request('PATCH', `/api/servers/${couple.id}/members/${wife.user.id}`, wife, { role: 'admin' }))
+      (
+        await request('POST', `/api/servers/${couple.id}/roles`, wife, {
+          name: 'Boss',
+          colour: null,
+          permissions: 1 << 17,
+          hoist: false,
+        })
+      ).statusCode,
+    ).toBe(403);
+    expect(
+      (await request('PUT', `/api/servers/${couple.id}/members/${wife.user.id}/roles`, wife, { roleIds: [] }))
         .statusCode,
     ).toBe(403);
+    expect(
+      (
+        await request('PATCH', `/api/servers/${couple.id}/roles/${everyone.id}`, wife, {
+          name: '@everyone',
+          colour: null,
+          permissions: (1 << 18) - 1,
+          hoist: false,
+        })
+      ).statusCode,
+    ).toBe(403);
+    // The call an older client made to promote somebody explains itself.
+    expect(
+      (await request('PATCH', `/api/servers/${couple.id}/members/${wife.user.id}`, owner, { role: 'admin' }))
+        .statusCode,
+    ).toBe(410);
     expect((await request('DELETE', `/api/servers/${couple.id}`, wife)).statusCode).toBe(403);
     expect(
       (await request('DELETE', `/api/servers/${couple.id}/members/${owner.user.id}`, owner)).statusCode,
@@ -291,6 +317,8 @@ describe('server and channel isolation', () => {
         .statusCode,
     ).toBe(403);
   });
+  // Written the way an older client writes a channel, which the service still
+  // takes and turns into permissions.
   it('hides private channels and enforces speak/share grants and read-only chat', async () => {
     const service = new CommunityService(db);
     const input = {
@@ -302,19 +330,19 @@ describe('server and channel isolation', () => {
       allowShare: false,
       readOnly: false,
     };
-    const channelId = await service.saveChannel(owner.user.id, couple.id, input);
+    const channelId = await service.createChannel(owner.user.id, couple.id, input);
     expect(
       (await request('GET', `/api/servers/${couple.id}`, wife))
         .json()
         .channels.some((c: { id: string }) => c.id === channelId),
     ).toBe(false);
     expect((await request('POST', `/api/rooms/${channelId}/token`, wife, {})).statusCode).toBe(404);
-    await service.saveChannel(owner.user.id, couple.id, { ...input, memberIds: [wife.user.id] }, channelId);
+    await service.updateChannel(owner.user.id, channelId, { ...input, memberIds: [wife.user.id] });
     const result = await request('POST', `/api/rooms/${channelId}/token`, wife, {});
     const jwt = JSON.parse(Buffer.from(result.json().token.split('.')[1], 'base64url').toString());
     expect(jwt.video.canPublish).toBe(false);
     expect(jwt.video.canSubscribe).toBe(true);
-    const textId = await service.saveChannel(owner.user.id, couple.id, {
+    const textId = await service.createChannel(owner.user.id, couple.id, {
       ...input,
       type: 'text',
       private: false,
@@ -374,7 +402,7 @@ describe('server and channel isolation', () => {
   it('rejects private ACL members from other servers and UUID injection', async () => {
     const service = new CommunityService(db);
     await expect(
-      service.saveChannel(owner.user.id, couple.id, {
+      service.createChannel(owner.user.id, couple.id, {
         name: 'bad',
         type: 'voice',
         private: true,
@@ -401,7 +429,7 @@ describe('server and channel isolation', () => {
     await access.reconcile();
     expect(client.updateParticipant).toHaveBeenCalled();
     expect(client.removeParticipant).not.toHaveBeenCalled();
-    await service.setMember(owner.user.id, couple.id, wife.user.id, null);
+    await service.removeFromServer(owner.user.id, couple.id, wife.user.id);
     await access.reconcile();
     expect(client.removeParticipant).toHaveBeenCalled();
     expect((await request('POST', `/api/rooms/${channel.id}/token`, wife, {})).statusCode).toBe(404);
@@ -691,72 +719,5 @@ describe('profiles', () => {
   it('hands the card back to the application when the theme is cleared', async () => {
     expect((await request('PATCH', '/api/account/theme', passerby, { theme: null })).statusCode).toBe(200);
     expect((await me(passerby)).theme).toBeNull();
-  });
-
-  it('lets only a manager give a server its tag', async () => {
-    const tag = { text: 'DEN', badge: 'flame', colour: '#E0452B' };
-    expect((await request('PATCH', `/api/servers/${den.id}/tag`, guest, { tag })).statusCode).toBe(403);
-    expect((await request('PATCH', `/api/servers/${den.id}/tag`, host, { tag })).statusCode).toBe(200);
-
-    const listed = (await request('GET', '/api/servers', guest)).json().servers as Community[];
-    expect(listed.find((server) => server.id === den.id)?.tag).toEqual({
-      text: 'DEN',
-      badge: 'flame',
-      colour: '#e0452b',
-    });
-  });
-
-  it('refuses a tag that is too long, not letters, or wears a badge nobody drew', async () => {
-    for (const tag of [
-      { text: 'FIVES', badge: 'star', colour: '#ffffff' },
-      { text: 'a b', badge: 'star', colour: '#ffffff' },
-      { text: '', badge: 'star', colour: '#ffffff' },
-      { text: 'OK', badge: 'unicorn', colour: '#ffffff' },
-    ]) {
-      expect((await request('PATCH', `/api/servers/${attic.id}/tag`, host, { tag })).statusCode).toBe(400);
-    }
-  });
-
-  it('lets a member wear their server tag, and shows it wherever they appear', async () => {
-    const worn = await request('PATCH', '/api/account/tag', guest, { serverId: den.id });
-    expect(worn.statusCode).toBe(200);
-    const expected = { serverId: den.id, serverName: 'Den', text: 'DEN', badge: 'flame', colour: '#e0452b' };
-    expect(worn.json().user.tag).toEqual(expected);
-    // Worn beside the name in a different server too: that is the point of it.
-    expect((await memberIn(host, attic.id, guest.user.id))?.tag).toEqual(expected);
-  });
-
-  it('refuses a tag from a server you are not in, or one that has no tag', async () => {
-    expect((await request('PATCH', '/api/account/tag', passerby, { serverId: den.id })).statusCode).toBe(403);
-    expect((await request('PATCH', '/api/account/tag', guest, { serverId: attic.id })).statusCode).toBe(403);
-    expect((await request('PATCH', '/api/account/tag', guest, { serverId: randomUUID() })).statusCode).toBe(403);
-  });
-
-  it('takes the tag off everybody when the server stops offering it', async () => {
-    const tag = { text: 'ATIC', badge: 'moon', colour: '#6a5acd' };
-    expect((await request('PATCH', `/api/servers/${attic.id}/tag`, host, { tag })).statusCode).toBe(200);
-    expect((await request('PATCH', '/api/account/tag', guest, { serverId: attic.id })).statusCode).toBe(200);
-    expect((await me(guest)).tag?.text).toBe('ATIC');
-
-    expect((await request('PATCH', `/api/servers/${attic.id}/tag`, host, { tag: null })).statusCode).toBe(200);
-    expect((await me(guest)).tag).toBeNull();
-
-    // Giving the server a tag again does not quietly dress anybody back up.
-    expect((await request('PATCH', `/api/servers/${attic.id}/tag`, host, { tag })).statusCode).toBe(200);
-    expect((await me(guest)).tag).toBeNull();
-  });
-
-  it('takes the tag off somebody who leaves the server it names', async () => {
-    expect((await request('PATCH', '/api/account/tag', guest, { serverId: den.id })).statusCode).toBe(200);
-    const left = await request('DELETE', `/api/servers/${den.id}/members/${guest.user.id}`, guest);
-    expect(left.statusCode).toBeLessThan(300);
-    expect((await me(guest)).tag).toBeNull();
-  });
-
-  it('can take a tag off by choice', async () => {
-    expect((await request('PATCH', '/api/account/tag', host, { serverId: attic.id })).statusCode).toBe(200);
-    expect((await me(host)).tag?.serverId).toBe(attic.id);
-    expect((await request('PATCH', '/api/account/tag', host, { serverId: null })).statusCode).toBe(200);
-    expect((await me(host)).tag).toBeNull();
   });
 });

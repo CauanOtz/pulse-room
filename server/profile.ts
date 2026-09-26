@@ -11,17 +11,21 @@ export const profileColumns = `
   a.banner_id AS "bannerId",
   a.theme_primary AS "themePrimary", a.theme_accent AS "themeAccent",
   tc.id AS "tagServerId", tc.name AS "tagServerName",
-  tc.tag_text AS "tagText", tc.tag_badge AS "tagBadge", tc.tag_colour AS "tagColour"`;
+  st.text AS "tagText", st.badge AS "tagBadge", st.colour AS "tagColour"`;
 
 /**
- * Resolves the tag somebody wears, and only while it is still true: they are
- * still a member of that server, and that server still has a tag. Leaving a
- * server, or the server dropping its tag, takes it off without anybody having
- * to remember to.
+ * The tag somebody wears is one per server, so it is read in the light of one:
+ * `server` is the SQL for that server's id, usually a parameter. Without one,
+ * as for your own account outside any server, nobody wears anything.
+ *
+ * A tag is only ever stored while it can be worn, so what is found is shown:
+ * leaving the server, losing the role it needs or the tag being taken away
+ * removes the row rather than hiding it.
  */
-export const profileJoins = `
-  LEFT JOIN memberships tm ON tm.server_id = a.tag_server_id AND tm.account_id = a.id
-  LEFT JOIN communities tc ON tc.id = tm.server_id AND tc.tag_text IS NOT NULL`;
+export const profileJoins = (server = 'NULL::uuid') => `
+  LEFT JOIN member_tags mt ON mt.server_id = ${server} AND mt.account_id = a.id
+  LEFT JOIN server_tags st ON st.id = mt.tag_id
+  LEFT JOIN communities tc ON tc.id = st.server_id`;
 
 export interface ProfileRow {
   id: string;

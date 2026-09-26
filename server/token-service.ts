@@ -6,6 +6,8 @@ export interface RoomTokenRequest {
   participantName: string;
   identity: string;
   sources: number[];
+  /** False for somebody deafened by the server: they hear nothing. */
+  canSubscribe?: boolean;
 }
 
 export interface RoomTokenResponse {
@@ -29,7 +31,7 @@ export class TokenService {
       roomJoin: true,
       canPublish: request.sources.length > 0,
       canPublishSources: request.sources,
-      canSubscribe: true,
+      canSubscribe: request.canSubscribe ?? true,
       canPublishData: false,
     });
 

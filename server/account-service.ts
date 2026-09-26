@@ -131,7 +131,7 @@ export class AccountService {
   async profile(userId: string, db: Database = this.db): Promise<Account> {
     const {
       rows: [row],
-    } = await db.query<ProfileRow>(`SELECT ${profileColumns} FROM accounts a ${profileJoins} WHERE a.id=$1`, [
+    } = await db.query<ProfileRow>(`SELECT ${profileColumns} FROM accounts a ${profileJoins()} WHERE a.id=$1`, [
       userId,
     ]);
     if (!row) throw new HttpError(404, 'That account no longer exists.');
@@ -173,26 +173,6 @@ export class AccountService {
       theme?.primary ?? null,
       theme?.accent ?? null,
     ]);
-  }
-
-  /**
-   * Wears a server's tag beside your name, or with null takes it off.
-   *
-   * Only a tag that exists, from a server you are actually in. Anything else
-   * would let a stranger dress up as a member of a room they never entered.
-   */
-  async wearTag(userId: string, serverId: string | null): Promise<void> {
-    if (serverId) {
-      const {
-        rows: [offered],
-      } = await this.db.query<{ ok: boolean }>(
-        `SELECT true AS ok FROM memberships m JOIN communities c ON c.id=m.server_id
-         WHERE m.server_id=$1 AND m.account_id=$2 AND c.tag_text IS NOT NULL`,
-        [serverId, userId],
-      );
-      if (!offered) throw new HttpError(403, 'You can only wear the tag of a server you are in.');
-    }
-    await this.db.query('UPDATE accounts SET tag_server_id=$2 WHERE id=$1', [userId, serverId]);
   }
 
   async setBio(userId: string, bio: string): Promise<void> {

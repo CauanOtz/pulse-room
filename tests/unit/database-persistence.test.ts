@@ -42,8 +42,9 @@ it('keeps accounts, sessions, memberships, channels and messages across database
     await restored.join(other.user.id, invite.code);
     await restored.transfer(session.user.id, community.id, other.user.id);
     expect(await restored.role(other.user.id, community.id)).toBe('owner');
-    expect(await restored.role(session.user.id, community.id)).toBe('admin');
-    await restored.setMember(session.user.id, community.id, session.user.id, null);
+    // The former owner keeps the roles they hold, and holds none here.
+    expect(await restored.role(session.user.id, community.id)).toBe('member');
+    await restored.removeFromServer(session.user.id, community.id, session.user.id);
     expect(await restored.list(session.user.id)).toHaveLength(0);
     await restored.deleteServer(other.user.id, community.id);
     expect((await db.query('SELECT id FROM messages WHERE channel_id=$1', [text.id])).rows).toHaveLength(0);
