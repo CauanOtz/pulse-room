@@ -17,7 +17,7 @@ interface ProfileCardProps {
 export function ProfileCard({ user, onOpenAccount }: ProfileCardProps) {
   const picture = (
     <Avatar
-      className="grid size-16 place-items-center rounded-full border-[3px] border-popover bg-secondary text-lg font-bold text-secondary-foreground"
+      className="grid size-16 place-items-center rounded-full border-[3px] border-[color:var(--card-surface,var(--popover))] bg-secondary text-lg font-bold text-secondary-foreground"
       name={user.displayName}
       imageId={user.avatarId}
       animate="always"

@@ -205,7 +205,7 @@ export function AccountDialog({
                     title="About me"
                     hint="A short bio shown on your profile to people in your servers."
                   >
-                    <label className="form-field flex flex-col gap-1.5 text-xs font-medium text-muted-foreground">
+                    <label className="form-field flex max-w-xl flex-col gap-1.5 text-xs font-medium text-muted-foreground">
                       <span className="sr-only">Bio</span>
                       <textarea
                         aria-label="Bio"
@@ -220,7 +220,7 @@ export function AccountDialog({
                         className="resize-y"
                       />
                     </label>
-                    <small className="block text-right text-[11px] text-muted-foreground">{bio.length} / 200</small>
+                    <small className="block max-w-xl text-right text-[11px] text-muted-foreground">{bio.length} / 200</small>
                   </Part>
                 </EditorWithPreview>
               )}
@@ -287,7 +287,9 @@ export function AccountDialog({
                         />
                       </label>
                       <div className="form-actions flex flex-wrap items-center justify-between gap-2 pt-0.5">
-                        <small id="password-hint">At least 12 characters. Other devices will be signed out.</small>
+                        <small id="password-hint" className="text-xs font-normal text-muted-foreground">
+                          At least 12 characters. Other devices will be signed out.
+                        </small>
                         <button className={primaryClass} disabled={securityBusy}>
                           {securityBusy ? 'Please wait…' : 'Change password'}
                         </button>

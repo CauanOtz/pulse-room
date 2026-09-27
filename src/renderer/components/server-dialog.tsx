@@ -209,7 +209,7 @@ function ServerIdentity({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   return (
-    <div className="space-y-4">
+    <div className="max-w-2xl space-y-4">
       <PictureField
         name={detail.server.name}
         imageId={detail.server.iconId}
@@ -295,7 +295,7 @@ function Invites({
     }
   }
   return (
-    <div className="space-y-6">
+    <div className="max-w-2xl space-y-6">
       {canCreate && (
         <Panel title="New invitation" hint="Only share the generated code with people you want in this server.">
           <div className="grid grid-cols-2 gap-3">

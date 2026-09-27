@@ -100,6 +100,9 @@ export function themeGradient(theme: ProfileTheme | null | undefined): string | 
 export function themedCard(theme: ProfileTheme | null | undefined): CSSProperties | undefined {
   if (!theme) return undefined;
   return {
+    // The colour a face's ring is drawn in, so it reads as cut out of the card
+    // rather than as a dark hoop laid on top of somebody's colours.
+    ['--card-surface' as string]: `color-mix(in srgb, ${theme.primary} 18%, var(--popover))`,
     background: `linear-gradient(180deg, color-mix(in srgb, ${theme.primary} 18%, var(--popover)), color-mix(in srgb, ${theme.accent} 12%, var(--popover)))`,
     borderColor: `color-mix(in srgb, ${theme.primary} 55%, transparent)`,
   };

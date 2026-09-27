@@ -143,7 +143,7 @@ export function ProfilePreview({
       <ProfileBanner bannerId={user.bannerId} theme={theme} className="aspect-[5/2] w-full" />
       <div className="px-3.5 pb-3">
         <Avatar
-          className="-mt-6 grid size-12 place-items-center rounded-full border-[3px] border-popover bg-secondary text-xs font-bold text-secondary-foreground"
+          className="-mt-6 grid size-12 place-items-center rounded-full border-[3px] border-[color:var(--card-surface,var(--popover))] bg-secondary text-xs font-bold text-secondary-foreground"
           name={user.displayName}
           imageId={user.avatarId}
           animate="always"
@@ -202,7 +202,7 @@ export function BannerField({
       <ProfileBanner
         bannerId={user.bannerId}
         theme={theme}
-        className="aspect-[5/2] w-full rounded-lg border border-border"
+        className="aspect-[5/2] w-full max-w-[26rem] rounded-lg border border-border"
       />
       <div className="flex flex-wrap items-center gap-2">
         <button type="button" className={buttonClass} disabled={busy} onClick={() => input.current?.click()}>
@@ -299,12 +299,22 @@ export function ThemeEditor({
         />
         Use my own colours
       </label>
-      {value && (
-        <div className="grid gap-4">
-          <ColourField label="Primary" value={value.primary} onChange={(primary) => onChange({ ...value, primary })} />
-          <ColourField label="Accent" value={value.accent} onChange={(accent) => onChange({ ...value, accent })} />
-        </div>
-      )}
+      {/* The two colours stay in view with the switch off, dimmed, so what
+          it does is plain before it is turned on. */}
+      <div className={cn('grid max-w-md gap-4 transition-opacity', !value && 'pointer-events-none opacity-45')} aria-disabled={!value}>
+        <ColourField
+          label="Primary"
+          value={(value ?? saved ?? defaultTheme).primary}
+          disabled={!value}
+          onChange={(primary) => value && onChange({ ...value, primary })}
+        />
+        <ColourField
+          label="Accent"
+          value={(value ?? saved ?? defaultTheme).accent}
+          disabled={!value}
+          onChange={(accent) => value && onChange({ ...value, accent })}
+        />
+      </div>
     </section>
   );
 }
@@ -363,14 +373,14 @@ export function TagWearer({ api, onChanged }: { api: CommunityClient; onChanged(
       ) : (
         <ul className="space-y-1.5">
           {choices.map((choice) => (
-            <li key={choice.serverId} className="flex items-center gap-3">
-              <span className="min-w-0 flex-1 truncate text-xs font-medium text-foreground">{choice.serverName}</span>
+            <li key={choice.serverId} className="grid grid-cols-[minmax(0,11rem)_11rem] items-center gap-3">
+              <span className="min-w-0 truncate text-xs font-medium text-foreground">{choice.serverName}</span>
               <Select
                 value={choice.activeId ?? none}
                 disabled={busy === choice.serverId}
                 onValueChange={(value) => void wear(choice, value === none ? null : value)}
               >
-                <SelectTrigger className="h-8 w-44" aria-label={`Tag in ${choice.serverName}`}>
+                <SelectTrigger className="h-8 w-full" aria-label={`Tag in ${choice.serverName}`}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

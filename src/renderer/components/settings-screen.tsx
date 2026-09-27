@@ -40,14 +40,15 @@ export function SettingsScreen({
         <Primitive.Content
           aria-label={label ?? title}
           aria-describedby={undefined}
-          className="settings-screen fixed inset-0 z-50 flex bg-background text-foreground outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-[0.985]"
+          // community-modal: the same fields, labels and forms as every other
+          // dialog, rather than bare browser controls.
+          className="settings-screen community-modal fixed inset-0 z-50 flex bg-background text-foreground outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-[0.985]"
         >
           <Primitive.Title className="sr-only">{label ?? title}</Primitive.Title>
-          <aside
-            className="settings-rail flex shrink-0 justify-end overflow-y-auto border-r border-border bg-sidebar"
-            style={{ width: 'max(15rem, calc((100vw - 62rem) / 2 + 15rem))' }}
-          >
-            <div className="flex min-h-full w-60 flex-col px-3 pb-6 pt-12">
+          {/* A rail of one width at the window's edge: the room the sections
+              need and no more, so the width goes to the section itself. */}
+          <aside className="settings-rail flex w-60 shrink-0 flex-col overflow-y-auto border-r border-border bg-sidebar">
+            <div className="flex min-h-full flex-col px-3 pb-6 pt-10">
               <div className="truncate px-2.5 pb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
                 {title}
               </div>
@@ -55,10 +56,10 @@ export function SettingsScreen({
               {footer && <div className="mt-auto border-t border-border pt-3">{footer}</div>}
             </div>
           </aside>
-          <div className="modal-body settings-body min-w-0 flex-1 overflow-y-auto">
-            <div className="flex min-h-full max-w-[52rem] flex-col px-10 pb-16 pt-12">{children}</div>
+          <div className="modal-body settings-body min-w-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]">
+            <div className="mx-auto flex min-h-full w-full max-w-[64rem] flex-col px-10 pb-16 pt-10">{children}</div>
           </div>
-          <div className="settings-close flex w-24 shrink-0 justify-center pt-12">
+          <div className="settings-close flex w-20 shrink-0 justify-center pt-10">
             <div className="flex flex-col items-center gap-1.5">
               <Primitive.Close
                 aria-label="Close dialog"

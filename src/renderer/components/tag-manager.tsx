@@ -88,7 +88,7 @@ export function TagManager({
 
   if (editing)
     return (
-      <div className="tag-editor space-y-5">
+      <div className="tag-editor max-w-2xl space-y-5">
         <div className="flex items-center justify-between gap-3">
           <h3 className="text-sm font-semibold text-foreground">{editing === 'new' ? 'Create tag' : 'Edit tag'}</h3>
           <TagChip
@@ -96,7 +96,7 @@ export function TagManager({
             className={cn(!tagTextPattern.test(draft.text) && 'opacity-50')}
           />
         </div>
-        <div className="grid gap-4 sm:grid-cols-[8rem_minmax(0,1fr)]">
+        <div className="grid gap-4 sm:grid-cols-[11rem_minmax(0,1fr)]">
           <div>
             <label className="block text-xs font-medium text-foreground">
               Tag
@@ -126,7 +126,7 @@ export function TagManager({
         </div>
         <div role="radiogroup" aria-label="Badge" className="space-y-1.5">
           <span className="text-xs font-medium text-foreground">Badge</span>
-          <div className="grid grid-cols-6 gap-1.5 sm:grid-cols-12">
+          <div className="flex flex-wrap gap-1.5">
             {tagBadges.map((name) => {
               const Icon = badgeIcons[name];
               return (
@@ -137,7 +137,7 @@ export function TagManager({
                   aria-checked={draft.badge === name}
                   aria-label={badgeNames[name]}
                   className={cn(
-                    'grid aspect-square place-items-center rounded-md border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                    'grid size-10 place-items-center rounded-md border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                     draft.badge === name ? 'border-foreground bg-accent' : 'border-border hover:bg-accent/60',
                   )}
                   style={draft.badge === name ? { color: draft.colour } : undefined}

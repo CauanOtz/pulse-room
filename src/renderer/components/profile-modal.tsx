@@ -91,14 +91,14 @@ export function ProfileModal({
           <div className="relative flex shrink-0 items-end justify-between gap-3 px-6">
             <span className="relative -mt-16">
               <Avatar
-                className="grid size-30 place-items-center rounded-full border-[6px] border-popover bg-secondary text-3xl font-bold text-secondary-foreground"
+                className="grid size-30 place-items-center rounded-full border-[6px] border-[color:var(--card-surface,var(--popover))] bg-secondary text-3xl font-bold text-secondary-foreground"
                 name={member.displayName}
                 imageId={member.avatarId}
                 animate="always"
               />
               {seat && (
                 <span
-                  className="absolute bottom-1.5 right-1.5 grid size-7 place-items-center rounded-full border-4 border-popover bg-success text-background"
+                  className="absolute bottom-1.5 right-1.5 grid size-7 place-items-center rounded-full border-4 border-[color:var(--card-surface,var(--popover))] bg-success text-background"
                   aria-label="In a voice channel"
                 >
                   <Mic className="size-3" strokeWidth={3} aria-hidden="true" />

@@ -91,7 +91,7 @@ export function ProfilePopover({
                 }}
               >
                 <Avatar
-                  className="grid size-14 place-items-center rounded-full border-[3px] border-popover bg-secondary text-sm font-bold text-secondary-foreground"
+                  className="grid size-14 place-items-center rounded-full border-[3px] border-[color:var(--card-surface,var(--popover))] bg-secondary text-sm font-bold text-secondary-foreground"
                   name={profile.displayName}
                   imageId={profile.avatarId}
                   animate="always"
@@ -102,13 +102,14 @@ export function ProfilePopover({
               </button>
             ) : (
               <Avatar
-                className="grid size-14 shrink-0 place-items-center rounded-full border-[3px] border-popover bg-secondary text-sm font-bold text-secondary-foreground"
+                className="grid size-14 shrink-0 place-items-center rounded-full border-[3px] border-[color:var(--card-surface,var(--popover))] bg-secondary text-sm font-bold text-secondary-foreground"
                 name={profile.displayName}
                 imageId={profile.avatarId}
                 animate="always"
               />
             )}
-            {profile.role && (
+            {/* Only a standing worth naming is named: "member" says nothing. */}
+            {profile.role && profile.role !== 'member' && (
               <span className="mb-1 inline-flex items-center gap-1 rounded-md border border-border bg-secondary/70 px-2 py-1 text-[10px] font-medium text-muted-foreground">
                 {profile.role === 'owner' ? <Crown size={12} /> : profile.role === 'admin' ? <Shield size={12} /> : <UserRound size={12} />}
                 {roleLabel}
