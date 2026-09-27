@@ -93,7 +93,10 @@ test('an animated picture, a banner, colours and a server tag, end to end', asyn
     await window.getByRole('button', { name: 'Server settings and members' }).click();
     await window.getByRole('button', { name: 'Tags', exact: true }).click();
     await window.getByRole('button', { name: /Create tag/ }).click();
-    const tagEditor = window.locator('.tag-editor');
+    // Made in a dialog over the list rather than in place of it.
+    const tagDialog = window.getByRole('dialog', { name: 'Create tag' });
+    await expect(tagDialog).toBeVisible();
+    const tagEditor = tagDialog.locator('.tag-editor');
     await expect(tagEditor).toBeVisible();
     await tagEditor.getByLabel('Tag', { exact: true }).fill('club!');
     // Only letters and digits survive typing: the exclamation mark is gone.
@@ -101,7 +104,9 @@ test('an animated picture, a banner, colours and a server tag, end to end', asyn
     await tagEditor.getByLabel('What it stands for').fill('Regulars');
     await tagEditor.getByRole('radio', { name: 'Flame' }).click();
     await tagEditor.getByRole('button', { name: 'Colour: #e8508a' }).click();
+    await window.screenshot({ path: 'test-results/profile-tag-dialog.png' });
     await tagEditor.getByRole('button', { name: 'Save tag' }).click();
+    await expect(tagDialog).toHaveCount(0);
     const tagCard = window.locator('.server-tag-card');
     await expect(tagCard).toContainText('Regulars');
     await expect(tagCard).toContainText('Available to everyone');

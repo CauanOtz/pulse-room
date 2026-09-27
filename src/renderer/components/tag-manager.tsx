@@ -12,6 +12,7 @@ import { Permission } from '../../shared/permissions';
 import { myAccess } from '../domain/access';
 import type { CommunityClient } from '../infrastructure/community-client';
 import { ConfirmDialog } from './confirm-dialog';
+import { Modal } from './modal';
 import { colourPresets, ColourField } from './profile-editors';
 import { badgeIcons, badgeNames, TagChip } from './profile-identity';
 import { cn } from './ui/utils';
@@ -86,11 +87,12 @@ export function TagManager({
   const valid = tagTextPattern.test(draft.text) && (draft.mode !== 'roles' || draft.roleIds.length > 0);
   const current = editing && editing !== 'new' ? tags.find((tag) => tag.id === editing.id) : undefined;
 
-  if (editing)
-    return (
-      <div className="tag-editor max-w-2xl space-y-5">
-        <div className="flex items-center justify-between gap-3">
-          <h3 className="text-sm font-semibold text-foreground">{editing === 'new' ? 'Create tag' : 'Edit tag'}</h3>
+  // Made and changed in a dialog over the list, so the tags already there stay
+  // in sight behind it and closing it is the whole way back.
+  const editor = editing && (
+      <div className="tag-editor space-y-5">
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-background/50 px-3.5 py-2.5">
+          <span className="text-xs text-muted-foreground">Preview</span>
           <TagChip
             tag={{ text: draft.text || 'TAG', badge: draft.badge, colour: draft.colour }}
             className={cn(!tagTextPattern.test(draft.text) && 'opacity-50')}
@@ -284,7 +286,7 @@ export function TagManager({
           />
         )}
       </div>
-    );
+  );
 
   return (
     <div className="space-y-4">
@@ -333,6 +335,15 @@ export function TagManager({
         <div className="rounded-lg border border-dashed border-border px-4 py-8 text-center text-xs text-muted-foreground">
           This server has no tags yet.
         </div>
+      )}
+      {editing && (
+        <Modal
+          title={editing === 'new' ? 'Create tag' : 'Edit tag'}
+          onClose={() => setEditing(undefined)}
+          contentClassName="w-[min(40rem,calc(100vw-2rem))]"
+        >
+          {editor}
+        </Modal>
       )}
     </div>
   );
