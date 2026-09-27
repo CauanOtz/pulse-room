@@ -119,9 +119,10 @@ export function Stage({
         open(participant.id);
         return;
       }
-      // Already taken: this is about which picture fills the room, not about
-      // whether the stream is being received.
-      if (participant.id === activeId) setClosed(true);
+      // Already taken. The one filling the room says "Stop watching" and
+      // means it: the stream is handed back, and the next one taken, if any,
+      // fills the room instead. Any other is brought up to fill it.
+      if (participant.id === activeId) onWatch(participant.id, false);
       else open(participant.id);
     },
     [activeId, onWatch, open, watched],

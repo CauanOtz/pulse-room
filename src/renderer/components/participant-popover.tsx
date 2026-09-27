@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import { MonitorOff, VolumeX, Volume2 } from 'lucide-react';
+import { useEffect, useRef, type ReactNode } from 'react';
+import { MonitorOff, UserRound, VolumeX, Volume2 } from 'lucide-react';
 import type { RosterEntry } from '../domain/roster';
 
 interface ParticipantPopoverProps {
@@ -10,6 +10,10 @@ interface ParticipantPopoverProps {
   onVolumeChange(volume: number): void;
   onMutedChange(muted: boolean): void;
   onStopWatching?(): void;
+  /** Opens their whole profile. */
+  onOpenProfile?(): void;
+  /** What can be done to them in this server, for somebody allowed to. */
+  moderation?: ReactNode;
   onClose(): void;
 }
 
@@ -20,6 +24,8 @@ export function ParticipantPopover({
   onVolumeChange,
   onMutedChange,
   onStopWatching,
+  onOpenProfile,
+  moderation,
   onClose,
 }: ParticipantPopoverProps) {
   const cardRef = useRef<HTMLDivElement>(null);
@@ -37,12 +43,17 @@ export function ParticipantPopover({
   return (
     <div className="popover-backdrop fixed inset-0 z-40" role="presentation" onMouseDown={onClose} onContextMenu={(event) => event.preventDefault()}>
       <div
-        className="participant-popover fixed z-50 w-58 rounded-lg border border-border bg-popover p-3 text-popover-foreground shadow-2xl"
+        className="participant-popover fixed z-50 max-h-[calc(100vh-1.5rem)] w-62 overflow-y-auto rounded-lg border border-border bg-popover p-3 text-popover-foreground shadow-2xl"
         role="dialog"
         aria-label={`${entry.name} audio`}
         ref={cardRef}
         tabIndex={-1}
-        style={{ left: position.x, top: position.y }}
+        // Kept inside the window: a menu opened near the bottom of the room
+        // grows upward rather than running off it.
+        style={{
+          left: Math.min(position.x, window.innerWidth - 260),
+          top: Math.max(12, Math.min(position.y, window.innerHeight - (moderation ? 420 : 200))),
+        }}
         onMouseDown={(event) => event.stopPropagation()}
       >
         <header className="mb-3 flex items-center gap-2.5">
@@ -67,6 +78,20 @@ export function ParticipantPopover({
           {entry.locallyMuted ? 'Unmute for me' : 'Mute for me'}
         </button>
 
+        {onOpenProfile && (
+          <button
+            type="button"
+            className="popover-action flex h-8 w-full items-center gap-2 rounded-md px-2 text-left text-xs font-medium text-foreground transition-colors hover:bg-accent"
+            onClick={() => {
+              onOpenProfile();
+              onClose();
+            }}
+          >
+            <UserRound size={15} />
+            Profile
+          </button>
+        )}
+
         {watching && (
           // Putting a screen away is not the same as refusing it, so the one
           // act that hangs up on somebody's stream is asked for by name.
@@ -82,6 +107,8 @@ export function ParticipantPopover({
             Stop watching
           </button>
         )}
+
+        {moderation && <div className="mt-2 border-t border-border pt-2">{moderation}</div>}
       </div>
     </div>
   );

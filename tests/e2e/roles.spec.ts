@@ -128,7 +128,17 @@ test('roles, a staff category and moderation, end to end', async () => {
     await roster.getByRole('button', { name: "View Friend's profile" }).click();
     const card = window.getByRole('dialog', { name: 'Friend profile' });
     await expect(card.getByRole('list', { name: 'Roles' })).toContainText('Moderator');
-    await window.keyboard.press('Escape');
+    // The small card leads to the whole profile, in the middle of the window.
+    await card.getByRole('button', { name: 'View full profile' }).click();
+    const profile = window.getByRole('dialog', { name: "Friend's profile" });
+    await expect(profile).toBeVisible();
+    await expect(profile.getByRole('list', { name: 'Roles' })).toContainText('Moderator');
+    const manage = profile.getByRole('region', { name: 'Manage' });
+    await expect(manage.getByRole('button', { name: 'Kick' })).toBeVisible();
+    await expect(manage.getByRole('button', { name: 'Ban' })).toBeVisible();
+    await window.screenshot({ path: 'test-results/roles-full-profile.png' });
+    await profile.getByRole('button', { name: 'Close profile' }).click();
+    await expect(profile).toHaveCount(0);
 
     // ------------------------------------------------ a category only staff can see
     await window.getByRole('button', { name: /Create category/ }).click();
@@ -189,6 +199,11 @@ test('roles, a staff category and moderation, end to end', async () => {
     await timeout.getByRole('button', { name: 'Time out' }).click();
     await expect(timeout).toHaveCount(0);
     await expect(settings.locator('.member-row', { hasText: 'Guest' }).getByLabel('In a timeout')).toBeVisible();
+    // Settings fill the window, with the way out at the top right.
+    expect(await settings.evaluate((element) => {
+      const box = element.getBoundingClientRect();
+      return Math.round(box.width) === innerWidth && Math.round(box.height) === innerHeight;
+    })).toBe(true);
 
     // Roles handed out from the same menu, one tick at a time.
     await settings.getByRole('button', { name: 'Manage Guest' }).click();

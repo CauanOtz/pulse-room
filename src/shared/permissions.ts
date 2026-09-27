@@ -29,11 +29,12 @@ export const Permission = {
   ManageTags: 1 << 15,
   ManageServer: 1 << 16,
   Administrator: 1 << 17,
+  MoveMembers: 1 << 18,
 } as const;
 export type PermissionName = keyof typeof Permission;
 
 /** Every bit this version knows. */
-export const allPermissions = (1 << 18) - 1;
+export const allPermissions = (1 << 19) - 1;
 
 /** The bits a channel or a category can allow or deny. The rest are server-wide. */
 export const channelScoped =
@@ -45,7 +46,8 @@ export const channelScoped =
   Permission.ShareScreen |
   Permission.MuteMembers |
   Permission.DeafenMembers |
-  Permission.DisconnectMembers;
+  Permission.DisconnectMembers |
+  Permission.MoveMembers;
 
 /**
  * What everybody may do in a new server: read, write, join a call, talk and
@@ -128,6 +130,13 @@ export const permissionGroups: { title: string; items: PermissionInfo[] }[] = [
         name: 'DeafenMembers',
         label: 'Deafen members',
         description: 'Stop somebody else hearing calls in this server.',
+        channelType: 'voice',
+      },
+      {
+        flag: Permission.MoveMembers,
+        name: 'MoveMembers',
+        label: 'Move members',
+        description: 'Move somebody from their call into another voice channel.',
         channelType: 'voice',
       },
       {

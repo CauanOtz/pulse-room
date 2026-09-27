@@ -259,6 +259,51 @@ describe('moderation', () => {
     service.voice.rooms = [];
   });
 
+  it('moves somebody below you into another call, and tells only them where', async () => {
+    const quiet = (
+      await call('POST', `/api/servers/${serverId}/channels`, owner, { name: 'side room', type: 'voice' })
+    ).json().id;
+    const move = (session: AccountSession, who: AccountSession, channelId = quiet) =>
+      status('POST', `/api/servers/${serverId}/members/${who.user.id}/move`, session, { channelId });
+    // The moderator has no Move members; nobody moves the owner or somebody above.
+    expect(await move(mod, vip)).toBe(403);
+    expect(await move(admin, owner)).toBe(403);
+    expect(await move(owner, vip, text)).toBe(400);
+    expect(await move(owner, vip)).toBe(200);
+
+    const asVip = await service.detail(vip, serverId);
+    expect(asVip.members.find((m) => m.id === vip.user.id)?.moveTo).toBe(quiet);
+    const asOwner = await service.detail(owner, serverId);
+    expect(asOwner.members.find((m) => m.id === vip.user.id)?.moveTo).toBeUndefined();
+
+    // Joining the call is what answers it.
+    expect(await status('POST', `/api/rooms/${quiet}/token`, vip, {})).toBe(200);
+    expect((await service.detail(vip, serverId)).members.find((m) => m.id === vip.user.id)?.moveTo).toBeUndefined();
+  });
+
+  it('will not move somebody into a call they cannot join', async () => {
+    const locked = (
+      await call('POST', `/api/servers/${serverId}/channels`, owner, { name: 'locked', type: 'voice' })
+    ).json().id;
+    expect(
+      await status('PUT', `/api/channels/${locked}/overrides`, owner, {
+        overrides: [{ targetType: 'member', targetId: vip.user.id, allow: 0, deny: Permission.Connect }],
+      }),
+    ).toBe(200);
+    const refused = await call('POST', `/api/servers/${serverId}/members/${vip.user.id}/move`, owner, {
+      channelId: locked,
+    });
+    expect(refused.statusCode).toBe(403);
+    expect(refused.json().error).toContain('cannot join');
+  });
+
+  it('remembers when somebody joined, from now on', async () => {
+    const detail = await service.detail(owner, serverId);
+    const joined = detail.members.find((m) => m.id === member.user.id)!;
+    expect(new Date(joined.joinedAt!).getTime()).toBeGreaterThan(Date.now() - 3_600_000);
+    expect(joined.createdAt).toBeTruthy();
+  });
+
   it('bans: out now, refused at every invitation, and back only when lifted', async () => {
     const guest = await service.createAccount('guest');
     const { code } = (await call('POST', `/api/servers/${serverId}/invites`, owner, { maxUses: 5, hours: 1 })).json();

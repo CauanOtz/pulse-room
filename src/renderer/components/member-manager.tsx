@@ -1,12 +1,11 @@
-import { useEffect, useState } from 'react';
-import { Clock, Crown, Headphones, MicOff, MoreVertical, PhoneOff } from 'lucide-react';
-import type { Ban, CommunityDetail, CommunityMember } from '../../shared/community';
-import { Permission } from '../../shared/permissions';
-import { canTouchRole, myAccess, outranks, rolesOf } from '../domain/access';
+import { Fragment, useEffect, useState } from 'react';
+import { Clock, Crown, Headphones, MicOff, MoreVertical } from 'lucide-react';
+import type { Ban, CommunityDetail } from '../../shared/community';
+import { rolesOf } from '../domain/access';
 import type { CommunityClient } from '../infrastructure/community-client';
 import { Avatar } from './avatar';
-import { ConfirmDialog, type Confirmation } from './confirm-dialog';
-import { Modal } from './modal';
+import { useMemberActions, type VoiceSeat } from './member-actions';
+import { ProfileModal } from './profile-modal';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,18 +14,11 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import { Tooltip } from './ui/tooltip';
+import { cn } from './ui/utils';
 
 const errorMessage = (error: unknown) => (error instanceof Error ? error.message : 'Something went wrong.');
 
-/** The lengths a timeout is offered in, in minutes. */
-export const timeoutChoices: { minutes: number; label: string }[] = [
-  { minutes: 1, label: '1 minute' },
-  { minutes: 5, label: '5 minutes' },
-  { minutes: 10, label: '10 minutes' },
-  { minutes: 60, label: '1 hour' },
-  { minutes: 1440, label: '1 day' },
-  { minutes: 10080, label: '1 week' },
-];
+export { timeoutChoices } from './member-actions';
 
 /**
  * Everybody in the server, with what they hold and what can be done to them.
@@ -38,87 +30,57 @@ export function MemberManager({
   detail,
   userId,
   onChanged,
+  seatOf,
 }: {
   api: CommunityClient;
   detail: CommunityDetail;
   userId: string;
   onChanged(): Promise<void>;
+  seatOf?(accountId: string): VoiceSeat | undefined;
 }) {
-  const access = myAccess(detail, userId);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  const [confirmation, setConfirmation] = useState<Confirmation>();
+  const { actionsFor, dialogs, busy, error } = useMemberActions({ api, detail, userId, onChanged, seatOf });
+  // One row's menu at a time, held here rather than in each row, so reaching
+  // for a second member puts the first one away.
   const [openMenu, setOpenMenu] = useState<string>();
-  // Roles and a timeout are chosen in a small dialog of their own rather than
-  // a menu that opens off another: a list that closes when the pointer takes
-  // a slightly wrong path is a list people miss.
-  const [acting, setActing] = useState<{ kind: 'roles' | 'timeout'; memberId: string }>();
-  const [duration, setDuration] = useState(timeoutChoices[1].minutes);
-  const actingOn = acting && detail.members.find((member) => member.id === acting.memberId);
-  // A tick shows the moment it is made; the service's answer then replaces it,
-  // or, if it refuses, the list goes back to what the service holds.
-  const [pendingRoles, setPendingRoles] = useState<string[]>();
-  const heldRoles = pendingRoles ?? actingOn?.roleIds ?? [];
-  const base = `/api/servers/${detail.server.id}`;
-  const assignable = (detail.roles ?? [])
-    .filter((role) => !role.isDefault && canTouchRole(access, role))
-    .sort((a, b) => b.position - a.position);
-
-  async function run(action: () => Promise<unknown>) {
-    setBusy(true);
-    setError('');
-    try {
-      await action();
-      await onChanged();
-    } catch (e) {
-      setError(errorMessage(e));
-    } finally {
-      setBusy(false);
-      setConfirmation(undefined);
-    }
-  }
-  const moderate = (member: CommunityMember, body: object) =>
-    void run(() => api.request(`${base}/members/${member.id}/moderation`, 'PATCH', body));
+  const [profileId, setProfileId] = useState<string>();
+  const profile = detail.members.find((member) => member.id === profileId);
 
   return (
     <div className="space-y-3">
       <div className="member-list divide-y divide-border overflow-hidden rounded-lg border border-border bg-background/35">
         {detail.members.map((member) => {
-          const below = outranks(access, detail, member, userId);
           const self = member.id === userId;
           const held = rolesOf(detail, member);
-          const canRoles = access.can(Permission.ManageRoles) && (self || access.isOwner || below) && assignable.length > 0;
           const timedOut = Boolean(member.timeoutUntil && new Date(member.timeoutUntil) > new Date());
-          const actions = {
-            roles: canRoles,
-            timeout: below && access.can(Permission.TimeoutMembers),
-            mute: below && access.can(Permission.MuteMembers),
-            deafen: below && access.can(Permission.DeafenMembers),
-            disconnect: below && access.can(Permission.DisconnectMembers),
-            kick: below && access.can(Permission.KickMembers),
-            ban: below && access.can(Permission.BanMembers),
-            transfer: access.isOwner && !self,
-          };
-          const anything = Object.values(actions).some(Boolean);
+          const actions = actionsFor(member);
+          const groups = (['voice', 'moderation', 'ownership'] as const)
+            .map((group) => actions.filter((action) => action.group === group))
+            .filter((group) => group.length);
           return (
             <div
               className="member-row flex min-h-14 items-center gap-3 px-3.5 py-2 text-sm transition-colors hover:bg-accent/40"
               key={member.id}
             >
-              <Avatar
-                className="grid size-9 shrink-0 place-items-center rounded-full bg-secondary text-[11px] font-bold text-secondary-foreground"
-                name={member.displayName}
-                imageId={member.avatarId}
-              />
+              {/* The face and the name open the whole profile, as they do everywhere. */}
+              <button
+                type="button"
+                className="shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label={`Open ${member.displayName}'s full profile`}
+                onClick={() => setProfileId(member.id)}
+              >
+                <Avatar
+                  className="grid size-9 place-items-center rounded-full bg-secondary text-[11px] font-bold text-secondary-foreground"
+                  name={member.displayName}
+                  imageId={member.avatarId}
+                />
+              </button>
               <div className="flex min-w-0 flex-1 flex-col gap-1 leading-tight">
                 <strong className="flex min-w-0 items-center gap-1.5 font-semibold" title={member.displayName}>
                   <span className="truncate">
                     {member.displayName}
                     {self ? ' (you)' : ''}
                   </span>
-                  {member.role === 'owner' && (
-                    <Crown className="size-3.5 shrink-0 text-warning" aria-label="Owner" />
-                  )}
+                  {member.role === 'owner' && <Crown className="size-3.5 shrink-0 text-warning" aria-label="Owner" />}
                   {timedOut && (
                     <Tooltip label={`In a timeout until ${new Date(member.timeoutUntil!).toLocaleString()}`}>
                       <Clock className="size-3.5 shrink-0 text-muted-foreground" aria-label="In a timeout" />
@@ -142,7 +104,7 @@ export function MemberManager({
                   ))}
                 </span>
               </div>
-              {anything && (
+              {actions.length > 0 && (
                 <DropdownMenu
                   open={openMenu === member.id}
                   onOpenChange={(open) => setOpenMenu(open ? member.id : undefined)}
@@ -158,91 +120,24 @@ export function MemberManager({
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    {actions.roles && (
-                      <DropdownMenuItem onSelect={() => setActing({ kind: 'roles', memberId: member.id })}>
-                        Roles…
-                      </DropdownMenuItem>
-                    )}
-                    {actions.timeout &&
-                      (timedOut ? (
-                        <DropdownMenuItem onSelect={() => moderate(member, { timeoutMinutes: null })}>
-                          Remove timeout
-                        </DropdownMenuItem>
-                      ) : (
-                        <DropdownMenuItem onSelect={() => setActing({ kind: 'timeout', memberId: member.id })}>
-                          Timeout…
-                        </DropdownMenuItem>
-                      ))}
-                    {actions.mute && (
-                      <DropdownMenuItem onSelect={() => moderate(member, { muted: !member.muted })}>
-                        {member.muted ? 'Unmute in this server' : 'Mute in this server'}
-                      </DropdownMenuItem>
-                    )}
-                    {actions.deafen && (
-                      <DropdownMenuItem onSelect={() => moderate(member, { deafened: !member.deafened })}>
-                        {member.deafened ? 'Undeafen in this server' : 'Deafen in this server'}
-                      </DropdownMenuItem>
-                    )}
-                    {actions.disconnect && (
-                      <DropdownMenuItem
-                        onSelect={() => void run(() => api.request(`${base}/members/${member.id}/disconnect`, 'POST'))}
-                      >
-                        <PhoneOff className="size-4" /> Disconnect from voice
-                      </DropdownMenuItem>
-                    )}
-                    {actions.transfer && (
-                      <DropdownMenuItem
-                        onSelect={() =>
-                          setConfirmation({
-                            title: 'Transfer ownership',
-                            description: `Make ${member.displayName} the owner of ${detail.server.name}? You keep the roles you hold, and only they will be able to give it back.`,
-                            confirmLabel: 'Transfer',
-                            action: async () => {
-                              await api.request(`${base}/transfer`, 'POST', { userId: member.id });
-                            },
-                          })
-                        }
-                      >
-                        Transfer ownership
-                      </DropdownMenuItem>
-                    )}
-                    {(actions.kick || actions.ban) && <DropdownMenuSeparator />}
-                    {actions.kick && (
-                      <DropdownMenuItem
-                        className="text-destructive focus:bg-destructive focus:text-destructive-foreground data-[highlighted]:bg-destructive data-[highlighted]:text-destructive-foreground"
-                        onSelect={() =>
-                          setConfirmation({
-                            title: 'Kick member',
-                            description: `Remove ${member.displayName} from ${detail.server.name}? They can come back with a new invitation.`,
-                            confirmLabel: 'Kick',
-                            tone: 'danger',
-                            action: async () => {
-                              await api.request(`${base}/members/${member.id}`, 'DELETE');
-                            },
-                          })
-                        }
-                      >
-                        Kick
-                      </DropdownMenuItem>
-                    )}
-                    {actions.ban && (
-                      <DropdownMenuItem
-                        className="text-destructive focus:bg-destructive focus:text-destructive-foreground data-[highlighted]:bg-destructive data-[highlighted]:text-destructive-foreground"
-                        onSelect={() =>
-                          setConfirmation({
-                            title: 'Ban member',
-                            description: `Ban ${member.displayName} from ${detail.server.name}? They are removed now and every invitation will refuse them until the ban is lifted.`,
-                            confirmLabel: 'Ban',
-                            tone: 'danger',
-                            action: async () => {
-                              await api.request(`${base}/bans`, 'POST', { userId: member.id });
-                            },
-                          })
-                        }
-                      >
-                        Ban
-                      </DropdownMenuItem>
-                    )}
+                    {groups.map((group, index) => (
+                      <Fragment key={index}>
+                        {index > 0 && <DropdownMenuSeparator />}
+                        {group.map((action) => (
+                          <DropdownMenuItem
+                            key={action.id}
+                            className={cn(
+                              action.tone === 'danger' &&
+                                'text-destructive focus:bg-destructive focus:text-destructive-foreground data-[highlighted]:bg-destructive data-[highlighted]:text-destructive-foreground',
+                            )}
+                            onSelect={action.run}
+                          >
+                            <action.icon className="size-4" aria-hidden="true" />
+                            {action.label}
+                          </DropdownMenuItem>
+                        ))}
+                      </Fragment>
+                    ))}
                   </DropdownMenuContent>
                 </DropdownMenu>
               )}
@@ -255,85 +150,17 @@ export function MemberManager({
           {error}
         </p>
       )}
-      {acting?.kind === 'roles' && actingOn && (
-        <Modal title={`Roles for ${actingOn.displayName}`} onClose={() => setActing(undefined)} contentClassName="w-[min(24rem,calc(100vw-2rem))]">
-          <div className="space-y-1" role="group" aria-label="Roles you can give">
-            {assignable.map((role) => (
-              <label
-                key={role.id}
-                className="flex cursor-pointer flex-row items-center gap-2.5 rounded-md px-2 py-2 text-sm hover:bg-accent/50"
-              >
-                <input
-                  type="checkbox"
-                  className="accent-foreground"
-                  checked={heldRoles.includes(role.id)}
-                  disabled={busy}
-                  onChange={(event) => {
-                    const roleIds = event.target.checked
-                      ? [...heldRoles, role.id]
-                      : heldRoles.filter((id) => id !== role.id);
-                    setPendingRoles(roleIds);
-                    void run(() => api.request(`${base}/members/${actingOn.id}/roles`, 'PUT', { roleIds })).finally(
-                      () => setPendingRoles(undefined),
-                    );
-                  }}
-                />
-                <span className="size-2.5 rounded-full" style={{ background: role.colour ?? 'var(--muted-foreground)' }} />
-                {role.name}
-              </label>
-            ))}
-          </div>
-          <p className="text-[11px] text-muted-foreground">Only roles below your own are listed. Each change is saved at once.</p>
-        </Modal>
-      )}
-      {acting?.kind === 'timeout' && actingOn && (
-        <Modal title={`Timeout ${actingOn.displayName}`} onClose={() => setActing(undefined)} contentClassName="w-[min(24rem,calc(100vw-2rem))]">
-          <p className="text-xs text-muted-foreground">
-            They can still read and listen, but not write, speak or share until it ends.
-          </p>
-          <div className="space-y-0.5" role="radiogroup" aria-label="How long">
-            {timeoutChoices.map((choice) => (
-              <label key={choice.minutes} className="flex cursor-pointer flex-row items-center gap-2.5 rounded-md px-2 py-2 text-sm hover:bg-accent/50">
-                <input
-                  type="radio"
-                  name="timeout-length"
-                  className="accent-foreground"
-                  checked={duration === choice.minutes}
-                  onChange={() => setDuration(choice.minutes)}
-                />
-                {choice.label}
-              </label>
-            ))}
-          </div>
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              className="inline-flex h-9 items-center rounded-md px-4 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
-              onClick={() => setActing(undefined)}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              className="primary-action inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-              disabled={busy}
-              onClick={() => {
-                const target = actingOn;
-                setActing(undefined);
-                moderate(target, { timeoutMinutes: duration });
-              }}
-            >
-              Time out
-            </button>
-          </div>
-        </Modal>
-      )}
-      {confirmation && (
-        <ConfirmDialog
-          confirmation={confirmation}
-          busy={busy}
-          onCancel={() => setConfirmation(undefined)}
-          onConfirm={() => void run(confirmation.action)}
+      {dialogs}
+      {profile && (
+        <ProfileModal
+          api={api}
+          detail={detail}
+          userId={userId}
+          member={profile}
+          seatOf={seatOf}
+          seat={seatOf?.(profile.id)}
+          onChanged={onChanged}
+          onClose={() => setProfileId(undefined)}
         />
       )}
     </div>

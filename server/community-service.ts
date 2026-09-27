@@ -10,6 +10,7 @@ import type {
   MemberRole,
 } from '../src/shared/community.js';
 import {
+  allPermissions,
   channelScoped,
   everyoneDefault,
   has,
@@ -155,7 +156,7 @@ export class CommunityService {
           type,
         ]);
       }
-      return { id, name, role: 'owner', permissions: (1 << 18) - 1, tag: null };
+      return { id, name, role: 'owner', permissions: allPermissions, tag: null };
     });
   }
 
@@ -212,10 +213,18 @@ export class CommunityService {
       }));
 
     const { rows: memberRows } = await this.db.query<
-      ProfileRow & { isOwner: boolean; timeoutUntil: string | null; muted: boolean; deafened: boolean }
+      ProfileRow & {
+        isOwner: boolean;
+        timeoutUntil: string | null;
+        muted: boolean;
+        deafened: boolean;
+        joinedAt: string | null;
+        moveTo: string | null;
+      }
     >(
       `SELECT ${profileColumns}, m.role='owner' AS "isOwner",
-        CASE WHEN m.timeout_until > now() THEN m.timeout_until END AS "timeoutUntil", m.muted, m.deafened
+        CASE WHEN m.timeout_until > now() THEN m.timeout_until END AS "timeoutUntil", m.muted, m.deafened,
+        m.joined_at AS "joinedAt", m.move_to AS "moveTo"
       FROM accounts a JOIN memberships m ON a.id=m.account_id ${profileJoins('$1')}
       WHERE m.server_id=$1 ORDER BY a.username`,
       [serverId],
@@ -224,10 +233,12 @@ export class CommunityService {
       'SELECT account_id AS "accountId", role_id AS "roleId" FROM member_roles WHERE server_id=$1',
       [serverId],
     );
-    const members: CommunityMember[] = memberRows.map(({ isOwner, ...row }) => {
+    const members: CommunityMember[] = memberRows.map(({ isOwner, moveTo, ...row }) => {
       const roleIds = held.filter((entry) => entry.accountId === row.id).map((entry) => entry.roleId);
       return {
         ...toAccount(row),
+        // Where somebody has been asked to move is theirs to read, nobody else's.
+        ...(row.id === userId && moveTo ? { moveTo } : {}),
         role: legacyRole({ member: { id: row.id, isOwner, roleIds }, roles: access.roles }),
         roleIds,
       };

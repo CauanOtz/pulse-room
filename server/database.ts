@@ -173,6 +173,15 @@ export async function migrate(database: Database): Promise<void> {
       INSERT INTO schema_migrations(version) VALUES(4) ON CONFLICT DO NOTHING;
     `);
     await migrateRoles(db);
+    // When somebody joined a server, and where they have been asked to move
+    // to. Nobody knows when the people already in a server joined it, so they
+    // are left without a date rather than all given today's.
+    await db.query(`
+      ALTER TABLE memberships ADD COLUMN IF NOT EXISTS joined_at timestamptz;
+      ALTER TABLE memberships ALTER COLUMN joined_at SET DEFAULT now();
+      ALTER TABLE memberships ADD COLUMN IF NOT EXISTS move_to uuid REFERENCES channels(id) ON DELETE SET NULL;
+      INSERT INTO schema_migrations(version) VALUES(6) ON CONFLICT DO NOTHING;
+    `);
   });
 }
 

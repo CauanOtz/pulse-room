@@ -133,7 +133,7 @@ export function RoleEditor({
   return (
     <div className="role-editor grid min-h-0 gap-5 md:grid-cols-[14rem_minmax(0,1fr)]">
       {/* The list stays in view while a long list of permissions scrolls past. */}
-      <div className="flex min-w-0 flex-col gap-2 self-start md:sticky md:top-24">
+      <div className="flex min-w-0 flex-col gap-2 self-start md:sticky md:top-8">
         <button
           type="button"
           className={cn(primaryClass, 'w-full')}

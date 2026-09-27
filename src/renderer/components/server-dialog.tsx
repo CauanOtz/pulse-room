@@ -6,7 +6,7 @@ import { myAccess } from '../domain/access';
 import type { CommunityClient } from '../infrastructure/community-client';
 import { ConfirmDialog, type Confirmation } from './confirm-dialog';
 import { BanList, MemberManager } from './member-manager';
-import { Modal } from './modal';
+import { SettingsHeading, SettingsNavButton, SettingsScreen } from './settings-screen';
 import { PictureField } from './picture-field';
 import { RoleEditor } from './role-editor';
 import { TagManager } from './tag-manager';
@@ -111,74 +111,55 @@ export function ServerDialog({
     });
 
   return (
-    <Modal
+    <SettingsScreen
       title={detail.server.name}
       onClose={onClose}
-      contentClassName="server-workspace-modal h-[min(44rem,calc(100vh-2rem))] max-h-none w-[min(60rem,calc(100vw-2rem))]"
-      headerClassName="h-15 px-6 py-0"
-      bodyClassName="flex min-h-0 flex-col space-y-0 overflow-hidden p-0"
-    >
-      <div className="grid min-h-0 flex-1 grid-cols-[12rem_minmax(0,1fr)]">
-        <aside className="flex min-h-0 flex-col border-r border-border bg-background/45 p-3">
-          <div className="px-2 pb-3 pt-1">
-            <span className="text-[11px] font-medium text-muted-foreground">Server settings</span>
-          </div>
-          <nav className="flex flex-col gap-1" aria-label="Server settings sections">
-            {sections.map((id) => {
-              const { label, icon: Icon } = meta[id];
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  className={cn(
-                    'flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium transition-colors',
-                    current === meta[id] ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
-                  )}
-                  aria-pressed={current === meta[id]}
-                  onClick={() => setSection(id)}
-                >
-                  <Icon className="size-4" /> {label}
-                  {id === 'members' && (
-                    <span className="ml-auto font-mono text-[10px] text-muted-foreground">{detail.members.length}</span>
-                  )}
-                </button>
-              );
-            })}
-          </nav>
-          <div className="mt-auto border-t border-border pt-3">
-            <button
-              className="flex h-9 w-full items-center gap-2.5 rounded-md px-2.5 text-left text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
-              disabled={busy}
-              onClick={requestRemoval}
+      nav={
+        <nav className="flex flex-col gap-0.5" aria-label="Server settings sections">
+          {sections.map((id) => (
+            <SettingsNavButton
+              key={id}
+              icon={meta[id].icon}
+              label={meta[id].label}
+              active={current === meta[id]}
+              onClick={() => setSection(id)}
             >
-              <Trash2 className="size-4" /> {access.isOwner ? 'Delete server' : 'Leave server'}
-            </button>
-          </div>
-        </aside>
-
-        <section className="min-h-0 min-w-0 overflow-y-auto">
-          <header className="sticky top-0 z-10 border-b border-border bg-card px-6 py-4">
-            <h2 className="text-base font-semibold text-foreground">{current.title}</h2>
-            <p className="mt-1 max-w-xl text-xs leading-5 text-muted-foreground">{current.description}</p>
-          </header>
-          <div className="server-workspace-content space-y-6 px-6 py-5">
-            {current === meta.server && <ServerIdentity api={api} detail={detail} onChanged={onChanged} />}
-            {current === meta.members && (
-              <MemberManager api={api} detail={detail} userId={user.id} onChanged={onChanged} />
-            )}
-            {current === meta.roles && <RoleEditor api={api} detail={detail} userId={user.id} onChanged={onChanged} />}
-            {current === meta.tags && <TagManager api={api} detail={detail} userId={user.id} onChanged={onChanged} />}
-            {current === meta.invites && (
-              <Invites api={api} serverId={detail.server.id} canList={access.can(Permission.ManageServer)} canCreate={access.can(Permission.CreateInvites)} />
-            )}
-            {current === meta.bans && <BanList api={api} serverId={detail.server.id} />}
-            {error && (
-              <p className="form-error rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive" role="alert">
-                {error}
-              </p>
-            )}
-          </div>
-        </section>
+              {id === 'members' && (
+                <span className="font-mono text-[10px] text-muted-foreground">{detail.members.length}</span>
+              )}
+            </SettingsNavButton>
+          ))}
+        </nav>
+      }
+      footer={
+        <SettingsNavButton
+          icon={Trash2}
+          label={access.isOwner ? 'Delete server' : 'Leave server'}
+          tone="danger"
+          onClick={requestRemoval}
+        />
+      }
+    >
+      <SettingsHeading title={current.title} description={current.description} />
+      <div className="server-workspace-content space-y-6">
+        {current === meta.server && <ServerIdentity api={api} detail={detail} onChanged={onChanged} />}
+        {current === meta.members && <MemberManager api={api} detail={detail} userId={user.id} onChanged={onChanged} />}
+        {current === meta.roles && <RoleEditor api={api} detail={detail} userId={user.id} onChanged={onChanged} />}
+        {current === meta.tags && <TagManager api={api} detail={detail} userId={user.id} onChanged={onChanged} />}
+        {current === meta.invites && (
+          <Invites
+            api={api}
+            serverId={detail.server.id}
+            canList={access.can(Permission.ManageServer)}
+            canCreate={access.can(Permission.CreateInvites)}
+          />
+        )}
+        {current === meta.bans && <BanList api={api} serverId={detail.server.id} />}
+        {error && (
+          <p className="form-error rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive" role="alert">
+            {error}
+          </p>
+        )}
       </div>
       {confirmation && (
         <ConfirmDialog
@@ -198,7 +179,7 @@ export function ServerDialog({
           }}
         />
       )}
-    </Modal>
+    </SettingsScreen>
   );
 }
 

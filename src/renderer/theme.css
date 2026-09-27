@@ -61,6 +61,7 @@
   --destructive: #f05b67;
   --destructive-foreground: #ffffff;
   --success: #45cf8a;
+  --warning: #f2b544;
   /* Surfaces now separate themselves, so the dividers can step back. */
   --border: rgba(255, 255, 255, 0.07);
   --input: rgba(255, 255, 255, 0.13);
@@ -90,6 +91,7 @@
   --destructive: #d94854;
   --destructive-foreground: #ffffff;
   --success: #238b5d;
+  --warning: #b7791f;
   --border: #dedede;
   --input: #c9c9c9;
   --ring: rgba(0, 0, 0, 0.58);
@@ -119,6 +121,7 @@
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-success: var(--success);
+  --color-warning: var(--warning);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);

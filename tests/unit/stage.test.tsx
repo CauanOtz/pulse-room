@@ -179,9 +179,24 @@ describe('Stage', () => {
 
     render(<Stage participants={participants} joined watching={['maya']} onWatch={() => undefined} />);
     fireEvent.click(screen.getByRole('button', { name: 'Back to the room' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Watch Maya' }));
+    // Still taken, only put away: the tile offers to show it, not to watch it.
+    fireEvent.click(screen.getByRole('button', { name: 'Show Maya' }));
 
     expect(screen.getByText('Live from Maya')).toBeInTheDocument();
+  });
+
+  it('stops watching for real from the tile that says so', () => {
+    const participants = [
+      createParticipant({ id: 'maya', name: 'Maya', screenStream: liveScreen() }),
+      createParticipant({ id: 'noah', name: 'Noah' }),
+    ];
+    const onWatch = vi.fn();
+
+    render(<Stage participants={participants} joined watching={['maya']} onWatch={onWatch} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Stop watching Maya' }));
+
+    // Not only the big picture put away: the stream itself is handed back.
+    expect(onWatch).toHaveBeenCalledWith('maya', false);
   });
 
   it('asks what to do with somebody on a right click', () => {
@@ -197,7 +212,7 @@ describe('Stage', () => {
         onOptions={onOptions}
       />,
     );
-    fireEvent.contextMenu(screen.getByRole('button', { name: 'Watch Maya' }));
+    fireEvent.contextMenu(screen.getByRole('button', { name: 'Stop watching Maya' }));
 
     // Leaving a stream for good is asked for here, not by closing a window.
     expect(onOptions).toHaveBeenCalledWith(
@@ -240,7 +255,7 @@ describe('Stage', () => {
 
     expect(screen.getByText('Live from your screen')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Watch You' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('button', { name: 'Watch Maya' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('button', { name: 'Show Maya' })).toHaveAttribute('aria-pressed', 'false');
 
     // Clicking the screen you are watching steps back to the room.
     fireEvent.click(screen.getByRole('button', { name: 'Watch You' }));

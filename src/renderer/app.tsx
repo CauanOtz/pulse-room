@@ -31,6 +31,8 @@ import { myAccess, rolesOf } from './domain/access';
 import { TextChat } from './components/text-chat';
 import { MemberSidebar } from './components/member-sidebar';
 import { ProfilePopover, type ProfileSummary } from './components/profile-popover';
+import { ProfileModal } from './components/profile-modal';
+import { MemberActionsSection, type VoiceSeat } from './components/member-actions';
 
 const mediaDevicesService = new MediaDevicesService();
 const roomSoundPlayer = new RoomSoundPlayer();
@@ -142,6 +144,15 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
     id: string;
     position: { x: number; y: number };
   }>();
+
+  const [fullProfileId, setFullProfileId] = useState<string>();
+  // A word from the room that is not an error: where you were moved, say.
+  const [notice, setNotice] = useState<string>();
+  useEffect(() => {
+    if (!notice) return undefined;
+    const timer = setTimeout(() => setNotice(undefined), 5_000);
+    return () => clearTimeout(timer);
+  }, [notice]);
 
   const [activeCall, setActiveCall] = useState<ActiveCall>();
   const activeCallRef = useRef(activeCall);
@@ -385,6 +396,11 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
 
   const handleChannelSelect = (channelId: string) => {
     setViewId(channelId);
+    joinVoice(channelId);
+  };
+
+  /** Takes this client into a call, without changing what is on screen. */
+  const joinVoice = (channelId: string) => {
     if (channelId === settings.roomId && joined) return;
     const channel = workspace?.detail.channels.find(
       (candidate): candidate is CommunityChannel => candidate.type === 'voice' && candidate.id === channelId,
@@ -404,6 +420,43 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
     setSettings((current) => ({ ...current, roomId: channelId }));
     void run(() => controller.enterRoom(channelId));
   };
+
+  // Somebody with Move members sent you to another call of this server: the
+  // client goes, the way it would if you had clicked the channel, and says so.
+  const moveTo = me?.moveTo;
+  useEffect(() => {
+    if (!moveTo || !workspace || !joined || !activeCall) return;
+    if (activeCall.serverId !== workspace.detail.server.id || moveTo === activeCall.channelId) return;
+    const destination = workspace.detail.channels.find((channel) => channel.id === moveTo && channel.type === 'voice');
+    if (!destination) return;
+    joinVoice(destination.id);
+    setNotice(`You were moved to ${destination.name}.`);
+  }, [moveTo]);
+
+  /** Which call somebody is sitting in, as far as this client can tell. */
+  const seatOf = useCallback(
+    (accountId: string): VoiceSeat | undefined => {
+      if (!workspace) return undefined;
+      let channelId = occupancy.find((room) =>
+        room.occupants.some((occupant) => accountOf(occupant.identity) === accountId),
+      )?.roomId;
+      if (
+        !channelId &&
+        activeCall?.serverId === workspace.detail.server.id &&
+        visibleParticipants.some((participant) => accountOf(participant.id) === accountId)
+      )
+        channelId = activeCall.channelId;
+      const channel = workspace.detail.channels.find((candidate) => candidate.id === channelId);
+      return channel ? { channelId: channel.id, channelName: channel.name } : undefined;
+    },
+    [activeCall, occupancy, visibleParticipants, workspace],
+  );
+  const fullProfile = workspace?.detail.members.find((member) => member.id === fullProfileId);
+  const fullProfileParticipant = visibleParticipants.find(
+    (participant) => accountOf(participant.id) === fullProfileId && !participant.isLocal,
+  );
+  const participantMember =
+    popoverEntry && workspace?.detail.members.find((member) => member.id === accountOf(popoverEntry.id));
 
   const handleLeave = () =>
     void run(async () => {
@@ -665,8 +718,62 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
           onMutedChange={(muted) => controller.gateway.setParticipantMuted(popoverEntry.id, muted)}
           watching={snapshot.watching.includes(popoverEntry.id)}
           onStopWatching={() => controller.gateway.watchScreen(popoverEntry.id, false)}
+          onOpenProfile={participantMember ? () => setFullProfileId(participantMember.id) : undefined}
+          moderation={
+            participantMember &&
+            workspace && (
+              <MemberActionsSection
+                api={workspace.api}
+                detail={workspace.detail}
+                userId={workspace.user.id}
+                member={participantMember}
+                seatOf={seatOf}
+                onChanged={workspace.onProfileChanged}
+                title="Moderation"
+                compact
+              />
+            )
+          }
           onClose={() => setOpenParticipant(undefined)}
         />
+      )}
+
+      {fullProfile && workspace && (
+        <ProfileModal
+          api={workspace.api}
+          detail={workspace.detail}
+          userId={workspace.user.id}
+          member={fullProfile}
+          seat={seatOf(fullProfile.id)}
+          seatOf={seatOf}
+          audio={
+            fullProfileParticipant && {
+              volume: fullProfileParticipant.volume,
+              locallyMuted: fullProfileParticipant.locallyMuted,
+              onVolume: (volume) => controller.gateway.setParticipantVolume(fullProfileParticipant.id, volume),
+              onMuted: (muted) => controller.gateway.setParticipantMuted(fullProfileParticipant.id, muted),
+            }
+          }
+          onEditProfile={
+            fullProfile.id === workspace.user.id
+              ? () => {
+                  setFullProfileId(undefined);
+                  workspace.onAccount();
+                }
+              : undefined
+          }
+          onChanged={workspace.onProfileChanged}
+          onClose={() => setFullProfileId(undefined)}
+        />
+      )}
+
+      {notice && (
+        <div
+          className="room-notice fixed bottom-20 left-1/2 z-40 -translate-x-1/2 rounded-lg border border-border bg-popover px-4 py-2.5 text-sm shadow-2xl"
+          role="status"
+        >
+          {notice}
+        </div>
       )}
 
       {profileSummary && openProfile && (
@@ -683,6 +790,11 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
                   );
                   if (participant) setOpenParticipant({ id: participant.id, position: openProfile.position });
                 }
+              : undefined
+          }
+          onOpenFull={
+            workspace?.detail.members.some((member) => member.id === profileSummary.id)
+              ? () => setFullProfileId(profileSummary.id)
               : undefined
           }
           onClose={() => setOpenProfile(undefined)}

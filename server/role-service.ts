@@ -214,6 +214,37 @@ export class RoleService {
     });
   }
 
+  /**
+   * Sends somebody below you to another voice channel of this server. The
+   * destination must be one you may move people into and they may join; the
+   * move itself is made by their own client, which joins it, so the service
+   * only records where they were sent.
+   */
+  async move(
+    userId: string,
+    serverId: string,
+    targetId: string,
+    channelId: string,
+    permissionsIn: (userId: string, channelId: string) => Promise<{ serverId: string; type: string; permissions: number }>,
+  ): Promise<void> {
+    // What each of them may do in the destination is read first, outside the
+    // write, which then only has to judge the hierarchy and record the move.
+    const mine = await permissionsIn(userId, channelId);
+    if (mine.serverId !== serverId || mine.type !== 'voice') throw new HttpError(400, 'Choose a voice channel of this server.');
+    if (!has(mine.permissions, Permission.MoveMembers))
+      throw new HttpError(403, 'You need Move members in that channel to move people into it.');
+    const theirs = await permissionsIn(targetId, channelId).catch(() => ({ permissions: 0 }));
+    if (!has(theirs.permissions, Permission.Connect)) throw new HttpError(403, 'They cannot join that channel.');
+    await withServer(this.db, userId, serverId, async (db, access) => {
+      if (targetId !== userId) await requireAbove(db, access, targetId, 'move');
+      await db.query('UPDATE memberships SET move_to=$3 WHERE server_id=$1 AND account_id=$2', [
+        serverId,
+        targetId,
+        channelId,
+      ]);
+    });
+  }
+
   /** Checks somebody may be taken out of a call; the call itself is the voice service's. */
   async checkDisconnect(userId: string, serverId: string, targetId: string): Promise<void> {
     const access = await loadAccess(this.db, userId, serverId);

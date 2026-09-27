@@ -8,6 +8,7 @@ import type { Account, TagBadge } from '../src/shared/community.js';
  */
 export const profileColumns = `
   a.id, a.username, a.display_name AS "displayName", a.avatar_id AS "avatarId", a.bio,
+  a.created_at AS "createdAt",
   a.banner_id AS "bannerId",
   a.theme_primary AS "themePrimary", a.theme_accent AS "themeAccent",
   tc.id AS "tagServerId", tc.name AS "tagServerName",

@@ -117,7 +117,9 @@ const ParticipantTile = memo(function ParticipantTile({
         focused && 'is-focused',
       )}
       type="button"
-      aria-label={live ? `Watch ${participant.name}` : participant.name}
+      aria-label={
+        !live ? participant.name : taken ? (focused ? `Stop watching ${participant.name}` : `Show ${participant.name}`) : `Watch ${participant.name}`
+      }
       aria-pressed={focused}
       disabled={!live}
       onClick={() => onFocus(participant)}
@@ -195,7 +197,8 @@ const ParticipantTile = memo(function ParticipantTile({
             )}
           >
             <Tv className="size-3.5" aria-hidden="true" />
-            {picture ? 'Stop watching' : `Watch ${participant.name}`}
+            {/* What the click does, said before it is made. */}
+            {taken ? (focused ? 'Stop watching' : `Show ${participant.name}`) : `Watch ${participant.name}`}
           </span>
         </span>
       )}

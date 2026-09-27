@@ -18,28 +18,20 @@ export class AccountService {
 
   async register(username: string, displayName: string, password: string): Promise<AccountSession> {
     const recoveryCode = opaqueToken();
-    // Every path that returns an account describes it the same way.
-    const user: Account = {
-      id: randomUUID(),
-      username: username.toLowerCase(),
-      displayName,
-      avatarId: null,
-      bio: '',
-      bannerId: null,
-      theme: null,
-      tag: null,
-    };
+    const id = randomUUID();
     const hash = await this.passwords.hash(password);
     try {
       await this.db.query(
         'INSERT INTO accounts(id, username, display_name, password_hash, recovery_hash) VALUES($1,$2,$3,$4,$5)',
-        [user.id, user.username, displayName, hash, digest(recoveryCode)],
+        [id, username.toLowerCase(), displayName, hash, digest(recoveryCode)],
       );
     } catch (error) {
       if ((error as { code?: string }).code === '23505')
         throw new HttpError(409, 'That username is already taken.');
       throw error;
     }
+    // Every path that returns an account describes it the same way: read back.
+    const user = await this.profile(id);
     return { ...(await this.createSession(user)), recoveryCode };
   }
 

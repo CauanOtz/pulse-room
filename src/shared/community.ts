@@ -120,6 +120,8 @@ export interface Account {
   displayName: string;
   /** Short profile text shown to other members of shared servers. */
   bio?: string;
+  /** When the account was made: "on Pulse since". */
+  createdAt?: string;
   /** Content address of the picture, fetched from /api/images. */
   avatarId?: string | null;
   /** A wide picture across the top of the profile card. */
@@ -150,6 +152,13 @@ export interface CommunityMember extends Account {
   timeoutUntil?: string | null;
   muted?: boolean;
   deafened?: boolean;
+  /** When they joined this server; unknown for people who joined before it was kept. */
+  joinedAt?: string | null;
+  /**
+   * The voice channel somebody with Move members sent you to. Only ever sent
+   * to the person it concerns, whose client moves itself there.
+   */
+  moveTo?: string;
 }
 export interface CommunityChannel {
   id: string;

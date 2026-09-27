@@ -309,6 +309,15 @@ export async function createServer(
     await voice.disconnect(userId);
     return { ok: true };
   });
+  server.post('/api/servers/:serverId/members/:userId/move', async (request) => {
+    const userId = id(request, 'userId');
+    const { channelId } = z.object({ channelId: z.uuid() }).strict().parse(request.body);
+    await roles.move(actor(request).id, id(request, 'serverId'), userId, channelId, async (who, where) => {
+      const { channel, permissions } = await communities.channel(who, where);
+      return { serverId: channel.serverId, type: channel.type, permissions };
+    });
+    return { ok: true };
+  });
   server.get('/api/servers/:serverId/bans', async (request) => ({
     bans: await roles.bans(actor(request).id, id(request, 'serverId')),
   }));
@@ -448,6 +457,12 @@ export async function createServer(
     const { channel, permissions, access } = await communities.channel(user.id, id(request, 'roomId'));
     if (channel.type !== 'voice') throw new HttpError(400, 'Choose a voice channel.');
     if (!has(permissions, Permission.Connect)) throw new HttpError(403, 'You cannot join this call.');
+    // Joining any call answers a request to move: it was followed, or the
+    // person chose somewhere else, and either way it is done with.
+    await db.query('UPDATE memberships SET move_to=NULL WHERE server_id=$1 AND account_id=$2', [
+      channel.serverId,
+      user.id,
+    ]);
     return tokens.issueRoomToken({
       roomId: voiceRoomName(channel.id),
       identity: `${user.id}:${user.sessionId}`,

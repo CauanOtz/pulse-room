@@ -3,7 +3,7 @@ import { LogOut, Palette, ShieldCheck, UserRound, type LucideIcon } from 'lucide
 import type { Account, ProfileTheme } from '../../shared/community';
 import type { CommunityClient } from '../infrastructure/community-client';
 import { ConfirmDialog, type Confirmation } from './confirm-dialog';
-import { Modal } from './modal';
+import { SettingsHeading, SettingsNavButton, SettingsScreen } from './settings-screen';
 import { PictureField } from './picture-field';
 import { BannerField, ProfilePreview, sameTheme, TagWearer, ThemeEditor } from './profile-editors';
 import { cn } from './ui/utils';
@@ -50,7 +50,7 @@ function EditorWithPreview({ preview, children }: { preview: ReactNode; children
   return (
     <div className="account-editor grid items-start gap-8 md:grid-cols-[minmax(0,1fr)_16.5rem]">
       <div className="min-w-0 space-y-7">{children}</div>
-      <aside className="order-first space-y-2 md:sticky md:top-24 md:order-none" aria-label="Live preview">
+      <aside className="order-first space-y-2 md:sticky md:top-8 md:order-none" aria-label="Live preview">
         <span className="block text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
           Preview
         </span>
@@ -146,50 +146,26 @@ export function AccountDialog({
   const current = sections.find((entry) => entry.id === section)!;
 
   return (
-    <Modal
-      title="Your account"
+    <SettingsScreen
+      title="Account"
+      label="Your account"
       onClose={close}
-      contentClassName="account-workspace-modal h-[min(42rem,calc(100vh-2rem))] max-h-none w-[min(56rem,calc(100vw-2rem))]"
-      headerClassName="h-15 px-6 py-0"
-      bodyClassName="flex min-h-0 flex-col space-y-0 overflow-hidden p-0"
+      nav={
+        <nav className="flex flex-col gap-0.5" aria-label="Account sections">
+          {sections.map(({ id, label, icon }) => (
+            <SettingsNavButton key={id} icon={icon} label={label} active={section === id} onClick={() => setSection(id)}>
+              {/* A section with something unsaved in it says so from here. */}
+              {((id === 'profile' && bioChanged) || (id === 'personalization' && themeChanged)) && (
+                <span className="size-1.5 shrink-0 rounded-full bg-foreground" aria-label="Unsaved changes" />
+              )}
+            </SettingsNavButton>
+          ))}
+        </nav>
+      }
     >
-      <div className="grid min-h-0 flex-1 grid-cols-[12rem_minmax(0,1fr)]">
-        <aside className="flex min-h-0 flex-col border-r border-border bg-background/45 p-3">
-          <div className="px-2 pb-3 pt-1">
-            <span className="text-[11px] font-medium text-muted-foreground">Account</span>
-          </div>
-          <nav className="flex flex-col gap-1" aria-label="Account sections">
-            {sections.map(({ id, label, icon: Icon }) => (
-              <button
-                key={id}
-                type="button"
-                className={cn(
-                  'flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                  section === id
-                    ? 'bg-accent text-foreground'
-                    : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
-                )}
-                aria-pressed={section === id}
-                onClick={() => setSection(id)}
-              >
-                <Icon className="size-4" aria-hidden="true" /> {label}
-                {/* A section with something unsaved in it says so from here. */}
-                {((id === 'profile' && bioChanged) || (id === 'personalization' && themeChanged)) && (
-                  <span className="ml-auto size-1.5 rounded-full bg-foreground" aria-label="Unsaved changes" />
-                )}
-              </button>
-            ))}
-          </nav>
-        </aside>
-
-        <section className="flex min-h-0 min-w-0 flex-col" aria-label={current.label}>
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            <header className="sticky top-0 z-10 border-b border-border bg-card px-6 py-4">
-              <h2 className="text-base font-semibold text-foreground">{current.label}</h2>
-              <p className="mt-1 max-w-xl text-xs leading-5 text-muted-foreground">{current.description}</p>
-            </header>
-
-            <div className="account-workspace-content space-y-7 px-6 py-5">
+      <section className="flex min-w-0 flex-1 flex-col" aria-label={current.label}>
+            <SettingsHeading title={current.label} description={current.description} />
+            <div className="account-workspace-content flex-1 space-y-7">
               {section === 'profile' && (
                 <EditorWithPreview preview={<ProfilePreview user={user} theme={theme} bio={bio} />}>
                   <Part id="account-avatar-heading" title="Avatar">
@@ -350,13 +326,12 @@ export function AccountDialog({
                 </>
               )}
             </div>
-          </div>
 
-          {/* The one place pending changes are kept from, pinned under whatever
-              section is open so it is never scrolled out of reach. */}
+          {/* The one place pending changes are kept from, floating at the foot
+              of whatever section is open so it is never scrolled out of reach. */}
           {(dirty || saveMessage) && (
             <div
-              className="unsaved-bar flex flex-wrap items-center gap-3 border-t border-border bg-card px-6 py-3"
+              className="unsaved-bar sticky bottom-4 z-10 mt-8 flex flex-wrap items-center gap-3 rounded-xl border border-border bg-popover px-4 py-3 shadow-2xl"
               role="region"
               aria-label="Unsaved changes"
             >
@@ -385,8 +360,7 @@ export function AccountDialog({
               )}
             </div>
           )}
-        </section>
-      </div>
+      </section>
       {confirmation && (
         <ConfirmDialog
           confirmation={confirmation}
@@ -394,6 +368,6 @@ export function AccountDialog({
           onConfirm={() => void confirmation.action()}
         />
       )}
-    </Modal>
+    </SettingsScreen>
   );
 }

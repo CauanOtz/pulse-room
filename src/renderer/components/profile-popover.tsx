@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Crown, Mic, Settings2, Shield, UserRound } from 'lucide-react';
+import { Crown, Maximize2, Mic, Settings2, Shield, UserRound } from 'lucide-react';
 import type { MemberRole, ProfileTheme, Role, WornTag } from '../../shared/community';
 import { Avatar } from './avatar';
 import { ProfileBanner, TagChip, themedCard } from './profile-identity';
@@ -24,11 +24,14 @@ export function ProfilePopover({
   profile,
   position,
   onAudioOptions,
+  onOpenFull,
   onClose,
 }: {
   profile: ProfileSummary;
   position: { x: number; y: number };
   onAudioOptions?(): void;
+  /** Opens the whole profile in the middle of the window. */
+  onOpenFull?(): void;
   onClose(): void;
 }) {
   const cardRef = useRef<HTMLDivElement>(null);
@@ -49,6 +52,7 @@ export function ProfilePopover({
     (onAudioOptions ? 250 : 218) +
     (profile.bio?.trim() ? 80 : 0) +
     (profile.roles?.length ? 56 : 0) +
+    (onOpenFull ? 44 : 0) +
     (bannerHeight - 56);
   // Open into the conversation/stage instead of covering the member list or
   // other participant tiles. Only flip to the right when the window edge makes
@@ -75,12 +79,35 @@ export function ProfilePopover({
         <ProfileBanner bannerId={profile.bannerId} theme={profile.theme} className="w-full" style={{ height: bannerHeight }} />
         <div className="px-4 pb-4">
           <div className="-mt-7 flex items-end justify-between gap-3">
-            <Avatar
-              className="grid size-14 shrink-0 place-items-center rounded-full border-[3px] border-popover bg-secondary text-sm font-bold text-secondary-foreground"
-              name={profile.displayName}
-              imageId={profile.avatarId}
-              animate="always"
-            />
+            {onOpenFull ? (
+              // The face is the way into the whole profile, as it is everywhere.
+              <button
+                type="button"
+                className="group relative shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label={`Open ${profile.displayName}'s full profile`}
+                onClick={() => {
+                  onOpenFull();
+                  onClose();
+                }}
+              >
+                <Avatar
+                  className="grid size-14 place-items-center rounded-full border-[3px] border-popover bg-secondary text-sm font-bold text-secondary-foreground"
+                  name={profile.displayName}
+                  imageId={profile.avatarId}
+                  animate="always"
+                />
+                <span className="absolute inset-[3px] grid place-items-center rounded-full bg-black/50 text-[9px] font-bold uppercase tracking-wide text-white opacity-0 transition-opacity group-hover:opacity-100">
+                  Profile
+                </span>
+              </button>
+            ) : (
+              <Avatar
+                className="grid size-14 shrink-0 place-items-center rounded-full border-[3px] border-popover bg-secondary text-sm font-bold text-secondary-foreground"
+                name={profile.displayName}
+                imageId={profile.avatarId}
+                animate="always"
+              />
+            )}
             {profile.role && (
               <span className="mb-1 inline-flex items-center gap-1 rounded-md border border-border bg-secondary/70 px-2 py-1 text-[10px] font-medium text-muted-foreground">
                 {profile.role === 'owner' ? <Crown size={12} /> : profile.role === 'admin' ? <Shield size={12} /> : <UserRound size={12} />}
@@ -126,6 +153,19 @@ export function ProfilePopover({
                 ))}
               </ul>
             </div>
+          )}
+          {onOpenFull && (
+            <button
+              className="mt-3 flex h-9 w-full items-center justify-center gap-2 rounded-md bg-primary text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              type="button"
+              onClick={() => {
+                onOpenFull();
+                onClose();
+              }}
+            >
+              <Maximize2 size={14} />
+              View full profile
+            </button>
           )}
           {onAudioOptions && (
             <button
