@@ -174,16 +174,35 @@ test('roles, a staff category and moderation, end to end', async () => {
     await channelEditor.getByRole('tab', { name: 'Permissions' }).click();
     await expect(channelEditor.getByRole('status')).toContainText('Permissions synced with STAFF');
     await window.screenshot({ path: 'test-results/roles-channel-synced.png' });
-    await window.keyboard.press('Escape');
+    // Its own button: Escape could land on the gear's tooltip first.
+    await channelEditor.getByRole('button', { name: 'Close dialog' }).click();
+    await expect(channelEditor).toHaveCount(0);
 
     // ------------------------------------------------ a timeout from the member list
     await window.getByRole('button', { name: 'Server settings and members' }).click();
     await settings.getByRole('button', { name: /^Members/ }).click();
     await expect(settings.locator('.member-row', { hasText: 'Friend' })).toContainText('Moderator');
     await settings.getByRole('button', { name: 'Manage Guest' }).click();
-    await window.getByRole('menuitem', { name: 'Timeout' }).click();
-    await window.getByRole('menuitem', { name: '5 minutes' }).click();
+    await window.getByRole('menuitem', { name: 'Timeout…' }).click();
+    const timeout = window.getByRole('dialog', { name: 'Timeout Guest' });
+    await timeout.getByLabel('5 minutes').check();
+    await timeout.getByRole('button', { name: 'Time out' }).click();
+    await expect(timeout).toHaveCount(0);
     await expect(settings.locator('.member-row', { hasText: 'Guest' }).getByLabel('In a timeout')).toBeVisible();
+
+    // Roles handed out from the same menu, one tick at a time.
+    await settings.getByRole('button', { name: 'Manage Guest' }).click();
+    await window.getByRole('menuitem', { name: 'Roles…' }).click();
+    const guestRoles = window.getByRole('dialog', { name: 'Roles for Guest' });
+    // The settings behind the small dialog are hidden from the accessibility
+    // tree while it is open, so the row is found by what it is, not its role.
+    const guestRow = window.locator('.member-row', { hasText: 'Guest' });
+    await guestRoles.getByRole('checkbox', { name: /Moderator/ }).check();
+    await expect(guestRow).toContainText('Moderator');
+    await guestRoles.getByRole('checkbox', { name: /Moderator/ }).uncheck();
+    await expect(guestRow).not.toContainText('Moderator');
+    expect((await detailAs(owner)).members.find((m) => m.id === guest.user.id)?.roleIds).toEqual([]);
+    await guestRoles.getByRole('button', { name: 'Close dialog' }).click();
     await window.screenshot({ path: 'test-results/roles-members.png' });
     const general = asGuest.channels.find((channel) => channel.name === 'general')!;
     const refused = await call('POST', `/api/channels/${general.id}/messages`, guest.token, { content: 'hello?' });

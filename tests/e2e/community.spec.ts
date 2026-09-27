@@ -152,13 +152,18 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
     await loungeGear.click();
     await expect(window.getByRole('dialog', { name: 'Edit channel', exact: true })).toBeVisible();
     await expect(window.getByLabel('Channel name', { exact: true })).toHaveValue('Lounge');
-    await window.keyboard.press('Escape');
+    // Closed by its own button: Escape goes to the topmost layer first, and
+    // that can still be the gear's tooltip rather than the dialog.
+    const channelDialog = window.getByRole('dialog', { name: 'Edit channel', exact: true });
+    await channelDialog.getByRole('button', { name: 'Close dialog' }).click();
+    await expect(channelDialog).toHaveCount(0);
     const general = window.locator('.channel-item', { hasText: 'general' });
     await general.hover();
     await general.getByRole('button', { name: 'Edit general' }).click();
     await expect(window.getByRole('dialog', { name: 'Edit channel', exact: true })).toBeVisible();
     await expect(window.getByLabel('Channel name', { exact: true })).toHaveValue('general');
-    await window.keyboard.press('Escape');
+    await channelDialog.getByRole('button', { name: 'Close dialog' }).click();
+    await expect(channelDialog).toHaveCount(0);
 
     await window.getByRole('button', { name: 'Server settings and members' }).click();
     await window.getByRole('button', { name: 'Invites', exact: true }).click();

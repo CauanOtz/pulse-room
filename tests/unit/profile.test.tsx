@@ -60,6 +60,25 @@ describe('a moving picture', () => {
     await waitFor(() => expect(shown()).toBe('blob:still'));
   });
 
+  it('plays for a pointer that was already on the row before the picture was known to move', async () => {
+    let moves: (value: boolean) => void = () => undefined;
+    const images = {
+      ...fakeImages(true),
+      isAnimated: vi.fn(() => new Promise<boolean>((resolve) => (moves = resolve))),
+    } as unknown as ImageCache;
+    render(
+      <ImagesProvider images={images}>
+        <div data-hover-scope data-testid="row">
+          <Avatar name="babi" imageId={'a'.repeat(64)} />
+        </div>
+      </ImagesProvider>,
+    );
+    await waitFor(() => expect(shown()).toBe('blob:still'));
+    fireEvent.pointerEnter(screen.getByTestId('row'));
+    await act(async () => moves(true));
+    await waitFor(() => expect(shown()).toBe('blob:moving'));
+  });
+
   it('always plays where somebody came to look at it', async () => {
     render(
       <ImagesProvider images={fakeImages(true)}>

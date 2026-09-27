@@ -56,9 +56,11 @@ export function Avatar({ name, initials, imageId, accent, className, animate = '
   }, [imageId, images, animate]);
 
   // A row is what the pointer is on, not the thirty pixels of its picture:
-  // anything marked as a hover scope wakes every face inside it.
+  // anything marked as a hover scope wakes every face inside it. The pointer
+  // is followed from the start, not from when the picture turns out to move,
+  // or a pointer already resting on the row would be missed.
   useEffect(() => {
-    if (animate !== 'hover' || !animated) return undefined;
+    if (animate !== 'hover') return undefined;
     const element = host.current;
     const scope = element?.closest('[data-hover-scope]') ?? element;
     if (!scope) return undefined;
@@ -70,7 +72,7 @@ export function Avatar({ name, initials, imageId, accent, className, animate = '
       scope.removeEventListener('pointerenter', enter);
       scope.removeEventListener('pointerleave', leave);
     };
-  }, [animate, animated]);
+  }, [animate]);
 
   useEffect(() => {
     if (!hovered || !animated || !imageId || !images) return undefined;

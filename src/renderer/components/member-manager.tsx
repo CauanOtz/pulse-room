@@ -6,16 +6,12 @@ import { canTouchRole, myAccess, outranks, rolesOf } from '../domain/access';
 import type { CommunityClient } from '../infrastructure/community-client';
 import { Avatar } from './avatar';
 import { ConfirmDialog, type Confirmation } from './confirm-dialog';
+import { Modal } from './modal';
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import { Tooltip } from './ui/tooltip';
@@ -42,19 +38,27 @@ export function MemberManager({
   detail,
   userId,
   onChanged,
-  onRemoved,
 }: {
   api: CommunityClient;
   detail: CommunityDetail;
   userId: string;
   onChanged(): Promise<void>;
-  onRemoved?(): void;
 }) {
   const access = myAccess(detail, userId);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [confirmation, setConfirmation] = useState<Confirmation>();
   const [openMenu, setOpenMenu] = useState<string>();
+  // Roles and a timeout are chosen in a small dialog of their own rather than
+  // a menu that opens off another: a list that closes when the pointer takes
+  // a slightly wrong path is a list people miss.
+  const [acting, setActing] = useState<{ kind: 'roles' | 'timeout'; memberId: string }>();
+  const [duration, setDuration] = useState(timeoutChoices[1].minutes);
+  const actingOn = acting && detail.members.find((member) => member.id === acting.memberId);
+  // A tick shows the moment it is made; the service's answer then replaces it,
+  // or, if it refuses, the list goes back to what the service holds.
+  const [pendingRoles, setPendingRoles] = useState<string[]>();
+  const heldRoles = pendingRoles ?? actingOn?.roleIds ?? [];
   const base = `/api/servers/${detail.server.id}`;
   const assignable = (detail.roles ?? [])
     .filter((role) => !role.isDefault && canTouchRole(access, role))
@@ -155,34 +159,9 @@ export function MemberManager({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     {actions.roles && (
-                      <DropdownMenuSub>
-                        <DropdownMenuSubTrigger>Roles</DropdownMenuSubTrigger>
-                        <DropdownMenuSubContent>
-                          <DropdownMenuLabel>Roles you can give</DropdownMenuLabel>
-                          {assignable.map((role) => {
-                            const has = member.roleIds?.includes(role.id) ?? false;
-                            return (
-                              <DropdownMenuCheckboxItem
-                                key={role.id}
-                                checked={has}
-                                onSelect={(event) => event.preventDefault()}
-                                onCheckedChange={(checked) =>
-                                  void run(() =>
-                                    api.request(`${base}/members/${member.id}/roles`, 'PUT', {
-                                      roleIds: checked
-                                        ? [...(member.roleIds ?? []), role.id]
-                                        : (member.roleIds ?? []).filter((id) => id !== role.id),
-                                    }),
-                                  )
-                                }
-                              >
-                                <span className="size-2.5 rounded-full" style={{ background: role.colour ?? 'var(--muted-foreground)' }} />
-                                {role.name}
-                              </DropdownMenuCheckboxItem>
-                            );
-                          })}
-                        </DropdownMenuSubContent>
-                      </DropdownMenuSub>
+                      <DropdownMenuItem onSelect={() => setActing({ kind: 'roles', memberId: member.id })}>
+                        Roles…
+                      </DropdownMenuItem>
                     )}
                     {actions.timeout &&
                       (timedOut ? (
@@ -190,19 +169,9 @@ export function MemberManager({
                           Remove timeout
                         </DropdownMenuItem>
                       ) : (
-                        <DropdownMenuSub>
-                          <DropdownMenuSubTrigger>Timeout</DropdownMenuSubTrigger>
-                          <DropdownMenuSubContent>
-                            {timeoutChoices.map((choice) => (
-                              <DropdownMenuItem
-                                key={choice.minutes}
-                                onSelect={() => moderate(member, { timeoutMinutes: choice.minutes })}
-                              >
-                                {choice.label}
-                              </DropdownMenuItem>
-                            ))}
-                          </DropdownMenuSubContent>
-                        </DropdownMenuSub>
+                        <DropdownMenuItem onSelect={() => setActing({ kind: 'timeout', memberId: member.id })}>
+                          Timeout…
+                        </DropdownMenuItem>
                       ))}
                     {actions.mute && (
                       <DropdownMenuItem onSelect={() => moderate(member, { muted: !member.muted })}>
@@ -286,17 +255,85 @@ export function MemberManager({
           {error}
         </p>
       )}
+      {acting?.kind === 'roles' && actingOn && (
+        <Modal title={`Roles for ${actingOn.displayName}`} onClose={() => setActing(undefined)} contentClassName="w-[min(24rem,calc(100vw-2rem))]">
+          <div className="space-y-1" role="group" aria-label="Roles you can give">
+            {assignable.map((role) => (
+              <label
+                key={role.id}
+                className="flex cursor-pointer flex-row items-center gap-2.5 rounded-md px-2 py-2 text-sm hover:bg-accent/50"
+              >
+                <input
+                  type="checkbox"
+                  className="accent-foreground"
+                  checked={heldRoles.includes(role.id)}
+                  disabled={busy}
+                  onChange={(event) => {
+                    const roleIds = event.target.checked
+                      ? [...heldRoles, role.id]
+                      : heldRoles.filter((id) => id !== role.id);
+                    setPendingRoles(roleIds);
+                    void run(() => api.request(`${base}/members/${actingOn.id}/roles`, 'PUT', { roleIds })).finally(
+                      () => setPendingRoles(undefined),
+                    );
+                  }}
+                />
+                <span className="size-2.5 rounded-full" style={{ background: role.colour ?? 'var(--muted-foreground)' }} />
+                {role.name}
+              </label>
+            ))}
+          </div>
+          <p className="text-[11px] text-muted-foreground">Only roles below your own are listed. Each change is saved at once.</p>
+        </Modal>
+      )}
+      {acting?.kind === 'timeout' && actingOn && (
+        <Modal title={`Timeout ${actingOn.displayName}`} onClose={() => setActing(undefined)} contentClassName="w-[min(24rem,calc(100vw-2rem))]">
+          <p className="text-xs text-muted-foreground">
+            They can still read and listen, but not write, speak or share until it ends.
+          </p>
+          <div className="space-y-0.5" role="radiogroup" aria-label="How long">
+            {timeoutChoices.map((choice) => (
+              <label key={choice.minutes} className="flex cursor-pointer flex-row items-center gap-2.5 rounded-md px-2 py-2 text-sm hover:bg-accent/50">
+                <input
+                  type="radio"
+                  name="timeout-length"
+                  className="accent-foreground"
+                  checked={duration === choice.minutes}
+                  onChange={() => setDuration(choice.minutes)}
+                />
+                {choice.label}
+              </label>
+            ))}
+          </div>
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              className="inline-flex h-9 items-center rounded-md px-4 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
+              onClick={() => setActing(undefined)}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="primary-action inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              disabled={busy}
+              onClick={() => {
+                const target = actingOn;
+                setActing(undefined);
+                moderate(target, { timeoutMinutes: duration });
+              }}
+            >
+              Time out
+            </button>
+          </div>
+        </Modal>
+      )}
       {confirmation && (
         <ConfirmDialog
           confirmation={confirmation}
           busy={busy}
           onCancel={() => setConfirmation(undefined)}
-          onConfirm={() =>
-            void run(async () => {
-              await confirmation.action();
-              if (confirmation.title === 'Transfer ownership') onRemoved?.();
-            })
-          }
+          onConfirm={() => void run(confirmation.action)}
         />
       )}
     </div>
