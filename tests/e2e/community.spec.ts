@@ -167,12 +167,17 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
 
     await window.getByRole('button', { name: 'Server settings and members' }).click();
     await window.getByRole('button', { name: 'Invites', exact: true }).click();
-    await window.getByLabel('Maximum uses', { exact: true }).fill('2');
-    await window.getByRole('button', { name: 'Generate invite' }).click();
-    const invite = await window.getByLabel('Invite code — copy and share').inputValue();
+    // An invitation is made in a dialog, which shows the code it produced.
+    await window.getByRole('button', { name: /Create invite/ }).click();
+    const inviteDialog = window.getByRole('dialog', { name: 'Create invite' });
+    await inviteDialog.getByLabel('Maximum uses', { exact: true }).fill('2');
+    await inviteDialog.getByRole('button', { name: 'Generate invite' }).click();
+    const invite = await inviteDialog.getByLabel('Invite code — copy and share').inputValue();
     expect(invite).toHaveLength(43);
-    await expectContainedDialog(window);
     await window.screenshot({ path: 'test-results/community-invite.png' });
+    await inviteDialog.getByRole('button', { name: 'Done' }).click();
+    await expect(inviteDialog).toHaveCount(0);
+    await expectContainedDialog(window);
     const friendResponse = await backend.inject({
       method: 'POST',
       url: '/api/auth/register',

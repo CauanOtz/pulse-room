@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Ban as BanIcon, Settings, ShieldHalf, Tag, Ticket, Trash2, Users, type LucideIcon } from 'lucide-react';
+import { Ban as BanIcon, Check, Copy, Plus, Settings, ShieldHalf, Tag, Ticket, Trash2, Users, type LucideIcon } from 'lucide-react';
 import type { Account, CommunityDetail, CommunityInvite } from '../../shared/community';
 import { Permission } from '../../shared/permissions';
 import { myAccess } from '../domain/access';
@@ -7,6 +7,7 @@ import type { CommunityClient } from '../infrastructure/community-client';
 import { ConfirmDialog, type Confirmation } from './confirm-dialog';
 import { BanList, MemberManager } from './member-manager';
 import { SettingsHeading, SettingsNavButton, SettingsScreen } from './settings-screen';
+import { Modal } from './modal';
 import { PictureField } from './picture-field';
 import { RoleEditor } from './role-editor';
 import { TagManager } from './tag-manager';
@@ -15,7 +16,7 @@ import { cn } from './ui/utils';
 
 const errorMessage = (error: unknown) => (error instanceof Error ? error.message : 'Something went wrong.');
 const primaryClass =
-  'primary-action inline-flex h-9 shrink-0 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50';
+  'primary-action inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50';
 
 type Section = 'server' | 'members' | 'roles' | 'tags' | 'invites' | 'bans';
 
@@ -294,48 +295,105 @@ function Invites({
       setBusy(false);
     }
   }
+  const [creating, setCreating] = useState(false);
+  const [copied, setCopied] = useState(false);
   return (
     <div className="max-w-2xl space-y-6">
       {canCreate && (
-        <Panel title="New invitation" hint="Only share the generated code with people you want in this server.">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5 text-xs font-medium text-muted-foreground">
-              <span id="invite-expiry">Expires in</span>
-              <Select value={String(hours)} onValueChange={(value) => setHours(Number(value))}>
-                <SelectTrigger aria-labelledby="invite-expiry">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1">1 hour</SelectItem>
-                  <SelectItem value="24">24 hours</SelectItem>
-                  <SelectItem value="168">7 days</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <label>
-              Maximum uses
-              <input type="number" min={1} max={100} value={maxUses} onChange={(e) => setMaxUses(Number(e.target.value))} />
-            </label>
-          </div>
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs text-muted-foreground">Only share a code with people you want in this server.</p>
           <button
             type="button"
-            disabled={busy}
-            className={cn(primaryClass, 'mt-4')}
-            onClick={() =>
-              void run(async () =>
-                setCode((await api.request<{ code: string }>(`${base}/invites`, 'POST', { hours, maxUses })).code),
-              )
-            }
+            className={primaryClass}
+            onClick={() => {
+              setCode('');
+              setCopied(false);
+              setError('');
+              setCreating(true);
+            }}
           >
-            Generate invite
+            <Plus className="size-4" /> Create invite
           </button>
-          {code && (
-            <label className="mt-4">
-              Invite code — copy and share
-              <textarea className="font-mono text-xs" readOnly value={code} onFocus={(event) => event.target.select()} />
-            </label>
+        </div>
+      )}
+      {creating && (
+        // Made in a dialog, where the code it produces is shown and copied
+        // before going back to the list it has joined.
+        <Modal title="Create invite" onClose={() => setCreating(false)} contentClassName="w-[min(28rem,calc(100vw-2rem))]">
+          {code ? (
+            <div className="space-y-3">
+              <label>
+                Invite code — copy and share
+                <textarea className="font-mono text-xs" readOnly value={code} onFocus={(event) => event.target.select()} />
+              </label>
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  className="inline-flex h-9 items-center gap-2 rounded-md border border-border px-4 text-sm font-medium hover:bg-accent"
+                  onClick={() =>
+                    void navigator.clipboard
+                      ?.writeText(code)
+                      .then(() => setCopied(true))
+                      .catch(() => undefined)
+                  }
+                >
+                  {copied ? <Check className="size-4" /> : <Copy className="size-4" />} {copied ? 'Copied' : 'Copy'}
+                </button>
+                <button type="button" className={primaryClass} onClick={() => setCreating(false)}>
+                  Done
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5 text-xs font-medium text-muted-foreground">
+                  <span id="invite-expiry">Expires in</span>
+                  <Select value={String(hours)} onValueChange={(value) => setHours(Number(value))}>
+                    <SelectTrigger aria-labelledby="invite-expiry">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">1 hour</SelectItem>
+                      <SelectItem value="24">24 hours</SelectItem>
+                      <SelectItem value="168">7 days</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <label>
+                  Maximum uses
+                  <input type="number" min={1} max={100} value={maxUses} onChange={(e) => setMaxUses(Number(e.target.value))} />
+                </label>
+              </div>
+              {error && (
+                <p className="rounded-md bg-destructive/10 px-2 py-1 text-xs text-destructive" role="alert">
+                  {error}
+                </p>
+              )}
+              <div className="flex justify-end gap-2 border-t border-border pt-3">
+                <button
+                  type="button"
+                  className="inline-flex h-9 items-center rounded-md px-4 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
+                  onClick={() => setCreating(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  className={primaryClass}
+                  onClick={() =>
+                    void run(async () =>
+                      setCode((await api.request<{ code: string }>(`${base}/invites`, 'POST', { hours, maxUses })).code),
+                    )
+                  }
+                >
+                  Generate invite
+                </button>
+              </div>
+            </div>
           )}
-        </Panel>
+        </Modal>
       )}
       {canList && (
         <section>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowDown, ArrowUp, GripVertical, Lock, Plus, ShieldAlert, Trash2, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, GripVertical, Lock, Plus, ShieldAlert, Trash2, UserPlus, X } from 'lucide-react';
 import type { CommunityDetail, Role } from '../../shared/community';
 import { administratorInfo, has, Permission, permissionGroups } from '../../shared/permissions';
 import { canTouchRole, myAccess, outranks } from '../domain/access';
@@ -7,8 +7,8 @@ import type { CommunityClient } from '../infrastructure/community-client';
 import { Avatar } from './avatar';
 import { ConfirmDialog } from './confirm-dialog';
 import { ToggleRow } from './channel-dialogs';
+import { Modal } from './modal';
 import { ColourField } from './profile-editors';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { cn } from './ui/utils';
 
 const errorMessage = (error: unknown) => (error instanceof Error ? error.message : 'Something went wrong.');
@@ -102,17 +102,52 @@ export function RoleEditor({
     setDragging(undefined);
     reorder(ids);
   };
-  const create = () =>
-    void run(async () => {
+  // A role is made in a dialog: its name, colour and place in the member
+  // list first, then what it may do, on the Permissions tab it opens on.
+  const [creating, setCreating] = useState(false);
+  const [fresh, setFresh] = useState({ name: '', colour: null as string | null, hoist: false });
+  const [problem, setProblem] = useState('');
+  const create = async () => {
+    setBusy(true);
+    setProblem('');
+    try {
       const { id } = await api.request<{ id: string }>(`${base}/roles`, 'POST', {
-        name: 'New role',
-        colour: null,
+        name: fresh.name.trim(),
+        colour: fresh.colour,
         permissions: 0,
-        hoist: false,
+        hoist: fresh.hoist,
       });
+      await onChanged();
+      setCreating(false);
       setSelectedId(id);
-      setTab('overview');
-    });
+      setTab('permissions');
+    } catch (error) {
+      setProblem(errorMessage(error));
+    } finally {
+      setBusy(false);
+    }
+  };
+  // People are added to a role in a dialog too, several at a time.
+  const [adding, setAdding] = useState(false);
+  const [picked, setPicked] = useState<string[]>([]);
+  const addPicked = async () => {
+    setBusy(true);
+    setProblem('');
+    try {
+      for (const memberId of picked) {
+        const member = detail.members.find((entry) => entry.id === memberId)!;
+        await api.request(`${base}/members/${memberId}/roles`, 'PUT', {
+          roleIds: [...(member.roleIds ?? []), selected.id],
+        });
+      }
+      await onChanged();
+      setAdding(false);
+    } catch (error) {
+      setProblem(errorMessage(error));
+    } finally {
+      setBusy(false);
+    }
+  };
   // Somebody below you may be given this role only if it is below you too.
   const candidates = detail.members.filter(
     (member) =>
@@ -138,7 +173,11 @@ export function RoleEditor({
           type="button"
           className={cn(primaryClass, 'w-full')}
           disabled={busy || !access.can(Permission.ManageRoles)}
-          onClick={create}
+          onClick={() => {
+            setFresh({ name: '', colour: null, hoist: false });
+            setProblem('');
+            setCreating(true);
+          }}
         >
           <Plus className="size-3.5" /> Create role
         </button>
@@ -356,18 +395,17 @@ export function RoleEditor({
         {tab === 'members' && !selected.isDefault && (
           <div className="space-y-3">
             {editable && candidates.length > 0 && (
-              <Select value="" onValueChange={(memberId) => setMemberRole(memberId, true)}>
-                <SelectTrigger className="h-9 w-64" aria-label="Add a member to this role">
-                  <SelectValue placeholder="Add a member" />
-                </SelectTrigger>
-                <SelectContent>
-                  {candidates.map((member) => (
-                    <SelectItem key={member.id} value={member.id}>
-                      {member.displayName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <button
+                type="button"
+                className="inline-flex h-9 items-center gap-2 rounded-md border border-border px-3.5 text-sm font-medium transition-colors hover:bg-accent"
+                onClick={() => {
+                  setPicked([]);
+                  setProblem('');
+                  setAdding(true);
+                }}
+              >
+                <UserPlus className="size-4" /> Add members
+              </button>
             )}
             {members.length ? (
               <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-background/35">
@@ -436,6 +474,131 @@ export function RoleEditor({
           </p>
         )}
       </section>
+
+      {creating && (
+        <Modal title="Create role" onClose={() => setCreating(false)} contentClassName="w-[min(30rem,calc(100vw-2rem))]">
+          <form
+            className="space-y-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void create();
+            }}
+          >
+            <label>
+              Role name
+              <input
+                autoFocus
+                required
+                maxLength={32}
+                placeholder="Moderator"
+                value={fresh.name}
+                onChange={(event) => setFresh({ ...fresh, name: event.target.value })}
+              />
+            </label>
+            <div className="space-y-2">
+              <ColourField
+                label="Role colour"
+                value={fresh.colour ?? '#99aab5'}
+                onChange={(colour) => setFresh({ ...fresh, colour })}
+              />
+              {fresh.colour && (
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
+                  onClick={() => setFresh({ ...fresh, colour: null })}
+                >
+                  <X className="size-3" /> No colour
+                </button>
+              )}
+            </div>
+            <div className="overflow-hidden rounded-lg border border-border bg-background/45">
+              <ToggleRow
+                label="Display separately"
+                description="List its members under the role in the member list."
+                checked={fresh.hoist}
+                onChange={(hoist) => setFresh({ ...fresh, hoist })}
+              />
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              It starts below every other role and allowed nothing; its permissions open next.
+            </p>
+            {problem && (
+              <p className="rounded-md bg-destructive/10 px-2 py-1 text-xs text-destructive" role="alert">
+                {problem}
+              </p>
+            )}
+            <div className="flex justify-end gap-2 border-t border-border pt-3">
+              <button
+                type="button"
+                className="inline-flex h-9 items-center rounded-md px-4 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
+                onClick={() => setCreating(false)}
+              >
+                Cancel
+              </button>
+              <button className={cn(primaryClass, 'h-9 px-4 text-sm')} disabled={busy || !fresh.name.trim()}>
+                Create role
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {adding && (
+        <Modal
+          title={`Add members to ${selected.name}`}
+          onClose={() => setAdding(false)}
+          contentClassName="w-[min(28rem,calc(100vw-2rem))]"
+        >
+          <div className="space-y-0.5" role="group" aria-label="People who can be given this role">
+            {candidates.map((member) => (
+              <label
+                key={member.id}
+                className="flex cursor-pointer flex-row items-center gap-3 rounded-md px-2 py-2 text-sm hover:bg-accent/50"
+              >
+                <input
+                  type="checkbox"
+                  className="accent-foreground"
+                  checked={picked.includes(member.id)}
+                  onChange={(event) =>
+                    setPicked((current) =>
+                      event.target.checked ? [...current, member.id] : current.filter((id) => id !== member.id),
+                    )
+                  }
+                />
+                <Avatar
+                  className="grid size-7 shrink-0 place-items-center rounded-full bg-secondary text-[10px] font-bold"
+                  name={member.displayName}
+                  imageId={member.avatarId}
+                />
+                <span className="min-w-0 flex-1 truncate">{member.displayName}</span>
+                <span className="truncate text-xs text-muted-foreground">@{member.username}</span>
+              </label>
+            ))}
+          </div>
+          {problem && (
+            <p className="rounded-md bg-destructive/10 px-2 py-1 text-xs text-destructive" role="alert">
+              {problem}
+            </p>
+          )}
+          <div className="flex justify-end gap-2 border-t border-border pt-3">
+            <button
+              type="button"
+              className="inline-flex h-9 items-center rounded-md px-4 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
+              onClick={() => setAdding(false)}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className={cn(primaryClass, 'h-9 px-4 text-sm')}
+              disabled={busy || picked.length === 0}
+              onClick={() => void addPicked()}
+            >
+              {picked.length > 1 ? `Add ${picked.length} members` : 'Add'}
+            </button>
+          </div>
+        </Modal>
+      )}
 
       {confirmDelete && (
         <ConfirmDialog

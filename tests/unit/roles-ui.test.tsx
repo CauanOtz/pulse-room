@@ -216,6 +216,35 @@ describe('RoleEditor', () => {
     );
   });
 
+  it('makes a role in a dialog, then opens what it may do', async () => {
+    const client = api();
+    const onChanged = vi.fn(async () => undefined);
+    render(
+      <TooltipProvider>
+        <RoleEditor api={client} detail={modDetail} userId="mo" onChanged={onChanged} />
+      </TooltipProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Create role/ }));
+    const dialog = screen.getByRole('dialog', { name: 'Create role' });
+    // Nothing is made until it has a name, and nothing at all until asked.
+    expect(within(dialog).getByRole('button', { name: 'Create role' })).toBeDisabled();
+    expect(client.request).not.toHaveBeenCalled();
+    fireEvent.change(within(dialog).getByLabelText('Role name'), { target: { value: '  Helpers ' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Role colour: #45cf8a' }));
+    fireEvent.click(within(dialog).getByLabelText('Display separately'));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Create role' }));
+    await waitFor(() =>
+      expect(client.request).toHaveBeenCalledWith('/api/servers/s/roles', 'POST', {
+        name: 'Helpers',
+        colour: '#45cf8a',
+        permissions: 0,
+        hoist: true,
+      }),
+    );
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Create role' })).toBeNull());
+    expect(onChanged).toHaveBeenCalled();
+  });
+
   it('moves a role with the arrows, never above the editor', async () => {
     const client = api();
     const detail = detailFor(allPermissions, 'owner');

@@ -97,12 +97,19 @@ test('roles, a staff category and moderation, end to end', async () => {
     await window.getByRole('button', { name: 'Server settings and members' }).click();
     const settings = window.getByRole('dialog', { name: 'Pulse' });
     await settings.getByRole('button', { name: 'Roles', exact: true }).click();
+    // A role is made in a dialog: name, colour and place in the list first.
     await settings.getByRole('button', { name: /Create role/ }).click();
-    await expect(settings.getByLabel('Role name')).toHaveValue('New role');
-    await settings.getByLabel('Role name').fill('Moderator');
-    await settings.getByRole('button', { name: 'Role colour: #6a5acd' }).click();
-    await settings.getByLabel('Display separately').check();
-    await settings.getByRole('tab', { name: 'Permissions' }).click();
+    const creating = window.getByRole('dialog', { name: 'Create role' });
+    await expect(creating.getByRole('button', { name: 'Create role' })).toBeDisabled();
+    await creating.getByLabel('Role name').fill('Moderator');
+    await creating.getByRole('button', { name: 'Role colour: #6a5acd' }).click();
+    await creating.getByLabel('Display separately').check();
+    await window.screenshot({ path: 'test-results/roles-create-dialog.png' });
+    await creating.getByRole('button', { name: 'Create role' }).click();
+    await expect(creating).toHaveCount(0);
+    // Then what it may do, on the tab it opens on.
+    await expect(settings.getByRole('tab', { name: 'Permissions' })).toHaveAttribute('aria-selected', 'true');
+    await expect(settings.getByRole('heading', { name: 'Moderator' })).toBeVisible();
     await settings.getByLabel('Kick members').check();
     await settings.getByLabel('Manage messages').check();
     await settings.getByLabel('Timeout members').check();
@@ -113,8 +120,11 @@ test('roles, a staff category and moderation, end to end', async () => {
     await window.screenshot({ path: 'test-results/roles-editor.png' });
 
     await settings.getByRole('tab', { name: /Members/ }).click();
-    await settings.getByRole('combobox', { name: 'Add a member to this role' }).click();
-    await window.getByRole('option', { name: 'Friend' }).click();
+    await settings.getByRole('button', { name: 'Add members' }).click();
+    const adding = window.getByRole('dialog', { name: 'Add members to Moderator' });
+    await adding.getByRole('checkbox', { name: /Friend/ }).check();
+    await adding.getByRole('button', { name: 'Add', exact: true }).click();
+    await expect(adding).toHaveCount(0);
     await expect(settings.getByRole('button', { name: 'Remove Friend from Moderator' })).toBeVisible();
     const moderator = (await detailAs(owner)).roles!.find((role) => role.name === 'Moderator')!;
     expect(moderator).toMatchObject({ colour: '#6a5acd', hoist: true });
