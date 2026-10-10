@@ -37,6 +37,18 @@ function loadRnnoise() {
   return rnnoise;
 }
 
+/**
+ * Makes a node take a single channel. 'speakers' mixes a stereo input down to
+ * it; 'discrete' keeps the first channel, which is the right answer after a
+ * node that only ever writes there.
+ */
+function mono<T extends AudioNode>(node: T, interpretation: ChannelInterpretation): T {
+  node.channelCount = 1;
+  node.channelCountMode = 'explicit';
+  node.channelInterpretation = interpretation;
+  return node;
+}
+
 export interface ProcessedMicrophoneTrack {
   track: MediaStreamTrack;
   processed: boolean;
@@ -87,6 +99,13 @@ export class MicrophoneTrackFactory {
     highPass.type = 'highpass';
     highPass.frequency.value = 90;
 
+    // A voice is one channel, from the first node to the last. Asking the
+    // device for mono is only a preference, so a stereo microphone is folded
+    // down here. And a node that writes only its first channel, as RNNoise
+    // does, would otherwise send a voice to one ear and silence to the other.
+    // The destination is left as it was: it spreads that one channel to both.
+    mono(highPass, 'speakers');
+
     // The gate, the gain and the limiter are one pass on the audio thread. As
     // separate nodes the limiter alone was a DynamicsCompressorNode, which
     // holds the signal back about six milliseconds so it can see a peak
@@ -101,7 +120,9 @@ export class MicrophoneTrackFactory {
 
     // The network goes before the gate, so the gate judges a voice with the
     // room already taken out of it.
-    const cleaned: AudioNode = isolation ? highPass.connect(isolation) : highPass;
+    const cleaned: AudioNode = isolation
+      ? highPass.connect(isolation).connect(mono(context.createGain(), 'discrete'))
+      : highPass;
     source.connect(highPass);
     if (gate) {
       cleaned.connect(gate).connect(output);

@@ -115,8 +115,30 @@ test('runs the microphone through RNNoise when voice isolation is on', async () 
         failures: [] as string[],
         nodes: [] as string[],
         loudest: {} as Record<string, number>,
+        // What is actually sent, ear by ear.
+        sent: { left: 0, right: 0 },
       };
       (window as any).isolationProbe = store;
+      const createDestination = AudioContext.prototype.createMediaStreamDestination;
+      AudioContext.prototype.createMediaStreamDestination = function () {
+        const destination = createDestination.call(this);
+        const listener = new AudioContext();
+        const split = listener.createChannelSplitter(2);
+        listener.createMediaStreamSource(destination.stream).connect(split);
+        const ears = [listener.createAnalyser(), listener.createAnalyser()] as const;
+        split.connect(ears[0], 0);
+        split.connect(ears[1], 1);
+        const samples = new Float32Array(ears[0].fftSize);
+        const level = (ear: AnalyserNode) => {
+          ear.getFloatTimeDomainData(samples);
+          return Math.sqrt(samples.reduce((sum, sample) => sum + sample * sample, 0) / samples.length);
+        };
+        setInterval(() => {
+          store.sent.left = Math.max(store.sent.left, level(ears[0]));
+          store.sent.right = Math.max(store.sent.right, level(ears[1]));
+        }, 50);
+        return destination;
+      };
       const originalAddModule = AudioWorklet.prototype.addModule;
       AudioWorklet.prototype.addModule = async function (url: string, options?: WorkletOptions) {
         store.modules.push(String(url).split('/').pop() ?? '');
@@ -162,6 +184,7 @@ test('runs the microphone through RNNoise when voice isolation is on', async () 
         failures: [],
         nodes: ['@sapphi-red/web-noise-suppressor/rnnoise', 'noise-gate'],
         loudest: expect.anything(),
+        sent: expect.anything(),
       });
     // The fake microphone's tone comes out of the network, not silence.
     await expect
@@ -171,6 +194,13 @@ test('runs the microphone through RNNoise when voice isolation is on', async () 
         ),
       )
       .toBeGreaterThan(0.01);
+    // RNNoise writes only its first channel. What leaves this machine has the
+    // voice in both ears, not in the left one and silence in the right.
+    await expect
+      .poll(async () => window.evaluate(() => (window as any).isolationProbe.sent.right))
+      .toBeGreaterThan(0.01);
+    const sent = await window.evaluate(() => (window as any).isolationProbe.sent);
+    expect(sent.right).toBeCloseTo(sent.left, 1);
     expect(warnings.filter((text) => /isolation|noise gate|processing/i.test(text))).toEqual([]);
   } finally {
     await application.close();
