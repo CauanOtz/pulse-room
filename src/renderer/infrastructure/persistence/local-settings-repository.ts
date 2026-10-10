@@ -5,6 +5,9 @@ export const defaultSettings: UserSettings = {
   roomId: 'lounge',
   microphoneGain: 100,
   noiseSuppression: true,
+  // A neural network on every frame is a cost some machines feel, and a voice
+  // through it can sound processed; it is offered, not imposed.
+  voiceIsolation: false,
   noiseGate: 60,
   echoCancellation: true,
   autoGainControl: true,

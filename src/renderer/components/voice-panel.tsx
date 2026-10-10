@@ -1,7 +1,9 @@
 import { MonitorUp, PhoneOff } from 'lucide-react';
 import { cn } from './ui/utils';
-import type { ConnectionState, SignalQuality } from '../domain/conference';
+import type { ConnectionReport, ConnectionState, SignalQuality } from '../domain/conference';
+import { ConnectionDetails } from './connection-details';
 import { SignalBars } from './signal-bars';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Tooltip } from './ui/tooltip';
 
 interface VoicePanelProps {
@@ -14,6 +16,8 @@ interface VoicePanelProps {
   signal?: SignalQuality;
   screenSharing: boolean;
   busy: boolean;
+  /** Your own line to the voice server, opened from the status heading. */
+  readConnection?(): Promise<ConnectionReport>;
   onLeave(): void;
   onReturn?(): void;
   onShare(): void;
@@ -37,47 +41,38 @@ export function VoicePanel(props: VoicePanelProps) {
       aria-label="Voice status"
     >
       <div className="voice-status flex items-center gap-1">
-        <button
-          className={cn(
-            'group flex min-w-0 flex-1 items-center gap-2.5 px-1 py-0.5 text-left',
-            props.onReturn
-              ? 'cursor-pointer focus-visible:outline-none'
-              : 'cursor-default',
-          )}
-          type="button"
-          aria-label={props.onReturn ? 'Return to call' : 'Current call'}
-          disabled={!props.onReturn}
-          onClick={props.onReturn}
-        >
-          <SignalBars
-            always
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5 px-1 py-0.5 leading-tight">
+          <ConnectionHeading
+            heading={heading}
+            troubled={reconnecting || troubled}
             signal={props.signal ?? (reconnecting ? 'poor' : 'excellent')}
-            className={cn('h-3.5', reconnecting || troubled ? 'text-destructive' : 'text-success')}
+            read={props.readConnection}
           />
-          <span className="flex min-w-0 flex-1 flex-col leading-tight">
-            <strong
-              className={cn(
-                'truncate text-[13px] font-semibold',
-                reconnecting || troubled ? 'text-destructive' : 'text-success',
-              )}
-            >
-              {heading}
-            </strong>
-            {/* The path reads the way you would say it out loud. */}
-            <span className="truncate text-xs text-muted-foreground group-hover:underline group-focus-visible:underline [text-underline-offset:3px]">
-              {props.channelName}
-              {props.serverName && (
-                <span className="text-muted-foreground/60"> / {props.serverName}</span>
-              )}
-              {props.headcount !== undefined && (
-                <span className="text-muted-foreground/60">
-                  {' '}
-                  · {props.headcount} {props.headcount === 1 ? 'person' : 'people'}
-                </span>
-              )}
+          <button
+            className={cn(
+              'group flex min-w-0 items-center text-left',
+              props.onReturn ? 'cursor-pointer focus-visible:outline-none' : 'cursor-default',
+            )}
+            type="button"
+            aria-label={props.onReturn ? 'Return to call' : 'Current call'}
+            disabled={!props.onReturn}
+            onClick={props.onReturn}
+          >
+            <span className="flex min-w-0 flex-1 flex-col leading-tight">
+              {/* The path reads the way you would say it out loud. */}
+              <span className="truncate text-xs text-muted-foreground group-hover:underline group-focus-visible:underline [text-underline-offset:3px]">
+                {props.channelName}
+                {props.serverName && <span className="text-muted-foreground/60"> / {props.serverName}</span>}
+                {props.headcount !== undefined && (
+                  <span className="text-muted-foreground/60">
+                    {' '}
+                    · {props.headcount} {props.headcount === 1 ? 'person' : 'people'}
+                  </span>
+                )}
+              </span>
             </span>
-          </span>
-        </button>
+          </button>
+        </div>
         <Tooltip label="Disconnect">
           <button
             className="grid size-7.5 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
@@ -109,5 +104,54 @@ export function VoicePanel(props: VoicePanelProps) {
         {props.screenSharing ? 'Stop sharing' : 'Share screen'}
       </button>
     </section>
+  );
+}
+
+/**
+ * The state of the call, which is also the way into the numbers behind it:
+ * the same place Discord puts them, since that is where people look.
+ */
+function ConnectionHeading({
+  heading,
+  troubled,
+  signal,
+  read,
+}: {
+  heading: string;
+  troubled: boolean;
+  signal: SignalQuality;
+  read?(): Promise<ConnectionReport>;
+}) {
+  const content = (
+    <>
+      <SignalBars
+        always
+        signal={signal}
+        className={cn('h-3.5', troubled ? 'text-destructive' : 'text-success')}
+      />
+      <strong
+        className={cn('truncate text-[13px] font-semibold', troubled ? 'text-destructive' : 'text-success')}
+      >
+        {heading}
+      </strong>
+    </>
+  );
+  if (!read) return <span className="flex min-w-0 items-center gap-2">{content}</span>;
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          className="connection-heading flex min-w-0 items-center gap-2 self-start rounded-sm text-left hover:[&>strong]:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [text-underline-offset:3px]"
+          type="button"
+          aria-label={`${heading}: connection details`}
+        >
+          {content}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent side="top" align="start" sideOffset={14} className="w-80 p-4" aria-label="Connection">
+        <h3 className="mb-3 text-sm font-semibold text-foreground">Connection</h3>
+        <ConnectionDetails read={read} />
+      </PopoverContent>
+    </Popover>
   );
 }

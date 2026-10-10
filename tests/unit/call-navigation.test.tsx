@@ -67,6 +67,9 @@ function conferenceGateway() {
     previewScreen: vi.fn(),
     setVoiceDelay: vi.fn(),
     readHealth: vi.fn(async () => []),
+    readConnection: vi.fn(async () => ({ samples: [] })),
+    prepare: vi.fn(),
+    prepareMicrophone: vi.fn(),
   };
   return gateway;
 }

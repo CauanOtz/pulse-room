@@ -15,7 +15,7 @@ import {
   Volume2,
   VolumeX,
 } from 'lucide-react';
-import type { ConnectionState, Participant, VoiceChannel } from '../domain/conference';
+import type { ConnectionReport, ConnectionState, Participant, VoiceChannel } from '../domain/conference';
 import { accountOf, channelRoster, type ChannelOccupancy, type RosterEntry } from '../domain/roster';
 import { Avatar } from './avatar';
 import { TagChip } from './profile-identity';
@@ -32,6 +32,10 @@ import type { CommunityChannel, WornTag } from '../../shared/community';
 
 interface ChannelSidebarProps {
   serverName?: string;
+  /** A voice channel under the pointer, which is probably the next one joined. */
+  onPrepareChannel?(id: string): void;
+  /** Your own line to the voice server, for the panel at the foot. */
+  readConnection?(): Promise<ConnectionReport>;
   textChannels?: CommunityChannel[];
   selectedTextId?: string;
   onSelectText?(id: string): void;
@@ -83,7 +87,8 @@ export function ChannelSidebar(props: ChannelSidebarProps) {
     );
   const categories = props.categories ?? [];
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set());
-  const listed = (categoryId?: string | null) => Boolean(categoryId && categories.some((c) => c.id === categoryId));
+  const listed = (categoryId?: string | null) =>
+    Boolean(categoryId && categories.some((c) => c.id === categoryId));
   const looseText = props.textChannels?.filter((channel) => !listed(channel.categoryId));
   const looseVoice = props.channels.filter((channel) => !listed(channel.categoryId));
 
@@ -108,6 +113,7 @@ export function ChannelSidebar(props: ChannelSidebarProps) {
         current={isConnected && channel.id === props.activeChannelId}
         disabled={props.busy}
         onSelect={() => props.onSelectChannel(channel.id)}
+        onIntent={props.onPrepareChannel && (() => props.onPrepareChannel?.(channel.id))}
         onEdit={props.onEditChannel && (() => props.onEditChannel?.(channel.id))}
       />
 
@@ -194,7 +200,9 @@ export function ChannelSidebar(props: ChannelSidebarProps) {
           const isCollapsed = collapsed.has(category.id);
           // A folded category still shows the channel you are in, so folding
           // never hides where you are.
-          const shownText = isCollapsed ? text.filter((channel) => channel.id === props.selectedTextId) : text;
+          const shownText = isCollapsed
+            ? text.filter((channel) => channel.id === props.selectedTextId)
+            : text;
           const shownVoice = isCollapsed
             ? voice.filter((channel) => isConnected && channel.id === props.activeChannelId)
             : voice;
@@ -241,6 +249,7 @@ export function ChannelSidebar(props: ChannelSidebarProps) {
           screenSharing={props.screenSharing}
           busy={props.busy}
           onLeave={props.onLeave}
+          readConnection={props.readConnection}
           onReturn={props.onReturnToCall}
           onShare={props.onShare}
         />
@@ -307,7 +316,11 @@ function CategoryHeading({
         aria-expanded={!collapsed}
         onClick={onToggle}
       >
-        {collapsed ? <ChevronRight className="size-3 shrink-0" /> : <ChevronDown className="size-3 shrink-0" />}
+        {collapsed ? (
+          <ChevronRight className="size-3 shrink-0" />
+        ) : (
+          <ChevronDown className="size-3 shrink-0" />
+        )}
         <span className="min-w-0 truncate">{name}</span>
       </button>
       {onEdit && (
@@ -350,6 +363,7 @@ function ChannelRow({
   current,
   disabled,
   onSelect,
+  onIntent,
   onEdit,
 }: {
   icon: ReactNode;
@@ -359,6 +373,8 @@ function ChannelRow({
   current?: boolean;
   disabled?: boolean;
   onSelect(): void;
+  /** The pointer or the keyboard came to rest here. */
+  onIntent?: false | undefined | (() => void);
   onEdit?: false | undefined | (() => void);
 }) {
   return (
@@ -377,6 +393,8 @@ function ChannelRow({
         aria-current={current}
         disabled={disabled}
         onClick={onSelect}
+        onPointerEnter={onIntent || undefined}
+        onFocus={onIntent || undefined}
       >
         {icon}
         <span className="channel-name min-w-0 flex-1 truncate">{name}</span>

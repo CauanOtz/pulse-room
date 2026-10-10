@@ -57,10 +57,9 @@ export abstract class ObservableConference implements ConferenceGateway {
   public abstract setParticipantMuted(participantId: string, muted: boolean): void;
   public abstract watchScreen(participantId: string, watching: boolean): void;
   public abstract previewScreen(participantId?: string): void;
-  public abstract setVoiceDelay(
-    delay: import('../../domain/conference').VoiceDelayName,
-  ): void;
-  public abstract readHealth(): Promise<
-    import('../../domain/conference').ParticipantHealth[]
-  >;
+  public abstract setVoiceDelay(delay: import('../../domain/conference').VoiceDelayName): void;
+  public abstract readHealth(): Promise<import('../../domain/conference').ParticipantHealth[]>;
+  public abstract prepare(command: import('../../domain/conference').JoinRoomCommand): void;
+  public abstract prepareMicrophone(options: import('../../domain/conference').MicrophoneOptions): void;
+  public abstract readConnection(): Promise<import('../../domain/conference').ConnectionReport>;
 }

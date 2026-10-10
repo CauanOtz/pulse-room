@@ -27,34 +27,50 @@ export class ConferenceController {
     if (snapshot.connectionState === 'connected') {
       await this.gateway.applyMicrophoneOptions(this.microphoneOptions(settings));
     }
-    if (
-      snapshot.screenSharing &&
-      previousSettings.screenSharePreset !== settings.screenSharePreset
-    ) {
+    if (snapshot.screenSharing && previousSettings.screenSharePreset !== settings.screenSharePreset) {
       await this.gateway.updateScreenShare(screenSharePresets[settings.screenSharePreset]);
     }
   }
 
-  public async join(roomId?: string): Promise<void> {
+  /**
+   * Joining is three slow things: asking the server for a token, connecting to
+   * the voice server, and opening the microphone. They do not depend on each
+   * other, so the microphone opens while the other two happen, rather than
+   * after them.
+   */
+  public async join(roomId?: string, { speak = true }: { speak?: boolean } = {}): Promise<void> {
     const settings = this.getSettings();
     this.gateway.setVoiceDelay(settings.voiceDelay);
     audioPlayback.useLatency(voiceDelayPresets[settings.voiceDelay].audioLatency);
     useOpusFrameSize(voiceDelayPresets[settings.voiceDelay].opusFrameMs);
+    const microphone = this.microphoneOptions(settings);
+    // Somebody who may not speak in this room does not have their microphone
+    // opened, even for a moment.
+    if (speak) this.gateway.prepareMicrophone(microphone);
     await this.gateway.join({
       roomId: roomId ?? settings.roomId,
       participantName: settings.displayName,
     });
-    await this.gateway.setMicrophoneEnabled(true, this.microphoneOptions(settings));
+    await this.gateway.setMicrophoneEnabled(true, microphone);
+  }
+
+  /** A channel under the pointer is probably the next one clicked. */
+  public prepareRoom(roomId: string): void {
+    if (this.gateway.getSnapshot().connectionState !== 'disconnected' && this.getSettings().roomId === roomId)
+      return;
+    this.gateway.prepare({ roomId, participantName: this.getSettings().displayName });
   }
 
   /** Clicking a voice channel is the whole act of joining it. */
-  public async enterRoom(roomId: string): Promise<void> {
+  public async enterRoom(roomId: string, options: { speak?: boolean } = {}): Promise<void> {
     const settings = { ...this.getSettings(), roomId };
     this.settingsRepository.save(settings);
     if (this.gateway.getSnapshot().connectionState !== 'disconnected') {
+      // The next room's token is asked for while this one is being left.
+      this.gateway.prepare({ roomId, participantName: settings.displayName });
       await this.gateway.leave();
     }
-    await this.join(roomId);
+    await this.join(roomId, options);
   }
 
   public async toggleMicrophone(): Promise<void> {
@@ -97,6 +113,7 @@ export class ConferenceController {
       noiseSuppression: settings.noiseSuppression,
       autoGainControl: settings.autoGainControl,
       noiseGateThreshold: noiseGateThresholdDb(settings.noiseGate),
+      voiceIsolation: settings.voiceIsolation,
       // One dial moves both buffers, because a person asking for less delay
       // does not care which of them was holding their voice.
       latencyHint: voiceDelayPresets[settings.voiceDelay].audioLatency,

@@ -123,6 +123,8 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
   const [membersOpen, setMembersOpen] = useState(true);
   // Held still, so the panel that polls it is not restarted on every render.
   const readHealth = useCallback(() => controller.gateway.readHealth(), [controller]);
+  const readConnection = useCallback(() => controller.gateway.readConnection(), [controller]);
+  const prepareChannel = useCallback((channelId: string) => controller.prepareRoom(channelId), [controller]);
   const [sourcePickerOpen, setSourcePickerOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [version, setVersion] = useState(__APP_VERSION__);
@@ -181,7 +183,8 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
     const category = workspace.detail.categories?.find((entry) => entry.id === channel.categoryId);
     parts.push(channel.private ? 'Private' : `Everyone in ${server}`);
     if (category) parts.push(category.name);
-    if (!channelAllows(channel, Permission.SendMessages, manager)) parts.push(timedOut ? 'You are in a timeout' : 'Read-only');
+    if (!channelAllows(channel, Permission.SendMessages, manager))
+      parts.push(timedOut ? 'You are in a timeout' : 'Read-only');
     return parts.join(' · ');
   })();
   const canSpeak = activeCall?.canSpeak ?? true;
@@ -371,13 +374,10 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
     const voiceChannel = workspace?.detail.channels.find(
       (candidate) => candidate.type === 'voice' && candidate.id === room?.roomId,
     );
-    const isCurrentCall = Boolean(
-      activeCall &&
-      accountId === workspace?.user.id &&
-      activeCall.serverId === workspace?.detail.server.id,
-    ) || Boolean(
-      activeCall && participant && activeCall.serverId === workspace?.detail.server.id,
-    );
+    const isCurrentCall =
+      Boolean(
+        activeCall && accountId === workspace?.user.id && activeCall.serverId === workspace?.detail.server.id,
+      ) || Boolean(activeCall && participant && activeCall.serverId === workspace?.detail.server.id);
     return {
       id: accountId,
       displayName: member?.displayName ?? participant?.name ?? accountId,
@@ -418,7 +418,11 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
       });
     }
     setSettings((current) => ({ ...current, roomId: channelId }));
-    void run(() => controller.enterRoom(channelId));
+    void run(() =>
+      controller.enterRoom(channelId, {
+        speak: channel ? channelAllows(channel, Permission.Speak, manager) : true,
+      }),
+    );
   };
 
   // Somebody with Move members sent you to another call of this server: the
@@ -427,7 +431,9 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
   useEffect(() => {
     if (!moveTo || !workspace || !joined || !activeCall) return;
     if (activeCall.serverId !== workspace.detail.server.id || moveTo === activeCall.channelId) return;
-    const destination = workspace.detail.channels.find((channel) => channel.id === moveTo && channel.type === 'voice');
+    const destination = workspace.detail.channels.find(
+      (channel) => channel.id === moveTo && channel.type === 'voice',
+    );
     if (!destination) return;
     joinVoice(destination.id);
     setNotice(`You were moved to ${destination.name}.`);
@@ -528,6 +534,8 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
         onReturnToCall={handleReturnToCall}
         onShare={handleShareRequest}
         onSelectChannel={handleChannelSelect}
+        onPrepareChannel={prepareChannel}
+        readConnection={readConnection}
         onOpenParticipant={(entry, position) => setOpenParticipant({ id: entry.id, position })}
         onOpenProfile={(id, position) => setOpenProfile({ id, position })}
         watching={snapshot.watching}
@@ -750,7 +758,8 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
             fullProfileParticipant && {
               volume: fullProfileParticipant.volume,
               locallyMuted: fullProfileParticipant.locallyMuted,
-              onVolume: (volume) => controller.gateway.setParticipantVolume(fullProfileParticipant.id, volume),
+              onVolume: (volume) =>
+                controller.gateway.setParticipantVolume(fullProfileParticipant.id, volume),
               onMuted: (muted) => controller.gateway.setParticipantMuted(fullProfileParticipant.id, muted),
             }
           }

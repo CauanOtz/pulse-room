@@ -8,6 +8,7 @@ const options: MicrophoneOptions = {
   noiseSuppression: true,
   autoGainControl: true,
   noiseGateThreshold: -50,
+  voiceIsolation: false,
 };
 
 function createInputStream(): MediaStream {
@@ -25,11 +26,14 @@ describe('MicrophoneTrackFactory', () => {
     const stream = createInputStream();
     const getUserMedia = vi.fn(async () => stream);
     vi.stubGlobal('navigator', { ...navigator, mediaDevices: { getUserMedia } });
-    vi.stubGlobal('AudioContext', class {
-      public constructor() {
-        throw new Error('no audio engine here');
-      }
-    });
+    vi.stubGlobal(
+      'AudioContext',
+      class {
+        public constructor() {
+          throw new Error('no audio engine here');
+        }
+      },
+    );
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
 
     const track = await new MicrophoneTrackFactory().create(options);
@@ -46,11 +50,14 @@ describe('MicrophoneTrackFactory', () => {
       return stream;
     });
     vi.stubGlobal('navigator', { ...navigator, mediaDevices: { getUserMedia } });
-    vi.stubGlobal('AudioContext', class {
-      public constructor() {
-        throw new Error('no audio engine here');
-      }
-    });
+    vi.stubGlobal(
+      'AudioContext',
+      class {
+        public constructor() {
+          throw new Error('no audio engine here');
+        }
+      },
+    );
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
 
     const track = await new MicrophoneTrackFactory().create({ ...options, deviceId: 'gone-usb-mic' });

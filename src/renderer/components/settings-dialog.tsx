@@ -251,6 +251,12 @@ export function SettingsDialog(props: SettingsDialogProps) {
                     onChange={(noiseSuppression) => setSettings({ ...settings, noiseSuppression })}
                   />
                   <Toggle
+                    label="Voice isolation"
+                    detail="A small neural network (RNNoise) removes keyboards, fans and voices in the room, the way Krisp does. It replaces the browser filter while it is on."
+                    checked={settings.voiceIsolation}
+                    onChange={(voiceIsolation) => setSettings({ ...settings, voiceIsolation })}
+                  />
+                  <Toggle
                     label="Echo cancellation"
                     detail="Prevents speaker audio from returning through your microphone. Turn it off on headphones for lower delay."
                     checked={settings.echoCancellation}

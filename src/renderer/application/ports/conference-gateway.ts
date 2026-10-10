@@ -1,5 +1,6 @@
 import type {
   ConferenceSnapshot,
+  ConnectionReport,
   JoinRoomCommand,
   MicrophoneOptions,
   ParticipantHealth,
@@ -10,6 +11,13 @@ import type {
 export interface ConferenceGateway {
   subscribe(listener: () => void): () => void;
   getSnapshot(): ConferenceSnapshot;
+  /**
+   * Fetches what joining a room needs before anybody has asked to join it.
+   * Nothing happens to the call; a guess that is never used costs nothing.
+   */
+  prepare(command: JoinRoomCommand): void;
+  /** Opens the microphone for the call about to start, while it connects. */
+  prepareMicrophone(options: MicrophoneOptions): void;
   join(command: JoinRoomCommand): Promise<void>;
   leave(): Promise<void>;
   setMicrophoneEnabled(enabled: boolean, options: MicrophoneOptions): Promise<void>;
@@ -29,4 +37,6 @@ export interface ConferenceGateway {
   setVoiceDelay(delay: VoiceDelayName): void;
   /** What it is costing this machine to keep everybody else audible. */
   readHealth(): Promise<ParticipantHealth[]>;
+  /** This machine's own line to the voice server, over the last few minutes. */
+  readConnection(): Promise<ConnectionReport>;
 }

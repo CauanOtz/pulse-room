@@ -7,6 +7,8 @@ export interface UserSettings {
   speakerDeviceId?: string;
   microphoneGain: number;
   noiseSuppression: boolean;
+  /** RNNoise on the microphone, ahead of the gate. */
+  voiceIsolation: boolean;
   noiseGate: number;
   echoCancellation: boolean;
   autoGainControl: boolean;

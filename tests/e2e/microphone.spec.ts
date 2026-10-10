@@ -59,7 +59,9 @@ test('runs the microphone through the noise gate when joining', async () => {
         window.evaluate(() => {
           const store = (window as any).gateProbe;
           return {
-            module: String(store.modules[0] ?? '').split('/').pop(),
+            module: String(store.modules[0] ?? '')
+              .split('/')
+              .pop(),
             failures: store.failures,
             nodes: store.nodes.length,
             threshold: store.nodes[0]?.parameters.get('threshold')?.value,
@@ -79,6 +81,97 @@ test('runs the microphone through the noise gate when joining', async () => {
     await expect(you.locator('.roster-flag')).toHaveCount(1);
     await window.locator('.profile-strip').getByRole('button', { name: 'Unmute microphone' }).click();
     await expect(you.locator('.roster-flag')).toHaveCount(0);
+  } finally {
+    await application.close();
+    await rm(dataDir, { recursive: true, force: true });
+  }
+});
+
+/**
+ * Voice isolation is a WebAssembly network in a worklet of its own. Both have
+ * to load from the packaged app over file://, where fetch reads nothing, and
+ * the network has to be allowed to compile under the page's content policy.
+ * When it is not, the node is created and passes nothing but silence, with no
+ * error anywhere, so this listens to what comes out of it.
+ */
+test('runs the microphone through RNNoise when voice isolation is on', async () => {
+  const dataDir = await mkdtemp(path.join(os.tmpdir(), 'pulse-isolation-e2e-'));
+  const application = await electron.launch({
+    args: [path.resolve('.'), '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'],
+    env: { ...process.env, NODE_ENV: 'test', PULSE_TEST_USER_DATA: dataDir },
+  });
+
+  try {
+    const window = await application.firstWindow();
+    const warnings: string[] = [];
+    window.on('console', (message) => {
+      if (message.type() === 'warning' || message.type() === 'error') warnings.push(message.text());
+    });
+
+    await window.evaluate(() => {
+      localStorage.setItem('pulse-room:settings:v1', JSON.stringify({ voiceIsolation: true }));
+      const store = {
+        modules: [] as string[],
+        failures: [] as string[],
+        nodes: [] as string[],
+        loudest: {} as Record<string, number>,
+      };
+      (window as any).isolationProbe = store;
+      const originalAddModule = AudioWorklet.prototype.addModule;
+      AudioWorklet.prototype.addModule = async function (url: string, options?: WorkletOptions) {
+        store.modules.push(String(url).split('/').pop() ?? '');
+        try {
+          return await originalAddModule.call(this, url, options);
+        } catch (error) {
+          store.failures.push(String(error));
+          throw error;
+        }
+      };
+      const OriginalNode = window.AudioWorkletNode;
+      window.AudioWorkletNode = class extends OriginalNode {
+        constructor(context: BaseAudioContext, name: string, options?: AudioWorkletNodeOptions) {
+          super(context, name, options);
+          store.nodes.push(name);
+          // Listens to what this node puts out, as loud as it has been.
+          const analyser = context.createAnalyser();
+          const samples = new Float32Array(analyser.fftSize);
+          this.connect(analyser);
+          setInterval(() => {
+            analyser.getFloatTimeDomainData(samples);
+            const level = Math.sqrt(
+              samples.reduce((sum, sample) => sum + sample * sample, 0) / samples.length,
+            );
+            store.loudest[name] = Math.max(store.loudest[name] ?? 0, level);
+          }, 50);
+        }
+      } as typeof AudioWorkletNode;
+    });
+
+    await window.getByRole('button', { name: 'Lounge' }).click();
+    await expect(
+      window.locator('.profile-strip').getByRole('button', { name: 'Mute microphone' }),
+    ).toBeVisible();
+
+    await expect
+      .poll(async () => window.evaluate(() => (window as any).isolationProbe))
+      .toEqual({
+        modules: expect.arrayContaining([
+          expect.stringMatching(/^workletProcessor.*\.js$/),
+          expect.stringMatching(/^noise-gate-processor.*\.js$/),
+        ]),
+        failures: [],
+        nodes: ['@sapphi-red/web-noise-suppressor/rnnoise', 'noise-gate'],
+        loudest: expect.anything(),
+      });
+    // The fake microphone's tone comes out of the network, not silence.
+    await expect
+      .poll(async () =>
+        window.evaluate(
+          () => (window as any).isolationProbe.loudest['@sapphi-red/web-noise-suppressor/rnnoise'] ?? 0,
+        ),
+      )
+      .toBeGreaterThan(0.01);
+    expect(warnings.filter((text) => /isolation|noise gate|processing/i.test(text))).toEqual([]);
   } finally {
     await application.close();
     await rm(dataDir, { recursive: true, force: true });

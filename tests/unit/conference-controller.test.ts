@@ -23,6 +23,9 @@ function createGateway(): ConferenceGateway {
     previewScreen: vi.fn(),
     setVoiceDelay: vi.fn(),
     readHealth: vi.fn(async () => []),
+    readConnection: vi.fn(async () => ({ samples: [] })),
+    prepare: vi.fn(),
+    prepareMicrophone: vi.fn(),
     setMicrophoneEnabled: vi.fn(async () => undefined),
     applyMicrophoneOptions: vi.fn(async () => undefined),
     setDeafened: vi.fn(async () => undefined),
@@ -43,16 +46,18 @@ describe('ConferenceController', () => {
       microphoneEnabled: true,
       deafened: false,
       screenSharing: false,
-    watching: [],
+      watching: [],
     });
     const settingsRepository: SettingsRepository = { load: () => defaultSettings, save: vi.fn() };
     const controller = new ConferenceController(gateway, settingsRepository);
 
     await controller.saveSettings({ ...defaultSettings, noiseGate: 20 });
 
-    expect(gateway.applyMicrophoneOptions).toHaveBeenCalledWith(expect.objectContaining({
-      noiseGateThreshold: -70,
-    }));
+    expect(gateway.applyMicrophoneOptions).toHaveBeenCalledWith(
+      expect.objectContaining({
+        noiseGateThreshold: -70,
+      }),
+    );
     expect(gateway.setMicrophoneEnabled).not.toHaveBeenCalled();
   });
 
@@ -67,11 +72,14 @@ describe('ConferenceController', () => {
     await controller.join();
 
     expect(gateway.join).toHaveBeenCalledWith({ participantName: 'Sam', roomId: 'night-room' });
-    expect(gateway.setMicrophoneEnabled).toHaveBeenCalledWith(true, expect.objectContaining({
-      noiseSuppression: true,
-      echoCancellation: true,
-      gain: 1,
-    }));
+    expect(gateway.setMicrophoneEnabled).toHaveBeenCalledWith(
+      true,
+      expect.objectContaining({
+        noiseSuppression: true,
+        echoCancellation: true,
+        gain: 1,
+      }),
+    );
   });
 
   it('uses the chosen quality strategy for screen sharing', async () => {
@@ -84,12 +92,14 @@ describe('ConferenceController', () => {
 
     await controller.toggleScreenShare();
 
-    expect(gateway.startScreenShare).toHaveBeenCalledWith(expect.objectContaining({
-      width: 1920,
-      height: 1080,
-      frameRate: 60,
-      maxBitrate: 7_000_000,
-    }));
+    expect(gateway.startScreenShare).toHaveBeenCalledWith(
+      expect.objectContaining({
+        width: 1920,
+        height: 1080,
+        frameRate: 60,
+        maxBitrate: 7_000_000,
+      }),
+    );
   });
 
   it('retunes an active screen share without stopping or republishing it', async () => {
@@ -151,7 +161,7 @@ describe('ConferenceController', () => {
       microphoneEnabled: true,
       deafened: false,
       screenSharing: false,
-    watching: [],
+      watching: [],
     };
     vi.mocked(gateway.getSnapshot).mockReturnValue(connectedSnapshot);
     const settingsRepository: SettingsRepository = {
@@ -164,10 +174,12 @@ describe('ConferenceController', () => {
     await controller.saveSettings(settings);
 
     expect(settingsRepository.save).toHaveBeenCalledWith(settings);
-    expect(gateway.applyMicrophoneOptions).toHaveBeenCalledWith(expect.objectContaining({
-      gain: 1.25,
-      noiseSuppression: false,
-    }));
+    expect(gateway.applyMicrophoneOptions).toHaveBeenCalledWith(
+      expect.objectContaining({
+        gain: 1.25,
+        noiseSuppression: false,
+      }),
+    );
   });
 });
 
@@ -182,9 +194,12 @@ describe('microphone options', () => {
 
     await controller.join();
 
-    expect(gateway.setMicrophoneEnabled).toHaveBeenCalledWith(true, expect.objectContaining({
-      noiseGateThreshold: -30,
-    }));
+    expect(gateway.setMicrophoneEnabled).toHaveBeenCalledWith(
+      true,
+      expect.objectContaining({
+        noiseGateThreshold: -30,
+      }),
+    );
   });
 });
 
@@ -197,7 +212,7 @@ describe('entering voice channels', () => {
       microphoneEnabled: true,
       deafened: false,
       screenSharing: false,
-    watching: [],
+      watching: [],
     });
     const save = vi.fn();
     const controller = new ConferenceController(gateway, { load: () => defaultSettings, save });
@@ -219,5 +234,76 @@ describe('entering voice channels', () => {
     expect(save).toHaveBeenCalledWith(expect.objectContaining({ roomId: 'game-room' }));
     expect(gateway.leave).not.toHaveBeenCalled();
     expect(gateway.join).toHaveBeenCalledWith(expect.objectContaining({ roomId: 'game-room' }));
+  });
+});
+
+describe('joining without waiting on each step in turn', () => {
+  it('opens the microphone before connecting, with the options it then publishes', async () => {
+    const gateway = createGateway();
+    const order: string[] = [];
+    vi.mocked(gateway.prepareMicrophone).mockImplementation(() => void order.push('microphone'));
+    vi.mocked(gateway.join).mockImplementation(async () => void order.push('connect'));
+    vi.mocked(gateway.setMicrophoneEnabled).mockImplementation(async () => void order.push('publish'));
+    const controller = new ConferenceController(gateway, { load: () => defaultSettings, save: vi.fn() });
+
+    await controller.join('lounge');
+
+    expect(order).toEqual(['microphone', 'connect', 'publish']);
+    expect(vi.mocked(gateway.prepareMicrophone).mock.calls[0]![0]).toEqual(
+      vi.mocked(gateway.setMicrophoneEnabled).mock.calls[0]![1],
+    );
+  });
+
+  it('does not open the microphone of somebody who may not speak there', async () => {
+    const gateway = createGateway();
+    const controller = new ConferenceController(gateway, { load: () => defaultSettings, save: vi.fn() });
+
+    await controller.enterRoom('stage', { speak: false });
+
+    expect(gateway.prepareMicrophone).not.toHaveBeenCalled();
+    expect(gateway.join).toHaveBeenCalled();
+  });
+
+  it('asks for the next room while leaving the current one', async () => {
+    const gateway = createGateway();
+    vi.mocked(gateway.getSnapshot).mockReturnValue({
+      connectionState: 'connected',
+      participants: [],
+      microphoneEnabled: true,
+      deafened: false,
+      screenSharing: false,
+      watching: [],
+    });
+    const order: string[] = [];
+    vi.mocked(gateway.prepare).mockImplementation(() => void order.push('prepare'));
+    vi.mocked(gateway.leave).mockImplementation(async () => void order.push('leave'));
+    const controller = new ConferenceController(gateway, {
+      load: () => ({ ...defaultSettings, displayName: 'merge', roomId: 'lounge' }),
+      save: vi.fn(),
+    });
+
+    await controller.enterRoom('game-room');
+
+    expect(order).toEqual(['prepare', 'leave']);
+    expect(gateway.prepare).toHaveBeenCalledWith({ roomId: 'game-room', participantName: 'merge' });
+  });
+
+  it('gets a room ready from the pointer, but not the one already joined', () => {
+    const gateway = createGateway();
+    const controller = new ConferenceController(gateway, {
+      load: () => ({ ...defaultSettings, displayName: 'merge', roomId: 'lounge' }),
+      save: vi.fn(),
+    });
+
+    controller.prepareRoom('game-room');
+    expect(gateway.prepare).toHaveBeenCalledWith({ roomId: 'game-room', participantName: 'merge' });
+
+    vi.mocked(gateway.getSnapshot).mockReturnValue({
+      ...gateway.getSnapshot(),
+      connectionState: 'connected',
+    });
+    vi.mocked(gateway.prepare).mockClear();
+    controller.prepareRoom('lounge');
+    expect(gateway.prepare).not.toHaveBeenCalled();
   });
 });

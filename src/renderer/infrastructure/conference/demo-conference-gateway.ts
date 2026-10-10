@@ -1,4 +1,5 @@
 import type {
+  ConnectionReport,
   JoinRoomCommand,
   MicrophoneOptions,
   Participant,
@@ -130,9 +131,7 @@ export class DemoConferenceGateway extends ObservableConference {
 
   public async startScreenShare(options: ScreenShareOptions): Promise<void> {
     try {
-      this.displayStream = await navigator.mediaDevices.getDisplayMedia(
-        createDisplayMediaOptions(options),
-      );
+      this.displayStream = await navigator.mediaDevices.getDisplayMedia(createDisplayMediaOptions(options));
 
       const platform = await window.desktop?.app.getPlatform();
       if (platform === 'win32' && this.displayStream.getAudioTracks().length === 0) {
@@ -205,6 +204,19 @@ export class DemoConferenceGateway extends ObservableConference {
   public async readHealth(): Promise<[]> {
     // Nothing crossed a network, so nothing had to be invented to cover it.
     return [];
+  }
+
+  public prepare(): void {
+    // There is no server to ask ahead of time.
+  }
+
+  public prepareMicrophone(): void {
+    // Joining here is instant, so there is nothing to overlap with.
+  }
+
+  public async readConnection(): Promise<ConnectionReport> {
+    // There is no line to measure.
+    return { samples: [] };
   }
 
   public setParticipantMuted(participantId: string, muted: boolean): void {

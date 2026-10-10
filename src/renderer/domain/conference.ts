@@ -49,6 +49,29 @@ export interface ParticipantHealth {
   jitterBufferMs?: number;
 }
 
+/** One reading of this machine's own line to the voice server. */
+export interface ConnectionSample {
+  at: number;
+  /** Round trip to the voice server, in milliseconds. */
+  pingMs: number;
+}
+
+/**
+ * This machine's own line, the way the call measured it: the round trip to the
+ * voice server over the last few minutes, and how much of what was sent never
+ * arrived. It answers whether the trouble is on this side before anybody asks.
+ */
+export interface ConnectionReport {
+  /** Oldest first, a few minutes of them. */
+  samples: ConnectionSample[];
+  lastPingMs?: number;
+  averagePingMs?: number;
+  /** Share of the packets sent in that time that the server never received. */
+  sentLossPercent?: number;
+  /** How the call reaches the server: UDP is the good answer, the others cost delay. */
+  transport?: 'udp' | 'tcp' | 'relay';
+}
+
 export interface ConferenceSnapshot {
   connectionState: ConnectionState;
   participants: Participant[];
@@ -105,6 +128,11 @@ export interface MicrophoneOptions {
   noiseSuppression: boolean;
   autoGainControl: boolean;
   noiseGateThreshold: number;
+  /**
+   * Strips everything that is not a voice with a small neural network
+   * (RNNoise) before the gate: keyboards, fans, a television next door.
+   */
+  voiceIsolation: boolean;
 }
 
 /**
