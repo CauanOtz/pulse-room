@@ -149,3 +149,49 @@ describe('how good a shared screen may be', () => {
     });
   });
 });
+
+describe('which app and version each session uses', () => {
+  const sessionOf = async (username: string) =>
+    (
+      await db.query<{ client: string | null; client_version: string | null; last_seen_at: Date | null }>(
+        `SELECT s.client, s.client_version, s.last_seen_at FROM sessions s JOIN accounts a ON a.id = s.account_id
+        WHERE a.username = $1 ORDER BY s.expires_at DESC LIMIT 1`,
+        [username],
+      )
+    ).rows[0]!;
+  const me = (session: AccountSession, headers: Record<string, string>) =>
+    app.inject({
+      method: 'GET',
+      url: '/api/auth/me',
+      headers: {
+        authorization: `Bearer ${session.token}`,
+        'x-forwarded-for': `10.8.0.${++address % 250}`,
+        ...headers,
+      },
+    });
+
+  it('reads a desktop version from the user agent Electron sends, even from apps that never said', async () => {
+    const session = (await register('olddesktop')).json() as AccountSession;
+    await me(session, {
+      'user-agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) PulseRoom/0.11.1 Chrome/152.0 Electron/44.1.1 Safari/537.36',
+    });
+    expect(await sessionOf('olddesktop')).toMatchObject({ client: 'desktop', client_version: '0.11.1' });
+  });
+
+  it('takes the app’s own word first, and keeps up when it updates', async () => {
+    const session = (await register('phoneuser')).json() as AccountSession;
+    await me(session, { 'x-pulse-client': 'android/0.13.0', 'user-agent': 'okhttp/4.12.0' });
+    expect(await sessionOf('phoneuser')).toMatchObject({ client: 'android', client_version: '0.13.0' });
+    await me(session, { 'x-pulse-client': 'android/0.14.0' });
+    expect(await sessionOf('phoneuser')).toMatchObject({ client: 'android', client_version: '0.14.0' });
+  });
+
+  it('notes when a session was last seen, but records no app for a browser or a script', async () => {
+    const session = (await register('browseruser')).json() as AccountSession;
+    await me(session, { 'user-agent': 'Mozilla/5.0 Chrome/150', 'x-pulse-client': 'evil/9.9.9; DROP TABLE' });
+    const seen = await sessionOf('browseruser');
+    expect(seen).toMatchObject({ client: null, client_version: null });
+    expect(seen.last_seen_at).toBeInstanceOf(Date);
+  });
+});

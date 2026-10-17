@@ -15,6 +15,8 @@ export class CommunityClient {
       method,
       signal,
       headers: {
+        // Which app and version this is, so the operator can see who is behind.
+        'x-pulse-client': `desktop/${__APP_VERSION__}`,
         ...(body === undefined ? {} : { 'content-type': 'application/json' }),
         ...(this.token ? { authorization: `Bearer ${this.token}` } : {}),
       },

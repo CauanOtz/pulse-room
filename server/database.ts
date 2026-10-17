@@ -206,6 +206,14 @@ export async function migrate(database: Database): Promise<void> {
       );
       INSERT INTO schema_migrations(version) VALUES(7) ON CONFLICT DO NOTHING;
     `);
+    // Which application and version each session is using, and when it was
+    // last seen, so the operator can tell who is still on an old version.
+    await db.query(`
+      ALTER TABLE sessions ADD COLUMN IF NOT EXISTS client text CHECK (client IN ('desktop', 'android'));
+      ALTER TABLE sessions ADD COLUMN IF NOT EXISTS client_version text CHECK (char_length(client_version) <= 20);
+      ALTER TABLE sessions ADD COLUMN IF NOT EXISTS last_seen_at timestamptz;
+      INSERT INTO schema_migrations(version) VALUES(8) ON CONFLICT DO NOTHING;
+    `);
   });
 }
 

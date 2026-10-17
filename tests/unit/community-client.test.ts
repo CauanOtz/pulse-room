@@ -11,7 +11,8 @@ it('sends individual session credentials but no JSON content type without a body
   expect(fetch).toHaveBeenCalledWith(
     'https://api.example.com/api/auth/logout',
     expect.objectContaining({
-      headers: { authorization: 'Bearer individual-session' },
+      // The app says which version it is, and there is no content type without a body.
+      headers: { authorization: 'Bearer individual-session', 'x-pulse-client': `desktop/${__APP_VERSION__}` },
       method: 'POST',
     }),
   );

@@ -14,6 +14,7 @@ import { tagBadges, tagModes, tagTextPattern } from '../src/shared/community.js'
 import { allPermissions, channelScoped, has, Permission } from '../src/shared/permissions.js';
 import { RoleService } from './role-service.js';
 import { registrationMode, screenShareCeiling } from './platform-settings.js';
+import { clientVersion } from './client-version.js';
 import { TagService, type TagInput } from './tag-service.js';
 import {
   publishSources,
@@ -138,9 +139,11 @@ export async function createServer(
   server.addHook('onRequest', async (request, reply) => {
     reply.header('Cache-Control', 'no-store');
     if (request.method === 'OPTIONS' || publicRoutes.has(request.routeOptions.url ?? '')) return;
-    authenticated.set(
-      request,
-      await accounts.authenticate(request.headers.authorization?.replace(/^Bearer /, '')),
+    const account = await accounts.authenticate(request.headers.authorization?.replace(/^Bearer /, ''));
+    authenticated.set(request, account);
+    await accounts.touch(
+      account.sessionId,
+      clientVersion(request.headers['x-pulse-client'], request.headers['user-agent']),
     );
   });
   server.setErrorHandler((error, request, reply) => {

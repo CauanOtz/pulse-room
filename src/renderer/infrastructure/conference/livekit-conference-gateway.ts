@@ -610,6 +610,7 @@ export class LiveKitConferenceGateway extends ObservableConference {
         signal,
         headers: {
           'content-type': 'application/json',
+          'x-pulse-client': `desktop/${__APP_VERSION__}`,
           authorization: `Bearer ${this.configuration.accessCode}`,
         },
         body: JSON.stringify({ participantName: command.participantName }),

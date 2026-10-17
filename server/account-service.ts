@@ -107,6 +107,22 @@ export class AccountService {
     return account;
   }
 
+  /**
+   * Notes the application and version a session is using, and that it was
+   * just seen. Written only when something changed or a few minutes have
+   * passed, so a busy client costs one small write now and then.
+   */
+  async touch(sessionId: string, app: { client: string; version: string } | null): Promise<void> {
+    await this.db.query(
+      `UPDATE sessions SET last_seen_at = now(),
+        client = COALESCE($2, client), client_version = COALESCE($3, client_version)
+      WHERE id = $1 AND (
+        last_seen_at IS NULL OR last_seen_at < now() - interval '5 minutes'
+        OR ($2::text IS NOT NULL AND (client IS DISTINCT FROM $2 OR client_version IS DISTINCT FROM $3)))`,
+      [sessionId, app?.client ?? null, app?.version ?? null],
+    );
+  }
+
   async logout(sessionId: string): Promise<void> {
     await this.db.query('DELETE FROM sessions WHERE id=$1', [sessionId]);
   }

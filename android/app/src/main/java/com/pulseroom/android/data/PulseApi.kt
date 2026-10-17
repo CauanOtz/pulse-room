@@ -1,5 +1,6 @@
 package com.pulseroom.android.data
 
+import com.pulseroom.android.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
@@ -32,6 +33,8 @@ class PulseApi(
                 request.header("Authorization", "Bearer ${token ?: throw ApiException(401, "Sign in to continue.")}")
             }
             request.header("Accept", "application/json")
+            // Which app and version this is, so the operator can see who is behind. A debug build's suffix is dropped.
+            request.header("X-Pulse-Client", "android/${BuildConfig.VERSION_NAME.substringBefore('-')}")
             // Fastify rejects a JSON content type with an empty body.
             val payload = body?.toRequestBody("application/json; charset=utf-8".toMediaType())
                 ?: if (method == "POST" || method == "PATCH") ByteArray(0).toRequestBody(null) else null
