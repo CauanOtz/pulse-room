@@ -307,3 +307,31 @@ describe('joining without waiting on each step in turn', () => {
     expect(gateway.prepare).not.toHaveBeenCalled();
   });
 });
+
+describe('the quality limit set by the operator', () => {
+  it('shares at the limit when the saved quality asks for more, and changes to no more than it', async () => {
+    const gateway = createGateway();
+    vi.mocked(gateway.getSnapshot).mockReturnValue({
+      connectionState: 'connected',
+      participants: [],
+      microphoneEnabled: true,
+      deafened: false,
+      screenSharing: false,
+      watching: [],
+      screenShareCeiling: 'efficient',
+    });
+    const controller = new ConferenceController(gateway, {
+      load: () => ({ ...defaultSettings, screenSharePreset: 'motion' }),
+      save: vi.fn(),
+    });
+
+    await controller.toggleScreenShare();
+    expect(gateway.startScreenShare).toHaveBeenCalledWith(
+      expect.objectContaining({ width: 1280, frameRate: 30 }),
+    );
+
+    vi.mocked(gateway.getSnapshot).mockReturnValue({ ...gateway.getSnapshot(), screenSharing: true });
+    await controller.setScreenQuality('balanced');
+    expect(gateway.updateScreenShare).toHaveBeenCalledWith(expect.objectContaining({ width: 1280 }));
+  });
+});

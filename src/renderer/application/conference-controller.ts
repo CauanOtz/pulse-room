@@ -2,7 +2,12 @@ import type { ConferenceGateway } from './ports/conference-gateway';
 import type { SettingsRepository, UserSettings } from './ports/settings-repository';
 import { audioPlayback } from '../infrastructure/media/audio-playback-engine';
 import { useOpusFrameSize } from '../infrastructure/media/opus-frame-size';
-import { noiseGateThresholdDb, screenSharePresets, voiceDelayPresets } from '../domain/conference';
+import {
+  noiseGateThresholdDb,
+  screenSharePresets,
+  voiceDelayPresets,
+  withinCeiling,
+} from '../domain/conference';
 import type { MicrophoneOptions, ScreenSharePresetName } from '../domain/conference';
 
 export class ConferenceController {
@@ -28,7 +33,7 @@ export class ConferenceController {
       await this.gateway.applyMicrophoneOptions(this.microphoneOptions(settings));
     }
     if (snapshot.screenSharing && previousSettings.screenSharePreset !== settings.screenSharePreset) {
-      await this.gateway.updateScreenShare(screenSharePresets[settings.screenSharePreset]);
+      await this.gateway.updateScreenShare(screenSharePresets[this.allowed(settings.screenSharePreset)]);
     }
   }
 
@@ -88,7 +93,12 @@ export class ConferenceController {
     const settings = { ...this.getSettings(), screenSharePreset: preset };
     this.settingsRepository.save(settings);
     if (!this.gateway.getSnapshot().screenSharing) return;
-    await this.gateway.updateScreenShare(screenSharePresets[preset]);
+    await this.gateway.updateScreenShare(screenSharePresets[this.allowed(preset)]);
+  }
+
+  /** A quality the operator of this Pulse Room allows: the one asked for, or their limit. */
+  private allowed(preset: ScreenSharePresetName): ScreenSharePresetName {
+    return withinCeiling(preset, this.gateway.getSnapshot().screenShareCeiling);
   }
 
   public async toggleScreenShare(sourceId?: string): Promise<void> {
@@ -101,7 +111,7 @@ export class ConferenceController {
       await window.desktop.capture.selectSource(sourceId);
     }
 
-    const preset = screenSharePresets[this.getSettings().screenSharePreset];
+    const preset = screenSharePresets[this.allowed(this.getSettings().screenSharePreset)];
     await this.gateway.startScreenShare(preset);
   }
 

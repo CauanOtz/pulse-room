@@ -138,7 +138,8 @@ export async function migrate(database: Database): Promise<void> {
     } = await db.query<{ applied: boolean }>(
       'SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version=4) AS applied',
     );
-    if (!profiles?.applied) await db.query(`
+    if (!profiles?.applied)
+      await db.query(`
       ALTER TABLE images DROP CONSTRAINT IF EXISTS images_mime_check;
       ALTER TABLE images ADD CONSTRAINT images_mime_check
         CHECK (mime IN ('image/png','image/webp','image/gif'));
@@ -181,6 +182,29 @@ export async function migrate(database: Database): Promise<void> {
       ALTER TABLE memberships ALTER COLUMN joined_at SET DEFAULT now();
       ALTER TABLE memberships ADD COLUMN IF NOT EXISTS move_to uuid REFERENCES channels(id) ON DELETE SET NULL;
       INSERT INTO schema_migrations(version) VALUES(6) ON CONFLICT DO NOTHING;
+    `);
+    // What the operator of the whole service decides: an account can be
+    // suspended rather than deleted, sign-ups can be closed or need a code,
+    // and a shared screen can be held to a quality. Set from the dashboard.
+    await db.query(`
+      ALTER TABLE accounts ADD COLUMN IF NOT EXISTS suspended_at timestamptz;
+      ALTER TABLE accounts ADD COLUMN IF NOT EXISTS suspended_reason text NOT NULL DEFAULT ''
+        CHECK (char_length(suspended_reason) <= 200);
+      CREATE TABLE IF NOT EXISTS platform_settings (
+        key text PRIMARY KEY CHECK (char_length(key) <= 40),
+        value jsonb NOT NULL DEFAULT '{}'::jsonb,
+        updated_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE TABLE IF NOT EXISTS registration_codes (
+        id uuid PRIMARY KEY,
+        code_hash text UNIQUE NOT NULL,
+        note text NOT NULL DEFAULT '' CHECK (char_length(note) <= 80),
+        max_uses integer NOT NULL DEFAULT 1 CHECK (max_uses BETWEEN 1 AND 1000),
+        uses integer NOT NULL DEFAULT 0 CHECK (uses >= 0),
+        expires_at timestamptz,
+        created_at timestamptz NOT NULL DEFAULT now()
+      );
+      INSERT INTO schema_migrations(version) VALUES(7) ON CONFLICT DO NOTHING;
     `);
   });
 }

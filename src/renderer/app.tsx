@@ -659,6 +659,7 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
                     deafened={snapshot.deafened}
                     screenSharing={snapshot.screenSharing}
                     quality={settings.screenSharePreset}
+                    ceiling={snapshot.screenShareCeiling}
                     busy={busy}
                     onToggleMicrophone={() => canSpeak && void run(() => controller.toggleMicrophone())}
                     onToggleDeafen={() => void run(() => controller.toggleDeafen())}

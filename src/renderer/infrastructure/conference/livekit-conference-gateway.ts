@@ -18,6 +18,7 @@ import type {
   Participant,
   ParticipantHealth,
   ScreenShareOptions,
+  ScreenSharePresetName,
   SignalQuality,
   VoiceDelayName,
 } from '../../domain/conference';
@@ -42,6 +43,8 @@ function signalOf(quality: string | undefined): SignalQuality | undefined {
 interface TokenResponse {
   serverUrl: string;
   token: string;
+  /** What the operator allows; older servers send nothing. */
+  limits?: { screenShare?: ScreenSharePresetName | null };
 }
 
 /** A token fetched ahead of a click, good for a short while. */
@@ -208,7 +211,10 @@ export class LiveKitConferenceGateway extends ObservableConference {
         throw new Error('Call was cancelled.');
       }
       this.refreshParticipants();
-      this.update({ connectionState: 'connected' });
+      this.update({
+        connectionState: 'connected',
+        screenShareCeiling: credentials.limits?.screenShare ?? undefined,
+      });
       this.startConnectionSampling();
     } catch (error) {
       await this.discardPendingMicrophone();

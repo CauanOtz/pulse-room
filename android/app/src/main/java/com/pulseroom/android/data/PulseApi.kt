@@ -51,8 +51,12 @@ class PulseApi(
     }
     suspend fun login(username: String, password: String): Session = json.decodeFromString(
         request("POST", "/api/auth/login", json.encodeToString(LoginRequest(username.trim(), password)), false))
-    suspend fun register(username: String, displayName: String, password: String): Session = json.decodeFromString(
-        request("POST", "/api/auth/register", json.encodeToString(RegisterRequest(username.trim(), displayName.trim(), password)), false))
+    suspend fun register(username: String, displayName: String, password: String, inviteCode: String? = null): Session {
+        val code = inviteCode?.trim().orEmpty()
+        val body = if (code.isEmpty()) json.encodeToString(RegisterRequest(username.trim(), displayName.trim(), password))
+            else json.encodeToString(InvitedRegisterRequest(username.trim(), displayName.trim(), password, code))
+        return json.decodeFromString(request("POST", "/api/auth/register", body, false))
+    }
     suspend fun recover(username: String, code: String, password: String): RecoveryResponse = json.decodeFromString(
         request("POST", "/api/auth/recover", json.encodeToString(RecoverRequest(username.trim(), code.trim(), password)), false))
     suspend fun me(): Account = json.decodeFromString<UserResponse>(request("GET", "/api/auth/me")).user

@@ -84,6 +84,11 @@ export interface ConferenceSnapshot {
    * two arrive only when somebody wants both.
    */
   watching: string[];
+  /**
+   * The best a screen may be shared at, as the operator of this Pulse Room
+   * set it. Absent when there is no limit.
+   */
+  screenShareCeiling?: ScreenSharePresetName;
   error?: string;
 }
 
@@ -197,3 +202,19 @@ export const screenSharePresets = {
 } satisfies Record<string, ScreenShareOptions>;
 
 export type ScreenSharePresetName = keyof typeof screenSharePresets;
+
+/** Cheapest first: the order a limit is read in. */
+const presetOrder: ScreenSharePresetName[] = ['efficient', 'balanced', 'motion'];
+
+/** Whether a quality is above what the operator allows. */
+export function aboveCeiling(preset: ScreenSharePresetName, ceiling?: ScreenSharePresetName): boolean {
+  return ceiling !== undefined && presetOrder.indexOf(preset) > presetOrder.indexOf(ceiling);
+}
+
+/** The quality asked for, or the limit when it asks for more. */
+export function withinCeiling(
+  preset: ScreenSharePresetName,
+  ceiling?: ScreenSharePresetName,
+): ScreenSharePresetName {
+  return ceiling !== undefined && aboveCeiling(preset, ceiling) ? ceiling : preset;
+}

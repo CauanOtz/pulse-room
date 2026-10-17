@@ -53,7 +53,8 @@ class PulseViewModel(application: Application) : AndroidViewModel(application) {
             mutable.value = mutable.value.copy(recoveryCode = response.recoveryCode)
             return@action
         }
-        val session = if (mode == "register") api.register(username, displayName, password) else api.login(username, password)
+        // On the sign-up form the code field holds an invite code, when this Pulse Room asks for one.
+        val session = if (mode == "register") api.register(username, displayName, password, code) else api.login(username, password)
         withContext(Dispatchers.IO) { app.vault.save(session.token) }
         api.token = session.token
         mutable.value = AppState(loading = false, busy = true, account = session.user, recoveryCode = session.recoveryCode)

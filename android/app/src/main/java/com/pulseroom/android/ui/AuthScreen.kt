@@ -43,6 +43,8 @@ import com.pulseroom.android.data.InputRules
             OutlinedTextField(username, { if (it.length <= 32) username = it }, label = { Text("Username") }, singleLine = true, modifier = Modifier.fillMaxWidth(), enabled = !state.busy)
             if (mode == "register") OutlinedTextField(displayName, { if (it.length <= 40) displayName = it }, label = { Text("Display name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
             if (mode == "recover") OutlinedTextField(recovery, { recovery = it }, label = { Text("Recovery code") }, singleLine = true, modifier = Modifier.fillMaxWidth(), visualTransformation = PasswordVisualTransformation())
+            if (mode == "register") OutlinedTextField(recovery, { if (it.length <= 64) recovery = it }, label = { Text("Invite code") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+                supportingText = { Text("Only if this Pulse Room gave you one.") })
             OutlinedTextField(password, { if (it.length <= 128) password = it }, label = { Text(if (mode == "recover") "New password" else "Password") },
                 modifier = Modifier.fillMaxWidth(), singleLine = true, visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 supportingText = { if (mode != "login") Text("At least 12 characters. Keep your recovery code safe.") })

@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import logoUrl from '../../../assets/logo-ui.png';
 import type { AccountSession } from '../../shared/community';
 import type { CommunityClient } from '../infrastructure/community-client';
@@ -18,6 +18,22 @@ export function AccountScreen({
   const [newRecovery, setNewRecovery] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [inviteCode, setInviteCode] = useState('');
+  // Whether new accounts can be made here: open, only with a code, or not at all.
+  const [registration, setRegistration] = useState<'open' | 'invite' | 'closed'>('open');
+  useEffect(() => {
+    if (mode !== 'register') return;
+    let current = true;
+    api
+      .request<{ mode: 'open' | 'invite' | 'closed' }>('/api/auth/registration')
+      .then((result) => current && setRegistration(result.mode))
+      // An older server has no such question, and was always open.
+      .catch(() => current && setRegistration('open'));
+    return () => {
+      current = false;
+    };
+  }, [api, mode]);
+  const closed = mode === 'register' && registration === 'closed';
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     setBusy(true);
@@ -37,6 +53,7 @@ export function AccountScreen({
           username,
           password,
           ...(mode === 'register' ? { displayName } : {}),
+          ...(mode === 'register' && registration === 'invite' ? { inviteCode } : {}),
         });
         setPassword('');
         onAuthenticated(result);
@@ -125,6 +142,26 @@ export function AccountScreen({
                 />
               </label>
             )}
+            {mode === 'register' && registration === 'invite' && (
+              <label>
+                Invite code
+                <input
+                  required
+                  autoComplete="off"
+                  maxLength={64}
+                  value={inviteCode}
+                  onChange={(e) => setInviteCode(e.target.value)}
+                />
+              </label>
+            )}
+            {closed && (
+              <p
+                role="status"
+                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-xs text-muted-foreground"
+              >
+                Sign-ups are closed right now. Ask whoever runs this Pulse Room for an account.
+              </p>
+            )}
             {mode === 'recover' && (
               <label>
                 Recovery code
@@ -163,7 +200,7 @@ export function AccountScreen({
             )}
             <button
               className="primary-action mt-1 inline-flex h-9 items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
-              disabled={busy}
+              disabled={busy || closed}
             >
               {busy
                 ? 'Please wait…'

@@ -33,6 +33,8 @@ import kotlinx.serialization.Serializable
 @Serializable data class IdResponse(val id: String)
 @Serializable data class LoginRequest(val username: String, val password: String)
 @Serializable data class RegisterRequest(val username: String, val displayName: String, val password: String)
+// Sent only with a code, so a server that never asks for one never sees the field.
+@Serializable data class InvitedRegisterRequest(val username: String, val displayName: String, val password: String, val inviteCode: String)
 @Serializable data class RecoverRequest(val username: String, val recoveryCode: String, val password: String)
 @Serializable data class NameRequest(val name: String)
 @Serializable data class CodeRequest(val code: String)

@@ -10,6 +10,7 @@ interface CallControlsProps {
   deafened: boolean;
   screenSharing: boolean;
   quality: ScreenSharePresetName;
+  ceiling?: ScreenSharePresetName;
   busy: boolean;
   onToggleMicrophone(): void;
   onToggleDeafen(): void;
@@ -30,7 +31,11 @@ export function CallControls(props: CallControlsProps) {
     >
       <Tooltip label={props.microphoneEnabled ? 'Mute' : 'Unmute'}>
         <button
-          className={cn('grid size-9 place-items-center rounded-lg bg-secondary text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50', !props.microphoneEnabled && 'is-danger bg-destructive text-destructive-foreground hover:bg-destructive/90')}
+          className={cn(
+            'grid size-9 place-items-center rounded-lg bg-secondary text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
+            !props.microphoneEnabled &&
+              'is-danger bg-destructive text-destructive-foreground hover:bg-destructive/90',
+          )}
           type="button"
           onClick={props.onToggleMicrophone}
           aria-label={props.microphoneEnabled ? 'Mute microphone' : 'Unmute microphone'}
@@ -42,7 +47,10 @@ export function CallControls(props: CallControlsProps) {
 
       <Tooltip label={props.deafened ? 'Undeafen' : 'Deafen'}>
         <button
-          className={cn('grid size-9 place-items-center rounded-lg bg-secondary text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50', props.deafened && 'is-danger bg-destructive text-destructive-foreground hover:bg-destructive/90')}
+          className={cn(
+            'grid size-9 place-items-center rounded-lg bg-secondary text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
+            props.deafened && 'is-danger bg-destructive text-destructive-foreground hover:bg-destructive/90',
+          )}
           type="button"
           onClick={props.onToggleDeafen}
           aria-label="Toggle deafen"
@@ -80,6 +88,7 @@ export function CallControls(props: CallControlsProps) {
           <StreamMenu
             sharing={props.screenSharing}
             quality={props.quality}
+            ceiling={props.ceiling}
             onSelectQuality={props.onSelectQuality}
             onStop={props.onShare}
           />

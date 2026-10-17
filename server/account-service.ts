@@ -3,6 +3,7 @@ import type { Account, AccountSession, ProfileTheme } from '../src/shared/commun
 import type { Database } from './database.js';
 import { profileColumns, profileJoins, toAccount, type ProfileRow } from './profile.js';
 import { digest, HttpError, opaqueToken, PasswordHasher } from './security.js';
+import { registrationMode } from './platform-settings.js';
 
 /** Only the part of the image store an account needs, to keep the two apart. */
 export interface ImageOwner {
@@ -16,15 +17,40 @@ export class AccountService {
   private readonly passwords = new PasswordHasher();
   constructor(private readonly db: Database) {}
 
-  async register(username: string, displayName: string, password: string): Promise<AccountSession> {
+  /**
+   * Makes an account, when sign-ups are open, or with a code the operator
+   * handed out when they need one. A code is spent in the same transaction
+   * that makes the account, so two people cannot share its last use.
+   */
+  async register(
+    username: string,
+    displayName: string,
+    password: string,
+    inviteCode?: string | null,
+  ): Promise<AccountSession> {
+    const mode = await registrationMode(this.db);
+    if (mode === 'closed') throw new HttpError(403, 'Sign-ups are closed right now.');
+    if (mode === 'invite' && !inviteCode?.trim())
+      throw new HttpError(403, 'An invite code is needed to create an account.');
     const recoveryCode = opaqueToken();
     const id = randomUUID();
     const hash = await this.passwords.hash(password);
     try {
-      await this.db.query(
-        'INSERT INTO accounts(id, username, display_name, password_hash, recovery_hash) VALUES($1,$2,$3,$4,$5)',
-        [id, username.toLowerCase(), displayName, hash, digest(recoveryCode)],
-      );
+      await this.db.transaction(async (db) => {
+        if (mode === 'invite') {
+          const { rows } = await db.query(
+            `UPDATE registration_codes SET uses = uses + 1
+            WHERE code_hash=$1 AND uses < max_uses AND (expires_at IS NULL OR expires_at > now())
+            RETURNING id`,
+            [digest(inviteCode!.trim().toUpperCase())],
+          );
+          if (!rows.length) throw new HttpError(403, 'That invite code is not valid or has been used up.');
+        }
+        await db.query(
+          'INSERT INTO accounts(id, username, display_name, password_hash, recovery_hash) VALUES($1,$2,$3,$4,$5)',
+          [id, username.toLowerCase(), displayName, hash, digest(recoveryCode)],
+        );
+      });
     } catch (error) {
       if ((error as { code?: string }).code === '23505')
         throw new HttpError(409, 'That username is already taken.');
@@ -40,11 +66,14 @@ export class AccountService {
       rows: [row],
     } = await this.db.query<Account & { passwordHash: string }>(
       `SELECT id, username, display_name AS "displayName", avatar_id AS "avatarId", bio,
-              password_hash AS "passwordHash" FROM accounts WHERE username=$1`,
+              password_hash AS "passwordHash", suspended_at IS NOT NULL AS suspended
+       FROM accounts WHERE username=$1`,
       [username.toLowerCase()],
     );
     if (!(await this.passwords.verify(password, row?.passwordHash)) || !row)
       throw new HttpError(401, 'Username or password is incorrect.');
+    // Said only to somebody who knew the password, so it tells a stranger nothing.
+    if ((row as { suspended?: boolean }).suspended) throw new HttpError(403, 'This account is suspended.');
     // Lock the account so a concurrent password reset cannot leave a session
     // issued from a stale password hash valid after the reset.
     return this.db.transaction(async (db) => {
@@ -65,12 +94,16 @@ export class AccountService {
       rows: [account],
     } = await this.db.query<AuthenticatedAccount>(
       `
-      SELECT a.id, a.username, a.display_name AS "displayName", a.avatar_id AS "avatarId", a.bio, s.id AS "sessionId"
+      SELECT a.id, a.username, a.display_name AS "displayName", a.avatar_id AS "avatarId", a.bio, s.id AS "sessionId",
+        a.suspended_at IS NOT NULL AS suspended
       FROM sessions s JOIN accounts a ON a.id=s.account_id
       WHERE s.token_hash=$1 AND s.expires_at > now()`,
       [digest(token)],
     );
     if (!account) throw new HttpError(401, 'Your session expired. Please sign in again.');
+    if ((account as { suspended?: boolean }).suspended)
+      throw new HttpError(401, 'This account is suspended.');
+    delete (account as { suspended?: boolean }).suspended;
     return account;
   }
 
@@ -123,9 +156,10 @@ export class AccountService {
   async profile(userId: string, db: Database = this.db): Promise<Account> {
     const {
       rows: [row],
-    } = await db.query<ProfileRow>(`SELECT ${profileColumns} FROM accounts a ${profileJoins()} WHERE a.id=$1`, [
-      userId,
-    ]);
+    } = await db.query<ProfileRow>(
+      `SELECT ${profileColumns} FROM accounts a ${profileJoins()} WHERE a.id=$1`,
+      [userId],
+    );
     if (!row) throw new HttpError(404, 'That account no longer exists.');
     return toAccount(row);
   }

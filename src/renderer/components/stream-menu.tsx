@@ -1,5 +1,5 @@
 import { MonitorOff } from 'lucide-react';
-import type { ScreenSharePresetName } from '../domain/conference';
+import { aboveCeiling, withinCeiling, type ScreenSharePresetName } from '../domain/conference';
 import {
   DropdownMenuContent,
   DropdownMenuItem,
@@ -12,6 +12,8 @@ import {
 interface StreamMenuProps {
   sharing: boolean;
   quality: ScreenSharePresetName;
+  /** The best this Pulse Room allows, if it sets a limit. */
+  ceiling?: ScreenSharePresetName;
   onSelectQuality(preset: ScreenSharePresetName): void;
   onStop(): void;
 }
@@ -24,14 +26,9 @@ const ladder: { preset: ScreenSharePresetName; label: string }[] = [
 ];
 
 /** The caret beside the share button: stop, or change how the screen is sent. */
-export function StreamMenu({ sharing, quality, onSelectQuality, onStop }: StreamMenuProps) {
+export function StreamMenu({ sharing, quality, ceiling, onSelectQuality, onStop }: StreamMenuProps) {
   return (
-    <DropdownMenuContent
-      align="end"
-      side="top"
-      className="dock-menu w-56"
-      aria-label="Stream options"
-    >
+    <DropdownMenuContent align="end" side="top" className="dock-menu w-56" aria-label="Stream options">
       {sharing && (
         <>
           <DropdownMenuItem
@@ -46,18 +43,24 @@ export function StreamMenu({ sharing, quality, onSelectQuality, onStop }: Stream
 
       <DropdownMenuLabel>Stream quality</DropdownMenuLabel>
       <DropdownMenuRadioGroup
-        value={quality}
+        value={withinCeiling(quality, ceiling)}
         onValueChange={(preset) => onSelectQuality(preset as ScreenSharePresetName)}
       >
         {ladder.map((step) => (
           <DropdownMenuRadioItem
             key={step.preset}
             value={step.preset}
+            disabled={aboveCeiling(step.preset, ceiling)}
           >
             {step.label}
           </DropdownMenuRadioItem>
         ))}
       </DropdownMenuRadioGroup>
+      {ceiling && ceiling !== 'motion' && (
+        <p className="px-2 pt-1 pb-1.5 text-[11px] text-muted-foreground">
+          This Pulse Room limits shared screens to save bandwidth.
+        </p>
+      )}
     </DropdownMenuContent>
   );
 }

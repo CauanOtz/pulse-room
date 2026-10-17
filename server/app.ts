@@ -13,6 +13,7 @@ import { HttpError } from './security.js';
 import { tagBadges, tagModes, tagTextPattern } from '../src/shared/community.js';
 import { allPermissions, channelScoped, has, Permission } from '../src/shared/permissions.js';
 import { RoleService } from './role-service.js';
+import { registrationMode, screenShareCeiling } from './platform-settings.js';
 import { TagService, type TagInput } from './tag-service.js';
 import {
   publishSources,
@@ -84,7 +85,13 @@ const channelSchema = z.union([
     .strict(),
   z.object({ name, type: z.enum(['voice', 'text']), categoryId: z.uuid().nullable().optional() }).strict(),
 ]);
-const publicRoutes = new Set(['/health', '/api/auth/register', '/api/auth/login', '/api/auth/recover']);
+const publicRoutes = new Set([
+  '/health',
+  '/api/auth/register',
+  '/api/auth/login',
+  '/api/auth/recover',
+  '/api/auth/registration',
+]);
 
 export async function createServer(
   configuration: ServerConfiguration,
@@ -150,18 +157,26 @@ export async function createServer(
   });
   const authLimit = { rateLimit: { max: 10, timeWindow: '1 minute' } };
   /** Pushes a change of who may speak or hear into the calls now, not at the next sweep. */
-  const enforce = () => void voice.reconcile().catch(() => server.log.warn('Voice access reconciliation failed'));
+  const enforce = () =>
+    void voice.reconcile().catch(() => server.log.warn('Voice access reconciliation failed'));
   server.get('/health', async () => {
     await db.query('SELECT 1');
     return { status: 'ok', service: 'pulse-room-token-server' };
   });
   server.post('/api/auth/register', { config: authLimit }, async (request) => {
     const body = z
-      .object({ username, displayName: name.max(40), password })
+      .object({
+        username,
+        displayName: name.max(40),
+        password,
+        inviteCode: z.string().trim().max(64).nullish(),
+      })
       .strict()
       .parse(request.body);
-    return accounts.register(body.username, body.displayName, body.password);
+    return accounts.register(body.username, body.displayName, body.password, body.inviteCode);
   });
+  /** Whether a new account can be made here, so the form can say so before anybody fills it in. */
+  server.get('/api/auth/registration', async () => ({ mode: await registrationMode(db) }));
   server.post('/api/auth/login', { config: authLimit }, async (request) => {
     const body = z
       .object({ username, password: z.string().min(1).max(128) })
@@ -212,7 +227,10 @@ export async function createServer(
   });
 
   server.patch('/api/account/profile', async (request) => {
-    const { bio } = z.object({ bio: z.string().trim().max(200) }).strict().parse(request.body);
+    const { bio } = z
+      .object({ bio: z.string().trim().max(200) })
+      .strict()
+      .parse(request.body);
     await accounts.setBio(actor(request).id, bio);
     return { bio };
   });
@@ -278,12 +296,18 @@ export async function createServer(
     return { ok: true };
   });
   server.put('/api/servers/:serverId/roles', async (request) => {
-    const { roleIds } = z.object({ roleIds: z.array(z.uuid()).max(50) }).strict().parse(request.body);
+    const { roleIds } = z
+      .object({ roleIds: z.array(z.uuid()).max(50) })
+      .strict()
+      .parse(request.body);
     await roles.reorder(actor(request).id, id(request, 'serverId'), roleIds);
     return { ok: true };
   });
   server.put('/api/servers/:serverId/members/:userId/roles', async (request) => {
-    const { roleIds } = z.object({ roleIds: z.array(z.uuid()).max(50) }).strict().parse(request.body);
+    const { roleIds } = z
+      .object({ roleIds: z.array(z.uuid()).max(50) })
+      .strict()
+      .parse(request.body);
     await roles.setMemberRoles(actor(request).id, id(request, 'serverId'), id(request, 'userId'), roleIds);
     enforce();
     return { ok: true };
@@ -365,7 +389,11 @@ export async function createServer(
     ),
   }));
   server.patch('/api/channels/:channelId', async (request) => {
-    await communities.updateChannel(actor(request).id, id(request, 'channelId'), channelSchema.parse(request.body));
+    await communities.updateChannel(
+      actor(request).id,
+      id(request, 'channelId'),
+      channelSchema.parse(request.body),
+    );
     enforce();
     return { ok: true };
   });
@@ -463,13 +491,16 @@ export async function createServer(
       channel.serverId,
       user.id,
     ]);
-    return tokens.issueRoomToken({
+    const ceiling = await screenShareCeiling(db);
+    const credentials = await tokens.issueRoomToken({
       roomId: voiceRoomName(channel.id),
       identity: `${user.id}:${user.sessionId}`,
       participantName: user.displayName,
       sources: publishSources(permissions),
       canSubscribe: !access.deafened,
     });
+    // How good a shared screen may be, which the client holds itself to.
+    return { ...credentials, limits: { screenShare: ceiling } };
   });
   const uploadLimit = {
     bodyLimit: imageLimits.bytes,
@@ -527,15 +558,17 @@ export async function createServer(
       .regex(/^[0-9a-f]{64}$/)
       .parse((request.params as Record<string, string>).imageId);
     const image = await images.read(actor(request).id, imageId);
-    return reply
-      .header('Content-Type', image.mime)
-      .header('Content-Disposition', 'inline')
-      .header('X-Content-Type-Options', 'nosniff')
-      .header('Content-Security-Policy', "default-src 'none'; sandbox")
-      .header('Cross-Origin-Resource-Policy', 'same-origin')
-      // The address is the hash of the content, so it can never mean anything else.
-      .header('Cache-Control', 'private, max-age=31536000, immutable')
-      .send(image.bytes);
+    return (
+      reply
+        .header('Content-Type', image.mime)
+        .header('Content-Disposition', 'inline')
+        .header('X-Content-Type-Options', 'nosniff')
+        .header('Content-Security-Policy', "default-src 'none'; sandbox")
+        .header('Cross-Origin-Resource-Policy', 'same-origin')
+        // The address is the hash of the content, so it can never mean anything else.
+        .header('Cache-Control', 'private, max-age=31536000, immutable')
+        .send(image.bytes)
+    );
   });
 
   server.get('/api/presence', async (request) => {
