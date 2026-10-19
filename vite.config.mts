@@ -18,6 +18,8 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
+    // Each API suite boots PostgreSQL/WASM; cap concurrency to keep verification reliable.
+    maxWorkers: 2,
     setupFiles: ['./tests/unit/setup.ts'],
     exclude: ['tests/e2e/**', 'node_modules/**'],
     css: true,
