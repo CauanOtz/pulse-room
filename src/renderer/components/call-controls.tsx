@@ -33,11 +33,11 @@ export function CallControls(props: CallControlsProps) {
         <button
           className={cn(
             'grid size-9 place-items-center rounded-lg bg-secondary text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
-            !props.microphoneEnabled &&
-              'is-danger bg-destructive text-destructive-foreground hover:bg-destructive/90',
+            !props.microphoneEnabled && 'is-muted bg-accent text-foreground',
           )}
           type="button"
           onClick={props.onToggleMicrophone}
+          aria-pressed={!props.microphoneEnabled}
           aria-label={props.microphoneEnabled ? 'Mute microphone' : 'Unmute microphone'}
           disabled={props.busy}
         >
@@ -49,10 +49,11 @@ export function CallControls(props: CallControlsProps) {
         <button
           className={cn(
             'grid size-9 place-items-center rounded-lg bg-secondary text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
-            props.deafened && 'is-danger bg-destructive text-destructive-foreground hover:bg-destructive/90',
+            props.deafened && 'is-danger bg-primary text-primary-foreground hover:bg-primary/90',
           )}
           type="button"
           onClick={props.onToggleDeafen}
+          aria-pressed={props.deafened}
           aria-label="Toggle deafen"
           disabled={props.busy}
         >
@@ -95,6 +96,7 @@ export function CallControls(props: CallControlsProps) {
         </DropdownMenu>
       </span>
 
+      <span className="call-divider" aria-hidden="true" />
       <Tooltip label="Audio settings">
         <button
           className="grid size-9 place-items-center rounded-lg bg-secondary text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -108,7 +110,7 @@ export function CallControls(props: CallControlsProps) {
 
       <Tooltip label="Disconnect">
         <button
-          className="leave-button grid size-9 place-items-center rounded-lg bg-destructive text-destructive-foreground transition-colors hover:bg-destructive/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+          className="leave-button grid size-9 place-items-center rounded-lg bg-primary text-primary-foreground transition-colors hover:bg-destructive hover:text-destructive-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
           type="button"
           onClick={props.onLeave}
           aria-label="Leave call"

@@ -1,8 +1,11 @@
 import { useEffect, useRef } from 'react';
 import { Crown, Maximize2, Mic, Settings2, Shield, UserRound } from 'lucide-react';
 import type { MemberRole, ProfileTheme, Role, WornTag } from '../../shared/community';
+import { RoleMark } from './role-appearance';
 import { Avatar } from './avatar';
 import { ProfileBanner, TagChip, themedCard } from './profile-identity';
+import { createPortal } from 'react-dom';
+import { useOverlayContainer } from './ui/overlay-portal';
 
 export interface ProfileSummary {
   id: string;
@@ -35,6 +38,7 @@ export function ProfilePopover({
   onClose(): void;
 }) {
   const cardRef = useRef<HTMLDivElement>(null);
+  const container = useOverlayContainer();
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose();
@@ -64,7 +68,7 @@ export function ProfilePopover({
   const top = Math.max(12, Math.min(position.y + 8, window.innerHeight - height - 12));
   const roleLabel = profile.role === 'owner' ? 'Owner' : profile.role === 'admin' ? 'Administrator' : 'Member';
 
-  return (
+  return createPortal(
     <div className="popover-backdrop fixed inset-0 z-40" role="presentation" onMouseDown={onClose}>
       <section
         ref={cardRef}
@@ -148,7 +152,7 @@ export function ProfilePopover({
                     key={role.id}
                     className="profile-role inline-flex items-center gap-1 rounded-md border border-border bg-secondary/60 px-1.5 py-0.5 text-[10px] font-medium text-foreground/85"
                   >
-                    <span className="size-1.5 rounded-full" style={{ background: role.colour ?? 'var(--muted-foreground)' }} />
+                    <RoleMark role={role} />
                     {role.name}
                   </li>
                 ))}
@@ -180,6 +184,7 @@ export function ProfilePopover({
           )}
         </div>
       </section>
-    </div>
+    </div>,
+    container,
   );
 }

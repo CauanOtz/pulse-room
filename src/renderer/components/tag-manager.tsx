@@ -289,7 +289,7 @@ export function TagManager({
   );
 
   return (
-    <div className="space-y-4">
+    <div className="tag-manager space-y-4">
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs text-muted-foreground">Members wear one tag from each server, beside their name there.</p>
         {manage && (

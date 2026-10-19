@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { Hash, Maximize2, Users, Volume2 } from 'lucide-react';
+import { AudioLines, Hash, Maximize2, Users, Volume2 } from 'lucide-react';
 import type { UpdateStatus } from '../shared/desktop-api';
 import { ConferenceController } from './application/conference-controller';
 import { emptyPresence, presenceSounds, type RoomPresence } from './application/room-presence';
@@ -32,6 +32,9 @@ import { TextChat } from './components/text-chat';
 import { MemberSidebar } from './components/member-sidebar';
 import { ProfilePopover, type ProfileSummary } from './components/profile-popover';
 import { ProfileModal } from './components/profile-modal';
+import { Avatar } from './components/avatar';
+import { ServerWelcome } from './components/server-welcome';
+import { landingChannel } from './domain/landing-channel';
 import { MemberActionsSection, type VoiceSeat } from './components/member-actions';
 
 const mediaDevicesService = new MediaDevicesService();
@@ -110,8 +113,14 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
     [controller],
   );
   const channels = workspace ? workspace.detail.channels.filter((c) => c.type === 'voice') : voiceChannels;
-  const [viewId, setViewId] = useState(workspace?.detail.channels.find((c) => c.type === 'text')?.id ?? '');
-  const textChannel = workspace?.detail.channels.find((c) => c.type === 'text' && c.id === viewId);
+  const [viewId, setViewId] = useState(workspace ? (landingChannel(workspace.detail)?.id ?? '') : '');
+  const viewedChannel = workspace?.detail.channels.find((channel) => channel.id === viewId);
+  const textChannel =
+    viewedChannel?.type === 'text'
+      ? viewedChannel
+      : !viewedChannel && workspace
+        ? landingChannel(workspace.detail)
+        : undefined;
   const snapshot = useSyncExternalStore(
     controller.gateway.subscribe.bind(controller.gateway),
     controller.gateway.getSnapshot.bind(controller.gateway),
@@ -121,6 +130,7 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
   // The list of people beside a channel is the first thing to go on a narrow
   // window, so it is something the reader can put away.
   const [membersOpen, setMembersOpen] = useState(true);
+  const [resourcesRevision, setResourcesRevision] = useState(0);
   // Held still, so the panel that polls it is not restarted on every render.
   const readHealth = useCallback(() => controller.gateway.readHealth(), [controller]);
   const readConnection = useCallback(() => controller.gateway.readConnection(), [controller]);
@@ -228,7 +238,7 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
       setViewId(call.channelId);
       return;
     }
-    setViewId(workspace.detail.channels.find((channel) => channel.type === 'text')?.id ?? '');
+    setViewId(landingChannel(workspace.detail)?.id ?? '');
   }, [workspace?.detail.server.id]);
 
   // Refresh names, permissions and pictures while the call's own server is in
@@ -502,7 +512,12 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
   };
 
   return (
-    <div className="app-shell grid h-full w-full grid-cols-[60px_246px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)_auto] bg-background text-foreground">
+    <div
+      className={cn(
+        'app-shell grid h-full w-full grid-rows-[minmax(0,1fr)_auto] bg-background text-foreground',
+        workspace && membersOpen && 'has-members',
+      )}
+    >
       <VideoLevelFilter />
       <ServerRail
         servers={workspace?.servers}
@@ -574,7 +589,7 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
       />
 
       <main className="room-main col-start-3 row-span-2 row-start-1 flex min-w-0 flex-col bg-background">
-        <header className="room-header flex h-15 flex-none items-center gap-2.5 border-b border-border px-5 text-sm">
+        <header className="room-header flex h-24 flex-none items-center gap-4 px-8 text-sm">
           <div className="room-title flex min-w-0 flex-1 items-center gap-2.5">
             {textChannel ? (
               <Hash aria-hidden="true" className="size-4.5 shrink-0 text-muted-foreground" />
@@ -584,19 +599,45 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
             {/* Where you are, and then the one thing about this place that is
                 worth knowing before you speak in it. */}
             <span className="flex min-w-0 flex-col leading-tight">
-              <strong className="truncate text-[15px] font-semibold tracking-[-0.01em]">
-                {textChannel?.name ?? activeChannelName ?? 'Choose a channel'}
+              <strong className="truncate text-[26px] font-semibold tracking-[-0.035em]">
+                {textChannel?.name ?? (joined ? activeChannelName : 'Your space') ?? 'Choose a channel'}
               </strong>
-              <span className="room-description truncate text-[11.5px] text-muted-foreground">
+              <span className="room-description mt-1 truncate text-xs text-muted-foreground">
                 {channelReach}
               </span>
             </span>
           </div>
-          {textChannel && (
+          {joined && (
+            <button
+              className="call-presence flex shrink-0 items-center gap-2 rounded-full bg-secondary px-3.5 py-2 text-xs text-foreground"
+              type="button"
+              onClick={handleReturnToCall}
+              aria-label="Open current call"
+            >
+              <AudioLines className="size-3.5" aria-hidden="true" />
+              <span>In voice</span>
+              <span className="call-mini-faces" aria-hidden="true">
+                {visibleParticipants.slice(0, 3).map((person) => (
+                  <Avatar
+                    key={person.id}
+                    name={person.name}
+                    initials={person.initials}
+                    imageId={(activeCall?.avatars ?? avatars).get(accountOf(person.id))}
+                  />
+                ))}
+              </span>
+              <span className="call-presence-count">
+                {visibleParticipants.length > 3
+                  ? `+${visibleParticipants.length - 3}`
+                  : visibleParticipants.length}
+              </span>
+            </button>
+          )}
+          {workspace && (
             <Tooltip label={membersOpen ? 'Hide members' : 'Show members'}>
               <button
                 className={cn(
-                  'grid size-8 shrink-0 place-items-center rounded-md transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  'member-toggle grid size-10 shrink-0 place-items-center rounded-full transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                   membersOpen ? 'text-foreground' : 'text-muted-foreground',
                 )}
                 type="button"
@@ -610,10 +651,54 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
           )}
         </header>
 
-        <div className="room-content relative grid min-h-0 flex-1 grid-cols-1 grid-rows-1 place-items-stretch overflow-hidden">
-          {textChannel && workspace ? (
-            // Reading a channel leaves room beside it for the people in it.
-            <div className="flex min-h-0 min-w-0">
+        <div className="room-content relative flex min-h-0 flex-1 overflow-hidden">
+          <div className="conversation-column flex min-h-0 min-w-0 flex-1 flex-col">
+            {(!textChannel || (joined && activeCall?.serverId === workspace?.detail.server.id)) && (
+              <div
+                className={cn(
+                  'voice-surface min-h-0 px-7 pb-3',
+                  textChannel ? 'voice-surface-compact' : 'flex flex-1',
+                )}
+              >
+                <Stage
+                  avatars={activeCall?.avatars ?? avatars}
+                  participants={visibleParticipants}
+                  joined={joined}
+                  speakerDeviceId={settings.speakerDeviceId}
+                  expandLevels={settings.expandScreenLevels}
+                  watching={snapshot.watching}
+                  onWatch={(participantId, watching) =>
+                    controller.gateway.watchScreen(participantId, watching)
+                  }
+                  onOptions={(participant, position) => setOpenParticipant({ id: participant.id, position })}
+                  screenVolumes={screenVolumes}
+                  onScreenVolume={(participantId, volume) =>
+                    setScreenVolumes((volumes) => ({ ...volumes, [participantId]: volume }))
+                  }
+                >
+                  {joined && (
+                    <CallControls
+                      microphoneEnabled={snapshot.microphoneEnabled}
+                      deafened={snapshot.deafened}
+                      screenSharing={snapshot.screenSharing}
+                      quality={settings.screenSharePreset}
+                      ceiling={snapshot.screenShareCeiling}
+                      busy={busy}
+                      onToggleMicrophone={() => canSpeak && void run(() => controller.toggleMicrophone())}
+                      onToggleDeafen={() => void run(() => controller.toggleDeafen())}
+                      onShare={handleShareRequest}
+                      onSelectQuality={(preset) => {
+                        setSettings((current) => ({ ...current, screenSharePreset: preset }));
+                        void run(() => controller.setScreenQuality(preset));
+                      }}
+                      onOpenSettings={() => setSettingsOpen(true)}
+                      onLeave={handleLeave}
+                    />
+                  )}
+                </Stage>
+              </div>
+            )}
+            {textChannel && workspace && (
               <TextChat
                 key={textChannel.id}
                 api={workspace.api}
@@ -625,79 +710,33 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
                 avatars={avatars}
                 tags={tags}
                 onOpenProfile={(id, position) => setOpenProfile({ id, position })}
+                onChanged={() => setResourcesRevision((value) => value + 1)}
               />
-              {membersOpen && (
-                <MemberSidebar
-                  members={workspace.detail.members}
-                  roles={workspace.detail.roles}
-                  userId={workspace.user.id}
-                  voiceIds={inVoice}
-                  onOpenProfile={(id, position) => setOpenProfile({ id, position })}
-                />
-              )}
-            </div>
-          ) : (
-            // The room is a card of its own, inset from the window.
-            <div className="flex min-h-0 min-w-0 p-2.5">
-              <Stage
-                avatars={activeCall?.avatars ?? avatars}
-                participants={visibleParticipants}
-                joined={joined}
-                speakerDeviceId={settings.speakerDeviceId}
-                expandLevels={settings.expandScreenLevels}
-                watching={snapshot.watching}
-                onWatch={(participantId, watching) => controller.gateway.watchScreen(participantId, watching)}
-                onOptions={(participant, position) => setOpenParticipant({ id: participant.id, position })}
-                screenVolumes={screenVolumes}
-                onScreenVolume={(participantId, volume) =>
-                  setScreenVolumes((volumes) => ({ ...volumes, [participantId]: volume }))
-                }
+            )}
+            {joined && !canSpeak && (
+              <p className="permission-note mx-4 mb-2 rounded-lg border border-border bg-card px-3 py-2 text-xs text-muted-foreground">
+                {timedOut
+                  ? 'You are in a timeout: you can listen, but not speak.'
+                  : me?.muted
+                    ? 'You are muted in this server.'
+                    : 'You can listen in this channel. Speaking is restricted by its permissions.'}
+              </p>
+            )}
+            {joined && !canShare && (
+              <p className="permission-note mx-4 mb-2 rounded-lg border border-border bg-card px-3 py-2 text-xs text-muted-foreground">
+                Screen sharing is restricted in this channel.
+              </p>
+            )}
+            {snapshot.error && (
+              <div
+                className="error-banner mx-4 mb-2 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive"
+                role="alert"
               >
-                {joined && (
-                  <CallControls
-                    microphoneEnabled={snapshot.microphoneEnabled}
-                    deafened={snapshot.deafened}
-                    screenSharing={snapshot.screenSharing}
-                    quality={settings.screenSharePreset}
-                    ceiling={snapshot.screenShareCeiling}
-                    busy={busy}
-                    onToggleMicrophone={() => canSpeak && void run(() => controller.toggleMicrophone())}
-                    onToggleDeafen={() => void run(() => controller.toggleDeafen())}
-                    onShare={handleShareRequest}
-                    onSelectQuality={(preset) => {
-                      setSettings((current) => ({ ...current, screenSharePreset: preset }));
-                      void run(() => controller.setScreenQuality(preset));
-                    }}
-                    onOpenSettings={() => setSettingsOpen(true)}
-                    onLeave={handleLeave}
-                  />
-                )}
-              </Stage>
-            </div>
-          )}
-          {joined && !canSpeak && (
-            <p className="permission-note mx-4 mb-2 rounded-lg border border-border bg-card px-3 py-2 text-xs text-muted-foreground">
-              {timedOut
-                ? 'You are in a timeout: you can listen, but not speak.'
-                : me?.muted
-                  ? 'You are muted in this server.'
-                  : 'You can listen in this channel. Speaking is restricted by its permissions.'}
-            </p>
-          )}
-          {joined && !canShare && (
-            <p className="permission-note mx-4 mb-2 rounded-lg border border-border bg-card px-3 py-2 text-xs text-muted-foreground">
-              Screen sharing is restricted in this channel.
-            </p>
-          )}
-          {snapshot.error && (
-            <div
-              className="error-banner mx-4 mb-2 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive"
-              role="alert"
-            >
-              {snapshot.error}
-            </div>
-          )}
-          {joined && textChannel && (
+                {snapshot.error}
+              </div>
+            )}
+          </div>
+          {joined && textChannel && activeCall?.serverId !== workspace?.detail.server.id && (
             <CallMiniPlayer
               participant={visibleParticipants.find(
                 (participant) => participant.isBroadcasting && snapshot.watching.includes(participant.id),
@@ -710,6 +749,23 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
           )}
         </div>
       </main>
+
+      {workspace && membersOpen && (
+        <MemberSidebar
+          key={workspace.detail.server.id}
+          api={workspace.api}
+          channel={textChannel ?? workspace.detail.channels.find((channel) => channel.type === 'text')}
+          resourcesRevision={resourcesRevision}
+          members={workspace.detail.members}
+          roles={workspace.detail.roles}
+          userId={workspace.user.id}
+          voiceIds={inVoice}
+          participants={activeCall?.serverId === workspace.detail.server.id ? visibleParticipants : []}
+          onOpenProfile={(id, position) => setOpenProfile({ id, position })}
+          onOpenFullProfile={(id) => setFullProfileId(id)}
+          onAudioOptions={(id, position) => setOpenParticipant({ id, position })}
+        />
+      )}
 
       <RoomAudio
         participants={snapshot.participants}
@@ -747,6 +803,14 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
         />
       )}
 
+      {workspace && (
+        <ServerWelcome
+          key={`welcome-${workspace.detail.server.id}`}
+          api={workspace.api}
+          detail={workspace.detail}
+          onChanged={workspace.onProfileChanged}
+        />
+      )}
       {fullProfile && workspace && (
         <ProfileModal
           api={workspace.api}

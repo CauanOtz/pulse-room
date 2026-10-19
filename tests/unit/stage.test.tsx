@@ -37,17 +37,17 @@ function Watchable({
     // The application wraps the whole window in one provider so that sweeping
     // across a row of controls does not wait for each hint in turn.
     <TooltipProvider>
-    <Stage
-      participants={participants}
-      joined
-      watching={watching}
-      onWatch={(participantId, watch) =>
-        setWatching((taken) =>
-          watch ? [...new Set([...taken, participantId])] : taken.filter((id) => id !== participantId),
-        )
-      }
-      {...props}
-    />
+      <Stage
+        participants={participants}
+        joined
+        watching={watching}
+        onWatch={(participantId, watch) =>
+          setWatching((taken) =>
+            watch ? [...new Set([...taken, participantId])] : taken.filter((id) => id !== participantId),
+          )
+        }
+        {...props}
+      />
     </TooltipProvider>
   );
 }
@@ -132,10 +132,38 @@ describe('Stage', () => {
     render(<Watchable participants={participants} />);
 
     const rings = [...document.querySelectorAll('.tile-face')].filter((face) =>
-      face.className.includes('outline-success'),
+      face.className.includes('outline-primary'),
     );
     expect(rings).toHaveLength(1);
     expect(rings[0].closest('.participant-tile')).toHaveTextContent('Maya');
+  });
+
+  it('features the real speaker and keeps their place through pauses', () => {
+    const people = [
+      createParticipant({ id: 'you', name: 'You', isLocal: true }),
+      createParticipant({ id: 'maya', name: 'Maya', isSpeaking: true }),
+    ];
+    const view = render(<Watchable participants={people} />);
+    expect(document.querySelector('.is-featured')).toHaveTextContent('Maya');
+    view.rerender(<Watchable participants={people.map((person) => ({ ...person, isSpeaking: false }))} />);
+    expect(document.querySelector('.is-featured')).toHaveTextContent('Maya');
+    expect(document.querySelector('.is-featured')).not.toHaveClass('is-speaking');
+    view.rerender(
+      <Watchable participants={people.map((person) => ({ ...person, isSpeaking: person.isLocal }))} />,
+    );
+    expect(document.querySelector('.is-featured')).toHaveTextContent('You');
+    expect(document.querySelectorAll('.participant-tile')).toHaveLength(2);
+  });
+
+  it('does not mark a muted participant as speaking when an older report says they are', () => {
+    render(
+      <Watchable
+        participants={[createParticipant({ id: 'maya', name: 'Maya', isSpeaking: true, isMuted: true })]}
+      />,
+    );
+    expect(document.querySelector('.is-speaking')).toBeNull();
+    expect(screen.getByText('Microphone muted')).toBeInTheDocument();
+    expect(screen.queryByText('Speaking')).not.toBeInTheDocument();
   });
 
   it('shows a struggling line on the tile of whoever owns it', () => {
@@ -155,14 +183,7 @@ describe('Stage', () => {
     const participants = [createParticipant({ id: 'maya', name: 'Maya', screenStream: liveScreen() })];
     const onWatch = vi.fn();
 
-    render(
-      <Stage
-        participants={participants}
-        joined
-        watching={['maya']}
-        onWatch={onWatch}
-      />,
-    );
+    render(<Stage participants={participants} joined watching={['maya']} onWatch={onWatch} />);
     expect(screen.getByText('Live from Maya')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Back to the room' }));
@@ -275,7 +296,9 @@ describe('Stage', () => {
   });
 
   it('gives screen audio a level of its own while it is being watched', () => {
-    const participants = [createParticipant({ id: 'maya', name: 'Maya', volume: 40, screenStream: liveScreen() })];
+    const participants = [
+      createParticipant({ id: 'maya', name: 'Maya', volume: 40, screenStream: liveScreen() }),
+    ];
     const onScreenVolume = vi.fn();
 
     const { rerender } = render(
@@ -310,7 +333,9 @@ describe('Stage', () => {
   });
 
   it('offers no screen volume for your own preview, which plays muted', () => {
-    const participants = [createParticipant({ id: 'you', name: 'You', isLocal: true, screenStream: liveScreen() })];
+    const participants = [
+      createParticipant({ id: 'you', name: 'You', isLocal: true, screenStream: liveScreen() }),
+    ];
 
     render(<Watchable participants={participants} initial="you" />);
 

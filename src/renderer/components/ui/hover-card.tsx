@@ -1,6 +1,7 @@
 import * as Primitive from '@radix-ui/react-hover-card';
 import type { ComponentProps } from 'react';
 import { cn } from './utils';
+import { useOverlayContainer } from './overlay-portal';
 
 export const HoverCard = Primitive.Root;
 export const HoverCardTrigger = Primitive.Trigger;
@@ -14,8 +15,9 @@ export function HoverCardContent({
   sideOffset = 8,
   ...props
 }: ComponentProps<typeof Primitive.Content>) {
+  const container = useOverlayContainer();
   return (
-    <Primitive.Portal>
+    <Primitive.Portal container={container}>
       <Primitive.Content
         sideOffset={sideOffset}
         collisionPadding={12}

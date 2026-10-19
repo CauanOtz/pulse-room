@@ -73,6 +73,9 @@ test('launches the secured desktop shell and completes the join flow', async () 
     // people speak, so the whole gesture retries rather than the assertion.
     const profileButton = window.locator('.profile-strip').getByRole('button', { name: 'Your profile' });
     await expect(async () => {
+      // A retry needs a fresh pointer entry; hovering the same coordinates
+      // after a dismissed tooltip does not dispatch another pointer move.
+      await window.locator('.room-header').hover();
       await profileButton.hover();
       // The call is running by now, so the status says so.
       await expect(window.getByRole('tooltip').filter({ hasText: 'In voice' })).toBeVisible({
@@ -154,6 +157,14 @@ test('launches the secured desktop shell and completes the join flow', async () 
 
     await window.getByRole('button', { name: 'Enter full screen' }).click();
     await expect(window.getByRole('button', { name: 'Exit full screen' })).toBeVisible();
+    await window.locator('.stage-live').hover();
+    await window.locator('.call-dock').getByRole('button', { name: 'Open audio settings', exact: true }).click();
+    const fullscreenSettings = window.locator('.stage:fullscreen').getByRole('dialog', { name: 'Voice and video' });
+    await fullscreenSettings.getByRole('button', { name: 'Close', exact: true }).click();
+    await window.locator('.stage-live').hover();
+    await window.locator('.call-dock').getByRole('button', { name: 'Stream options' }).click();
+    await window.locator('.stage:fullscreen').getByRole('menuitemradio', { name: /1080p . 30 fps/ }).click();
+    await window.locator('.stage-live').hover();
     await window.getByRole('button', { name: 'Exit full screen' }).click();
     await expect(window.getByRole('button', { name: 'Enter full screen' })).toBeVisible();
 

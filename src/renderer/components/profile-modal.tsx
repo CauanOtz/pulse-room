@@ -5,9 +5,11 @@ import type { CommunityDetail, CommunityMember } from '../../shared/community';
 import { rolesOf } from '../domain/access';
 import type { CommunityClient } from '../infrastructure/community-client';
 import { Avatar } from './avatar';
+import { RoleMark } from './role-appearance';
 import { MemberActionsSection, type VoiceSeat } from './member-actions';
 import { ProfileBanner, TagChip, themedCard } from './profile-identity';
 import { cn } from './ui/utils';
+import { useOverlayContainer } from './ui/overlay-portal';
 
 const day = (value?: string | null) =>
   value ? new Date(value).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : undefined;
@@ -62,13 +64,14 @@ export function ProfileModal({
   onChanged(): Promise<void>;
   onClose(): void;
 }) {
+  const container = useOverlayContainer();
   const isYou = member.id === userId;
   const roles = rolesOf(detail, member);
   const timedOut = Boolean(member.timeoutUntil && new Date(member.timeoutUntil) > new Date());
 
   return (
     <Primitive.Root open onOpenChange={(open) => !open && onClose()}>
-      <Primitive.Portal>
+      <Primitive.Portal container={container}>
         <Primitive.Overlay className="fixed inset-0 z-50 bg-black/70 backdrop-blur-[2px] data-[state=open]:animate-in data-[state=open]:fade-in-0" />
         <Primitive.Content
           aria-describedby={undefined}
@@ -170,9 +173,9 @@ export function ProfileModal({
                         {roles.map((role) => (
                           <li
                             key={role.id}
-                            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-secondary/60 px-2 py-1 text-xs font-medium text-foreground/90"
+                            className="profile-role inline-flex items-center gap-1.5 rounded-md border border-border bg-secondary/60 px-2 py-1 text-xs font-medium text-foreground/90"
                           >
-                            <span className="size-2 rounded-full" style={{ background: role.colour ?? 'var(--muted-foreground)' }} />
+                            <RoleMark role={role} />
                             {role.name}
                           </li>
                         ))}

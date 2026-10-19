@@ -1,6 +1,7 @@
 import * as Primitive from '@radix-ui/react-tooltip';
 import type { ReactNode } from 'react';
 import { cn } from './ui/utils';
+import { useOverlayContainer } from './ui/overlay-portal';
 
 /**
  * The filter that makes two shapes read as one drop of liquid. It is declared
@@ -47,10 +48,11 @@ export function StatusTooltip({
   side?: 'top' | 'right' | 'bottom' | 'left';
   children: ReactNode;
 }) {
+  const container = useOverlayContainer();
   return (
     <Primitive.Root>
       <Primitive.Trigger asChild>{children}</Primitive.Trigger>
-      <Primitive.Portal>
+      <Primitive.Portal container={container}>
         <Primitive.Content
           side={side}
           sideOffset={10}

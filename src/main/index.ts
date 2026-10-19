@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { app, BrowserWindow, ipcMain, Menu, nativeImage, session, Tray } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, nativeImage, session, shell, Tray } from 'electron';
 import { ScreenCaptureService } from './application/screen-capture-service';
 import { UpdateService } from './application/update-service';
 import { SessionVault } from './application/session-vault';
@@ -23,7 +23,7 @@ if (process.env.NODE_ENV === 'test' && process.env.PULSE_TEST_USER_DATA) {
  * five after. The video capture service is the other large one and it stays,
  * because it is what screen sharing is served by.
  */
-app.commandLine.appendSwitch("disable-features", "AudioServiceOutOfProcess");
+app.commandLine.appendSwitch('disable-features', 'AudioServiceOutOfProcess');
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
@@ -60,7 +60,16 @@ function createMainWindow(): BrowserWindow {
     window.hide();
     announceTray();
   });
-  window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  window.webContents.setWindowOpenHandler(({ url }) => {
+    try {
+      const address = new URL(url);
+      if (['http:', 'https:'].includes(address.protocol) && !address.username && !address.password)
+        void shell.openExternal(address.href).catch(() => undefined);
+    } catch {
+      /* File, script and malformed links never leave the application. */
+    }
+    return { action: 'deny' };
+  });
   window.webContents.on('will-navigate', (event) => event.preventDefault());
 
   const developmentUrl = process.env.VITE_DEV_SERVER_URL;

@@ -4,6 +4,7 @@ import type { CommunityMember } from '../../src/shared/community';
 import { groupMembers } from '../../src/renderer/domain/members';
 import { MemberSidebar } from '../../src/renderer/components/member-sidebar';
 import { TooltipProvider } from '../../src/renderer/components/ui/tooltip';
+import type { Participant } from '../../src/renderer/domain/conference';
 
 afterEach(cleanup);
 
@@ -46,6 +47,30 @@ describe('groupMembers', () => {
 });
 
 describe('MemberSidebar', () => {
+  it('shows observed voice states without inventing offline presence', () => {
+    const participant = (id: string, isSpeaking: boolean, isMuted: boolean) =>
+      ({ id, isSpeaking, isMuted }) as Participant;
+    render(
+      <TooltipProvider>
+        <MemberSidebar
+          members={people}
+          userId="1"
+          voiceIds={new Set(['1', '2', '3'])}
+          participants={[
+            participant('1', true, false),
+            participant('2', false, false),
+            participant('3', true, true),
+          ]}
+        />
+      </TooltipProvider>,
+    );
+    expect(screen.getByText('Speaking')).toBeVisible();
+    expect(screen.getByText('Listening')).toBeVisible();
+    expect(screen.getByText('Muted')).toBeVisible();
+    expect(screen.getByText('@babi')).toBeVisible();
+    expect(screen.queryByText('Offline')).toBeNull();
+    expect(screen.getAllByRole('button', { name: /^Options for / })).toHaveLength(4);
+  });
   it('names every member once and marks the one reading it', () => {
     render(
       <TooltipProvider>

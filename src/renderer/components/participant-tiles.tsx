@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, type ReactNode } from 'react';
 import { Eye, MicOff, MonitorUp, Tv } from 'lucide-react';
 import type { Participant } from '../domain/conference';
 import { accountOf } from '../domain/roster';
@@ -12,7 +12,9 @@ interface ParticipantTilesProps {
   /** Whose pictures this client asked for. Nobody else's tile draws one. */
   watching?: string[];
   focusedId?: string;
-  layout: 'grid' | 'strip';
+  layout: 'grid' | 'strip' | 'spotlight';
+  featuredId?: string;
+  information?: ReactNode;
   avatars?: ReadonlyMap<string, string | null | undefined>;
   onFocus(participant: Participant): void;
   /** A right click asks what else can be done with the person under it. */
@@ -33,32 +35,52 @@ export function ParticipantTiles({
   watching,
   focusedId,
   layout,
+  featuredId,
+  information,
   avatars,
   onFocus,
   onOptions,
 }: ParticipantTilesProps) {
+  const tile = (participant: Participant, featured = false) => (
+    <ParticipantTile
+      key={participant.id}
+      participant={participant}
+      wanted={participant.isLocal || Boolean(watching?.includes(participant.id))}
+      focused={participant.id === focusedId}
+      featured={featured}
+      layout={layout === 'strip' ? 'strip' : 'grid'}
+      avatarId={avatars?.get(accountOf(participant.id))}
+      onFocus={onFocus}
+      onOptions={onOptions}
+    />
+  );
+  if (layout === 'spotlight') {
+    const featured = participants.find((person) => person.id === featuredId) ?? participants[0];
+    return (
+      <div className="tile-grid voice-ensemble">
+        {information}
+        {featured && tile(featured, true)}
+        <div
+          className="voice-secondary"
+          aria-label="Other participants"
+          style={{
+            gridTemplateColumns: `repeat(${Math.max(1, Math.min(3, participants.length - 1))}, minmax(0, 1fr))`,
+          }}
+        >
+          {participants.filter((person) => person.id !== featured?.id).map((person) => tile(person))}
+        </div>
+      </div>
+    );
+  }
   return (
     <div
       className={
         layout === 'grid'
-          ? 'tile-grid grid min-h-0 flex-1 content-center justify-center gap-2 overflow-y-auto p-3 [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))]'
+          ? 'tile-grid grid min-h-0 flex-1 content-center justify-center gap-2 overflow-y-auto p-3 [grid-template-columns:repeat(auto-fit,minmax(160px,1fr))]'
           : 'tile-strip flex flex-wrap justify-center gap-2'
       }
     >
-      {participants.map((participant) => (
-        <ParticipantTile
-          key={participant.id}
-          participant={participant}
-          // Each tile is given plain values, so somebody else starting to talk
-          // cannot make this one redraw.
-          wanted={participant.isLocal || Boolean(watching?.includes(participant.id))}
-          focused={participant.id === focusedId}
-          layout={layout}
-          avatarId={avatars?.get(accountOf(participant.id))}
-          onFocus={onFocus}
-          onOptions={onOptions}
-        />
-      ))}
+      {participants.map((participant) => tile(participant))}
     </div>
   );
 }
@@ -67,6 +89,7 @@ interface ParticipantTileProps {
   participant: Participant;
   wanted: boolean;
   focused: boolean;
+  featured?: boolean;
   layout: 'grid' | 'strip';
   avatarId?: string | null;
   onFocus(participant: Participant): void;
@@ -84,6 +107,7 @@ const ParticipantTile = memo(function ParticipantTile({
   participant,
   wanted,
   focused,
+  featured,
   layout,
   avatarId,
   onFocus,
@@ -101,24 +125,33 @@ const ParticipantTile = memo(function ParticipantTile({
   const live = participant.isBroadcasting;
   const taken = Boolean(picture) && !participant.isLocal;
   const small = layout === 'strip';
+  const speaking = participant.isSpeaking && !participant.isMuted;
 
   return (
     <button
       className={cn(
         'participant-tile group/tile relative grid aspect-video place-items-center overflow-hidden rounded-lg border border-border bg-card',
+        !picture && 'is-avatar',
+        featured && 'is-featured',
         'shadow-[var(--gloss)]',
         layout === 'grid' ? 'w-full max-w-105 justify-self-center' : 'w-37',
         'enabled:cursor-pointer enabled:hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         // An outline is drawn by the compositor and costs nothing to turn on
         // and off; a box shadow that animates repaints the tile underneath it,
         // and in this room that would happen every time anybody speaks.
-        participant.isSpeaking && 'is-speaking outline outline-2 -outline-offset-2 outline-success',
+        speaking && 'is-speaking',
         focused && 'outline outline-1 -outline-offset-1 outline-primary',
         focused && 'is-focused',
       )}
       type="button"
       aria-label={
-        !live ? participant.name : taken ? (focused ? `Stop watching ${participant.name}` : `Show ${participant.name}`) : `Watch ${participant.name}`
+        !live
+          ? participant.name
+          : taken
+            ? focused
+              ? `Stop watching ${participant.name}`
+              : `Show ${participant.name}`
+            : `Watch ${participant.name}`
       }
       aria-pressed={focused}
       disabled={!live}
@@ -143,7 +176,7 @@ const ParticipantTile = memo(function ParticipantTile({
         <span
           className={cn(
             'tile-face grid aspect-square w-[30%] max-w-20 place-items-center rounded-full',
-            participant.isSpeaking && 'outline outline-2 outline-offset-2 outline-success',
+            speaking && 'outline outline-2 outline-offset-4 outline-primary',
           )}
         >
           <Avatar
@@ -151,7 +184,6 @@ const ParticipantTile = memo(function ParticipantTile({
             name={participant.name}
             initials={participant.initials}
             imageId={avatarId}
-            accent={participant.accent}
           />
         </span>
       )}
@@ -203,12 +235,22 @@ const ParticipantTile = memo(function ParticipantTile({
         </span>
       )}
 
-      <span className="tile-name absolute inset-x-0 bottom-0 flex items-center gap-2 truncate bg-gradient-to-t from-black/75 to-transparent px-3 py-2.5 text-[11.5px] font-medium text-white">
+      <span
+        className={cn(
+          'tile-name absolute inset-x-0 bottom-0 flex items-center gap-2 truncate px-3 py-2.5 text-xs font-medium',
+          picture ? 'bg-gradient-to-t from-black/75 to-transparent text-white' : 'text-foreground',
+        )}
+      >
         {/* A tile this small has no room for a word, so it keeps the dot. */}
-        {live && small && <span className="tile-live size-1.5 shrink-0 rounded-full bg-destructive" aria-label="Live" />}
+        {live && small && (
+          <span className="tile-live size-1.5 shrink-0 rounded-full bg-destructive" aria-label="Live" />
+        )}
         {participant.isMuted && <MicOff aria-label="Muted" size={12} className="shrink-0 text-destructive" />}
         {picture && !participant.isMuted && <MonitorUp aria-hidden="true" size={12} className="shrink-0" />}
-        <span className="min-w-0 truncate">
+        <span
+          className="min-w-0 truncate"
+          title={participant.isLocal ? `${participant.name} (you)` : participant.name}
+        >
           {participant.isLocal ? `${participant.name} (you)` : participant.name}
         </span>
         <SignalBars className="ml-auto text-white" signal={participant.signal} />

@@ -2,6 +2,7 @@ import * as Primitive from '@radix-ui/react-select';
 import { Check, ChevronDown } from 'lucide-react';
 import type { ComponentProps } from 'react';
 import { cn } from './utils';
+import { useOverlayContainer } from './overlay-portal';
 
 export const Select = Primitive.Root;
 export const SelectValue = Primitive.Value;
@@ -31,8 +32,9 @@ export function SelectTrigger({ className, children, ...props }: ComponentProps<
  * the bottom of the screen.
  */
 export function SelectContent({ className, children, ...props }: ComponentProps<typeof Primitive.Content>) {
+  const container = useOverlayContainer();
   return (
-    <Primitive.Portal>
+    <Primitive.Portal container={container}>
       <Primitive.Content
         position="popper"
         sideOffset={6}

@@ -31,13 +31,14 @@ export class CommunityClient {
   }
 
   /** Reads a picture, which never arrives as JSON. */
-  async blob(path: string): Promise<Blob> {
+  async blob(path: string, signal?: AbortSignal): Promise<Blob> {
     const response = await fetch(`${this.url}${path}`, {
       headers: this.token ? { authorization: `Bearer ${this.token}` } : {},
+      signal,
     });
     if (!response.ok) {
       if (response.status === 401) this.onUnauthorized?.();
-      throw new ApiError(response.status, 'That image is not available.');
+      throw new ApiError(response.status, 'That file is not available.');
     }
     return response.blob();
   }

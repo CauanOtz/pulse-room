@@ -2,6 +2,7 @@ import * as Primitive from '@radix-ui/react-dropdown-menu';
 import { Check, ChevronRight } from 'lucide-react';
 import type { ComponentProps } from 'react';
 import { cn } from './utils';
+import { useOverlayContainer } from './overlay-portal';
 
 export const DropdownMenu = Primitive.Root;
 export const DropdownMenuTrigger = Primitive.Trigger;
@@ -15,8 +16,9 @@ export function DropdownMenuContent({
   sideOffset = 6,
   ...props
 }: ComponentProps<typeof Primitive.Content>) {
+  const container = useOverlayContainer();
   return (
-    <Primitive.Portal>
+    <Primitive.Portal container={container}>
       <Primitive.Content
         sideOffset={sideOffset}
         collisionPadding={12}
@@ -135,8 +137,9 @@ export function DropdownMenuSubTrigger({ className, children, ...props }: Compon
 }
 
 export function DropdownMenuSubContent({ className, ...props }: ComponentProps<typeof Primitive.SubContent>) {
+  const container = useOverlayContainer();
   return (
-    <Primitive.Portal>
+    <Primitive.Portal container={container}>
       <Primitive.SubContent
         collisionPadding={12}
         className={cn(

@@ -1,6 +1,7 @@
 import * as Primitive from '@radix-ui/react-popover';
 import type { ComponentProps } from 'react';
 import { cn } from './utils';
+import { useOverlayContainer } from './overlay-portal';
 
 export const Popover = Primitive.Root;
 export const PopoverTrigger = Primitive.Trigger;
@@ -12,8 +13,9 @@ export function PopoverContent({
   sideOffset = 8,
   ...props
 }: ComponentProps<typeof Primitive.Content>) {
+  const container = useOverlayContainer();
   return (
-    <Primitive.Portal>
+    <Primitive.Portal container={container}>
       <Primitive.Content
         align={align}
         sideOffset={sideOffset}

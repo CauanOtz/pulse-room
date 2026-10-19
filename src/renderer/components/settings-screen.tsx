@@ -1,7 +1,8 @@
 import * as Primitive from '@radix-ui/react-dialog';
 import { useEffect, useRef, type ReactNode } from 'react';
-import { X, type LucideIcon } from 'lucide-react';
+import { SlidersHorizontal, X, type LucideIcon } from 'lucide-react';
 import { cn } from './ui/utils';
+import { useOverlayContainer } from './ui/overlay-portal';
 
 /**
  * Settings that fill the window, the way a place worth staying in does: the
@@ -14,6 +15,7 @@ import { cn } from './ui/utils';
 export function SettingsScreen({
   title,
   label,
+  className,
   nav,
   footer,
   children,
@@ -23,11 +25,13 @@ export function SettingsScreen({
   title: string;
   /** The name assistive technology reads for the whole screen. */
   label?: string;
+  className?: string;
   nav: ReactNode;
   footer?: ReactNode;
   children: ReactNode;
   onClose(): void;
 }) {
+  const container = useOverlayContainer();
   const opener = useRef<HTMLElement | null>(null);
   useEffect(() => {
     opener.current = document.activeElement as HTMLElement | null;
@@ -36,28 +40,39 @@ export function SettingsScreen({
 
   return (
     <Primitive.Root open onOpenChange={(open) => !open && onClose()}>
-      <Primitive.Portal>
+      <Primitive.Portal container={container}>
         <Primitive.Content
           aria-label={label ?? title}
           aria-describedby={undefined}
           // community-modal: the same fields, labels and forms as every other
           // dialog, rather than bare browser controls.
-          className="settings-screen community-modal fixed inset-0 z-50 flex bg-background text-foreground outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-[0.985]"
+          className={cn(
+            'settings-screen community-modal fixed inset-0 z-50 flex bg-background text-foreground outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-[0.985]',
+            className,
+          )}
         >
           <Primitive.Title className="sr-only">{label ?? title}</Primitive.Title>
           {/* A rail of one width at the window's edge: the room the sections
               need and no more, so the width goes to the section itself. */}
           <aside className="settings-rail flex w-60 shrink-0 flex-col overflow-y-auto border-r border-border bg-sidebar">
             <div className="flex min-h-full flex-col px-3 pb-6 pt-10">
-              <div className="truncate px-2.5 pb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                {title}
+              <div className="settings-identity">
+                <span>
+                  <SlidersHorizontal size={18} aria-hidden="true" />
+                </span>
+                <div>
+                  <small>Settings</small>
+                  <strong title={title}>{title}</strong>
+                </div>
               </div>
               {nav}
               {footer && <div className="mt-auto border-t border-border pt-3">{footer}</div>}
             </div>
           </aside>
           <div className="modal-body settings-body min-w-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]">
-            <div className="mx-auto flex min-h-full w-full max-w-[64rem] flex-col px-10 pb-16 pt-10">{children}</div>
+            <div className="mx-auto flex min-h-full w-full max-w-[64rem] flex-col px-10 pb-16 pt-10">
+              {children}
+            </div>
           </div>
           <div className="settings-close flex w-20 shrink-0 justify-center pt-10">
             <div className="flex flex-col items-center gap-1.5">
@@ -99,7 +114,7 @@ export function SettingsNavButton({
     <button
       type="button"
       className={cn(
-        'flex h-9 w-full items-center gap-2.5 rounded-md px-2.5 text-left text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
+        'settings-nav-button flex h-9 w-full items-center gap-2.5 rounded-md px-2.5 text-left text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
         tone === 'danger'
           ? 'text-destructive hover:bg-destructive/10'
           : active
@@ -109,7 +124,8 @@ export function SettingsNavButton({
       aria-pressed={tone === 'danger' ? undefined : active}
       onClick={onClick}
     >
-      <Icon className="size-4 shrink-0" aria-hidden="true" /> <span className="min-w-0 flex-1 truncate">{label}</span>
+      <Icon className="size-4 shrink-0" aria-hidden="true" />{' '}
+      <span className="min-w-0 flex-1 truncate">{label}</span>
       {children}
     </button>
   );
@@ -118,7 +134,7 @@ export function SettingsNavButton({
 /** The heading of the open section, with the sentence that says what it is for. */
 export function SettingsHeading({ title, description }: { title: string; description: string }) {
   return (
-    <header className="mb-6 border-b border-border pb-5">
+    <header className="settings-heading mb-6 border-b border-border pb-5">
       <h2 className="text-xl font-semibold tracking-[-0.01em] text-foreground">{title}</h2>
       <p className="mt-1.5 max-w-xl text-sm leading-6 text-muted-foreground">{description}</p>
     </header>

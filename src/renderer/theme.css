@@ -1,29 +1,11 @@
-/*
- * The design system: shadcn tokens over Tailwind, in two themes.
- *
- * Dark is the room's real theme, and it is built as a ladder rather than as a
- * shade. Five rungs, each far enough from the last to be seen as a different
- * surface, and brightness follows importance: the frame at the edge of the
- * window is the deepest thing on screen and the conversation is the brightest.
- * Before this, the content sat at the very bottom of the range and every
- * region carried the same weight, which reads as one dark mass with lines
- * drawn on it rather than as rooms of different importance.
- *
- *   rail        the outer frame, furthest from the eye
- *   sidebar     navigation
- *   background  content: the room, the conversation
- *   card        objects lying on the content
- *   popover     surfaces floating above everything
- *
- * The stage is the one deliberate exception and stays near-black whatever the
- * ladder says, because a shared screen must be the only lit thing around it.
- *
- * The greys stay within two points of neutral: this is black, not blue. White
- * identifies navigation and focus, green identifies healthy voice, and coral
- * is reserved for live and destructive states. Light inverts the same ladder.
- * Every colour below is a token: no component names a colour of its own.
- */
+/* Pulse Room: neutral surfaces, spacious conversation, and quiet voice states. */
 @import 'tailwindcss';
+@import './room-layout.css';
+@import './refinement.css';
+@import './chat-rich.css';
+@import './context-panel.css';
+@import './server-settings.css';
+@import './roles.css';
 
 @theme {
   --font-sans: 'Schibsted Grotesk Variable', 'Segoe UI', system-ui, sans-serif;
@@ -31,32 +13,48 @@
   --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
   /* Shape carries hierarchy too: the flatter a thing sits, the tighter its
      corners, so a floating surface reads as floating before it is read. */
-  --radius-xs: 0.25rem;
-  --radius-sm: 0.375rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 0.75rem;
-  --radius-xl: 1rem;
-  --radius-2xl: 1.25rem;
+  --radius-xs: 0.375rem;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.5rem;
 }
 
 :root {
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --motion-fast: 150ms;
+  --motion-panel: 220ms;
+  --ease-room: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --control-bar-height: 80px;
+  --members-width: clamp(17rem, 22.24vw, 21.875rem);
+  --room-header-height: 98px;
+  --voice-card-height: clamp(300px, 40.5vh, 384px);
+  --radius-panel: 14px;
+  --voice-foreground: #f5f5f5;
+  --shadow-panel: 0 16px 48px rgb(0 0 0 / 0.2);
   /* The ladder, bottom to top. */
-  --rail: #050506;
-  --sidebar: #0a0b0c;
-  --background: #0f1012;
-  --card: #16171a;
-  --popover: #1c1e21;
-  --accent: #24262a;
+  --rail: #0c0e0f;
+  --sidebar: #141718;
+  --background: #101213;
+  --card: #1e2224;
+  --popover: #282c2e;
+  --accent: #2b2f31;
 
   --foreground: #f5f5f5;
   --card-foreground: #f5f5f5;
   --popover-foreground: #f5f5f5;
   --primary: #f4f4f5;
   --primary-foreground: #080809;
-  --secondary: #1a1c1f;
+  --secondary: #222628;
   --secondary-foreground: #ededee;
-  --muted: #16171a;
-  --muted-foreground: #929397;
+  --muted: #1b1f21;
+  --muted-foreground: #a0a4a7;
   --accent-foreground: #fafafa;
   --destructive: #f05b67;
   --destructive-foreground: #ffffff;
@@ -67,8 +65,8 @@
   --input: rgba(255, 255, 255, 0.13);
   --ring: rgba(255, 255, 255, 0.72);
   --sidebar-foreground: #f1f1f2;
-  /* Deliberately below the ladder: a shared screen is the only lit thing. */
-  --stage: #050506;
+  /* The voice panel is lifted from the conversation by one surface. */
+  --stage: #171b1d;
   --gloss: inset 0 1px 0 rgba(255, 255, 255, 0.05);
   color-scheme: dark;
 }
@@ -203,81 +201,6 @@
 }
 
 @layer components {
-  .room-main {
-    border-left: 1px solid var(--border);
-  }
-
-  .server-rail,
-  .channel-sidebar,
-  .profile-strip,
-  .room-header,
-  .member-sidebar,
-  .chat-composer {
-    contain: paint;
-  }
-
-  .server-button {
-    position: relative;
-  }
-
-  .server-indicator {
-    position: absolute;
-    left: -11px;
-    width: 3px;
-    height: 0;
-    border-radius: 0 4px 4px 0;
-    background: var(--primary);
-    transition: height 140ms cubic-bezier(0.2, 0.8, 0.2, 1);
-  }
-
-  .server-button:hover .server-indicator {
-    height: 18px;
-  }
-
-  .server-button.is-active .server-indicator {
-    height: 28px;
-  }
-
-  .channel-row.is-selected::before {
-    content: '';
-    position: absolute;
-    inset-block: 8px;
-    left: 0;
-    width: 2px;
-    border-radius: 0 3px 3px 0;
-    background: var(--primary);
-  }
-
-  .chat-history > * {
-    width: min(100%, 58rem);
-    margin-inline: auto;
-  }
-
-  .chat-composer {
-    background: color-mix(in oklab, var(--background) 82%, var(--sidebar));
-  }
-
-  .member-sidebar {
-    background: color-mix(in oklab, var(--sidebar) 84%, var(--background));
-  }
-
-  @media (min-width: 68.01rem) {
-    .call-mini-player.with-members {
-      right: 15rem;
-    }
-  }
-
-  @media (max-width: 68rem) {
-    .app-shell {
-      grid-template-columns: 56px 220px minmax(0, 1fr) !important;
-    }
-    .member-sidebar {
-      display: none;
-    }
-  }
-}
-
-@layer components {
   /* Text entry looks the same wherever it appears. */
   .field-control,
   .community-modal input:not([type='checkbox']):not([type='radio']):not([type='range']),
@@ -341,7 +264,7 @@
      * the same ground makes the image boundary disappear, including when the
      * rest of the application follows the light system theme. */
     --foreground: #f5f5f5;
-    --muted-foreground: #929397;
+    --muted-foreground: #a0a4a7;
     --secondary: #15171a;
     --secondary-foreground: #ededee;
     color: var(--foreground);

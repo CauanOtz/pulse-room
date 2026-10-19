@@ -102,7 +102,7 @@ test('roles, a staff category and moderation, end to end', async () => {
     const creating = window.getByRole('dialog', { name: 'Create role' });
     await expect(creating.getByRole('button', { name: 'Create role' })).toBeDisabled();
     await creating.getByLabel('Role name').fill('Moderator');
-    await creating.getByRole('button', { name: 'Role colour: #6a5acd' }).click();
+    await creating.getByLabel('Custom role colour', { exact: true }).fill('#6a5acd');
     await creating.getByLabel('Display separately').check();
     await window.screenshot({ path: 'test-results/roles-create-dialog.png' });
     await creating.getByRole('button', { name: 'Create role' }).click();
@@ -110,12 +110,14 @@ test('roles, a staff category and moderation, end to end', async () => {
     // Then what it may do, on the tab it opens on.
     await expect(settings.getByRole('tab', { name: 'Permissions' })).toHaveAttribute('aria-selected', 'true');
     await expect(settings.getByRole('heading', { name: 'Moderator' })).toBeVisible();
+    await settings.getByRole('navigation', { name: 'Permission categories' }).getByRole('button', { name: 'Members', exact: true }).click();
     await settings.getByLabel('Kick members').check();
-    await settings.getByLabel('Manage messages').check();
     await settings.getByLabel('Timeout members').check();
-    // Administrator sits apart, in red, with what it means spelled out.
+    await settings.getByRole('button', { name: 'Text channels', exact: true }).click();
+    await settings.getByLabel('Manage messages').check();
+    await settings.getByRole('button', { name: 'Advanced', exact: true }).click();
     await expect(settings.getByText('Grants every permission and bypasses channel restrictions.')).toBeVisible();
-    await settings.getByRole('button', { name: 'Save role' }).click();
+    await settings.getByRole('button', { name: 'Save changes' }).click();
     await expect(settings.getByRole('status')).toHaveText('Role saved.');
     await window.screenshot({ path: 'test-results/roles-editor.png' });
 
@@ -125,7 +127,7 @@ test('roles, a staff category and moderation, end to end', async () => {
     await adding.getByRole('checkbox', { name: /Friend/ }).check();
     await adding.getByRole('button', { name: 'Add', exact: true }).click();
     await expect(adding).toHaveCount(0);
-    await expect(settings.getByRole('button', { name: 'Remove Friend from Moderator' })).toBeVisible();
+    await expect(settings.getByRole('button', { name: 'Actions for Friend', exact: true })).toBeVisible();
     const moderator = (await detailAs(owner)).roles!.find((role) => role.name === 'Moderator')!;
     expect(moderator).toMatchObject({ colour: '#6a5acd', hoist: true });
     expect(moderator.permissions).toBe(Permission.KickMembers | Permission.ManageMessages | Permission.TimeoutMembers);

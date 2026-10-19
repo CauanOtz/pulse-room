@@ -97,6 +97,7 @@ export function ChannelSidebar(props: ChannelSidebarProps) {
       key={channel.id}
       icon={<Hash size={15} />}
       name={channel.name}
+      detail="Text channel"
       isPrivate={channel.private}
       selected={props.selectedTextId === channel.id}
       onSelect={() => props.onSelectText?.(channel.id)}
@@ -108,6 +109,7 @@ export function ChannelSidebar(props: ChannelSidebarProps) {
       <ChannelRow
         icon={icon}
         name={channel.name}
+        detail={`${rosterOf(channel.id).length} in voice`}
         isPrivate={channel.private}
         selected={isConnected && channel.id === props.activeChannelId}
         current={isConnected && channel.id === props.activeChannelId}
@@ -137,7 +139,12 @@ export function ChannelSidebar(props: ChannelSidebarProps) {
         onClick={props.onManage}
         aria-label={props.serverName ? 'Server settings and members' : undefined}
       >
-        <span className="min-w-0 truncate">{props.serverName ?? 'After hours'}</span>
+        <span className="flex min-w-0 flex-col gap-1 text-left">
+          <span className="text-[15px] font-semibold tracking-tight">Pulse Room</span>
+          <span className="server-name truncate text-xs font-normal text-muted-foreground">
+            {props.serverName ?? 'After hours'}
+          </span>
+        </span>
         <i className="grid size-6 place-items-center rounded-md text-muted-foreground not-italic transition-colors">
           <ChevronDown size={14} />
         </i>
@@ -358,6 +365,7 @@ function CategoryHeading({
 function ChannelRow({
   icon,
   name,
+  detail,
   isPrivate,
   selected,
   current,
@@ -368,6 +376,7 @@ function ChannelRow({
 }: {
   icon: ReactNode;
   name: string;
+  detail?: string;
   isPrivate?: boolean;
   selected?: boolean;
   current?: boolean;
@@ -390,14 +399,20 @@ function ChannelRow({
           selected && 'is-selected bg-accent/60 text-foreground',
         )}
         type="button"
-        aria-current={current}
+        aria-label={name}
+        aria-current={current || selected ? true : undefined}
         disabled={disabled}
         onClick={onSelect}
         onPointerEnter={onIntent || undefined}
         onFocus={onIntent || undefined}
       >
-        {icon}
-        <span className="channel-name min-w-0 flex-1 truncate">{name}</span>
+        <span className="channel-icon" aria-hidden="true">
+          {icon}
+        </span>
+        <span className="channel-identity min-w-0 flex-1">
+          <span className="channel-name block truncate">{name}</span>
+          {detail && <span className="channel-detail block truncate">{detail}</span>}
+        </span>
         {isPrivate && <LockKeyhole aria-label="Private" className="size-3.5 shrink-0" />}
       </button>
       {onEdit && (
@@ -476,7 +491,6 @@ function ChannelRoster({
                 name={entry.name}
                 initials={entry.initials}
                 imageId={entry.avatarId}
-                accent={entry.accent}
               />
             </span>
             <span className="roster-name min-w-0 flex-1 truncate">{entry.name}</span>

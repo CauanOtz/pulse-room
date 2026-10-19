@@ -80,6 +80,7 @@ const api = {
   request: vi.fn(async (path: string) => {
     if (path.startsWith('/api/presence')) return { rooms: [] };
     if (path.endsWith('/messages')) return { messages: [] };
+    if (path.includes('/resources?')) return { media: [], links: [] };
     return {};
   }),
   upload: vi.fn(),
@@ -145,6 +146,51 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('call navigation', () => {
+  it('keeps voice controls above text only while connected to the open server', async () => {
+    const gateway = conferenceGateway();
+    gatewayFactory.create.mockReturnValue(gateway);
+    const view = render(
+      <TooltipProvider>
+        <App workspace={workspace(detail('friends', 'Friends'))} />
+      </TooltipProvider>,
+    );
+
+    expect(document.querySelector('.stage-room')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Game room' }));
+    await waitFor(() => expect(document.querySelector('.stage-room')).not.toBeNull());
+    fireEvent.click(screen.getByRole('button', { name: 'general' }));
+    expect(screen.getByRole('textbox', { name: 'Message' })).toBeInTheDocument();
+    expect(document.querySelector('.voice-surface-compact .stage-room')).not.toBeNull();
+    expect(screen.getByLabelText('Call controls')).toBeInTheDocument();
+
+    view.rerender(
+      <TooltipProvider>
+        <App workspace={workspace(detail('couple', 'Just us'))} />
+      </TooltipProvider>,
+    );
+    await waitFor(() => expect(document.querySelector('.stage-room')).toBeNull());
+    expect(gateway.leave).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Voice status')).toHaveTextContent('Game room / Friends');
+  });
+
+  it('removes the inline voice panel after leaving without losing the text channel', async () => {
+    gatewayFactory.create.mockReturnValue(conferenceGateway());
+    render(
+      <TooltipProvider>
+        <App workspace={workspace(detail('friends', 'Friends'))} />
+      </TooltipProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Game room' }));
+    await waitFor(() => expect(document.querySelector('.stage-room')).not.toBeNull());
+    fireEvent.click(screen.getByRole('button', { name: 'general' }));
+    fireEvent.click(
+      within(screen.getByLabelText('Call controls')).getByRole('button', { name: 'Leave call' }),
+    );
+    await waitFor(() => expect(document.querySelector('.voice-surface-compact')).toBeNull());
+    expect(screen.getByRole('textbox', { name: 'Message' })).toBeInTheDocument();
+    expect(screen.queryByLabelText('Call controls')).not.toBeInTheDocument();
+  });
+
   it('keeps the call mounted while another server is opened and can return to it', async () => {
     const gateway = conferenceGateway();
     gatewayFactory.create.mockReturnValue(gateway);

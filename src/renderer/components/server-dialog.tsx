@@ -1,5 +1,17 @@
-import { useEffect, useState, type ReactNode } from 'react';
-import { Ban as BanIcon, Check, Copy, Plus, Settings, ShieldHalf, Tag, Ticket, Trash2, Users, type LucideIcon } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import {
+  Ban as BanIcon,
+  Check,
+  Copy,
+  Plus,
+  Settings,
+  ShieldHalf,
+  Tag,
+  Ticket,
+  Trash2,
+  Users,
+  type LucideIcon,
+} from 'lucide-react';
 import type { Account, CommunityDetail, CommunityInvite } from '../../shared/community';
 import { Permission } from '../../shared/permissions';
 import { myAccess } from '../domain/access';
@@ -8,7 +20,7 @@ import { ConfirmDialog, type Confirmation } from './confirm-dialog';
 import { BanList, MemberManager } from './member-manager';
 import { SettingsHeading, SettingsNavButton, SettingsScreen } from './settings-screen';
 import { Modal } from './modal';
-import { PictureField } from './picture-field';
+import { ServerIdentityEditor } from './server-identity-editor';
 import { RoleEditor } from './role-editor';
 import { TagManager } from './tag-manager';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
@@ -25,7 +37,8 @@ const meta: Record<Section, { label: string; icon: LucideIcon; title: string; de
     label: 'Server',
     icon: Settings,
     title: 'Server',
-    description: 'The name and picture everybody sees in their sidebar.',
+    description:
+      'Manage your server’s identity, appearance and settings. This is how your server is seen by members.',
   },
   members: {
     label: 'Members',
@@ -94,8 +107,37 @@ export function ServerDialog({
   const [confirmation, setConfirmation] = useState<Confirmation>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [dirty, setDirty] = useState(false);
+  const [savingIdentity, setSavingIdentity] = useState(false);
+  const [defaultPermissions, setDefaultPermissions] = useState(false);
+  const [identityRevision, setIdentityRevision] = useState(0);
   const base = `/api/servers/${detail.server.id}`;
   const current = meta[sections.includes(section) ? section : 'members'];
+  const guard = (action: () => void) => {
+    if (savingIdentity) return;
+    if (!dirty) {
+      action();
+      return;
+    }
+    setConfirmation({
+      title: 'Discard unsaved changes?',
+      description:
+        'Your changes have not been saved. Stay here to save them, or discard them to continue.',
+      confirmLabel: 'Discard changes',
+      action: async () => {
+        setDirty(false);
+        setIdentityRevision((current) => current + 1);
+        action();
+      },
+    });
+  };
+  const navigate = (id: Section, defaults = false) => {
+    if (id === section && defaults === defaultPermissions) return;
+    guard(() => {
+      setDefaultPermissions(defaults);
+      setSection(id);
+    });
+  };
 
   const requestRemoval = () =>
     setConfirmation({
@@ -114,7 +156,8 @@ export function ServerDialog({
   return (
     <SettingsScreen
       title={detail.server.name}
-      onClose={onClose}
+      className={cn('server-settings-screen', current === meta.server && 'server-overview-screen', current === meta.roles && 'server-roles-screen')}
+      onClose={() => guard(onClose)}
       nav={
         <nav className="flex flex-col gap-0.5" aria-label="Server settings sections">
           {sections.map((id) => (
@@ -123,7 +166,7 @@ export function ServerDialog({
               icon={meta[id].icon}
               label={meta[id].label}
               active={current === meta[id]}
-              onClick={() => setSection(id)}
+              onClick={() => navigate(id)}
             >
               {id === 'members' && (
                 <span className="font-mono text-[10px] text-muted-foreground">{detail.members.length}</span>
@@ -137,16 +180,46 @@ export function ServerDialog({
           icon={Trash2}
           label={access.isOwner ? 'Delete server' : 'Leave server'}
           tone="danger"
-          onClick={requestRemoval}
+          onClick={() => guard(requestRemoval)}
         />
       }
     >
-      <SettingsHeading title={current.title} description={current.description} />
+      {current !== meta.roles && <SettingsHeading title={current.title} description={current.description} />}
       <div className="server-workspace-content space-y-6">
-        {current === meta.server && <ServerIdentity api={api} detail={detail} onChanged={onChanged} />}
-        {current === meta.members && <MemberManager api={api} detail={detail} userId={user.id} onChanged={onChanged} />}
-        {current === meta.roles && <RoleEditor api={api} detail={detail} userId={user.id} onChanged={onChanged} />}
-        {current === meta.tags && <TagManager api={api} detail={detail} userId={user.id} onChanged={onChanged} />}
+        {current === meta.server && (
+          <ServerIdentityEditor
+            key={`${detail.server.id}:${identityRevision}`}
+            api={api}
+            detail={detail}
+            onChanged={onChanged}
+            onDirtyChange={setDirty}
+            onBusyChange={setSavingIdentity}
+            isOwner={access.isOwner}
+            canInvite={sections.includes('invites')}
+            canManageRoles={sections.includes('roles')}
+            onNavigate={(target) => (target === 'permissions' ? navigate('roles', true) : navigate(target))}
+            onDelete={() => guard(requestRemoval)}
+          />
+        )}
+        {current === meta.members && (
+          <MemberManager api={api} detail={detail} userId={user.id} onChanged={onChanged} />
+        )}
+        {current === meta.roles && (
+          <RoleEditor
+            key={`${defaultPermissions ? 'default' : 'all'}:${identityRevision}`}
+            api={api}
+            detail={detail}
+            userId={user.id}
+            onChanged={onChanged}
+            initialRoleId={defaultPermissions ? detail.roles?.find((role) => role.isDefault)?.id : undefined}
+            initialTab={defaultPermissions ? 'permissions' : undefined}
+            onDirtyChange={setDirty}
+            onBusyChange={setSavingIdentity}
+          />
+        )}
+        {current === meta.tags && (
+          <TagManager api={api} detail={detail} userId={user.id} onChanged={onChanged} />
+        )}
         {current === meta.invites && (
           <Invites
             api={api}
@@ -157,7 +230,10 @@ export function ServerDialog({
         )}
         {current === meta.bans && <BanList api={api} serverId={detail.server.id} />}
         {error && (
-          <p className="form-error rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive" role="alert">
+          <p
+            className="form-error rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive"
+            role="alert"
+          >
             {error}
           </p>
         )}
@@ -175,87 +251,12 @@ export function ServerDialog({
               .catch((e) => setError(errorMessage(e)))
               .finally(() => {
                 setBusy(false);
-                setConfirmation(undefined);
+                setConfirmation((current) => (current === confirmation ? undefined : current));
               });
           }}
         />
       )}
     </SettingsScreen>
-  );
-}
-
-function Panel({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
-  return (
-    <section className="rounded-lg border border-border bg-background/40 p-4">
-      <div className="mb-4">
-        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-        {hint && <p className="mt-1 text-xs leading-5 text-muted-foreground">{hint}</p>}
-      </div>
-      {children}
-    </section>
-  );
-}
-
-function ServerIdentity({
-  api,
-  detail,
-  onChanged,
-}: {
-  api: CommunityClient;
-  detail: CommunityDetail;
-  onChanged(): Promise<void>;
-}) {
-  const base = `/api/servers/${detail.server.id}`;
-  const [name, setName] = useState(detail.server.name);
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState('');
-  return (
-    <div className="max-w-2xl space-y-4">
-      <PictureField
-        name={detail.server.name}
-        imageId={detail.server.iconId}
-        label="Server picture"
-        kind="icon"
-        canEdit
-        onChoose={async (image) => {
-          await api.upload(`${base}/icon`, image);
-          await onChanged();
-        }}
-        onRemove={async () => {
-          await api.request(`${base}/icon`, 'DELETE');
-          await onChanged();
-        }}
-      />
-      <Panel title="Display name" hint="This is how the server appears in every member's sidebar.">
-        <form
-          className="flex flex-row items-end gap-2.5"
-          onSubmit={(event) => {
-            event.preventDefault();
-            setBusy(true);
-            setMessage('');
-            void api
-              .request(base, 'PATCH', { name })
-              .then(onChanged)
-              .then(() => setMessage('Name saved.'))
-              .catch((e) => setMessage(errorMessage(e)))
-              .finally(() => setBusy(false));
-          }}
-        >
-          <label className="min-w-0 flex-1">
-            Server name
-            <input required maxLength={60} value={name} onChange={(e) => setName(e.target.value)} />
-          </label>
-          <button className={primaryClass} disabled={busy}>
-            Rename server
-          </button>
-        </form>
-        {message && (
-          <p className="mt-2 text-xs text-muted-foreground" role="status">
-            {message}
-          </p>
-        )}
-      </Panel>
-    </div>
   );
 }
 
@@ -298,10 +299,12 @@ function Invites({
   const [creating, setCreating] = useState(false);
   const [copied, setCopied] = useState(false);
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="invite-manager max-w-2xl space-y-6">
       {canCreate && (
         <div className="flex items-center justify-between gap-3">
-          <p className="text-xs text-muted-foreground">Only share a code with people you want in this server.</p>
+          <p className="text-xs text-muted-foreground">
+            Only share a code with people you want in this server.
+          </p>
           <button
             type="button"
             className={primaryClass}
@@ -319,12 +322,21 @@ function Invites({
       {creating && (
         // Made in a dialog, where the code it produces is shown and copied
         // before going back to the list it has joined.
-        <Modal title="Create invite" onClose={() => setCreating(false)} contentClassName="w-[min(28rem,calc(100vw-2rem))]">
+        <Modal
+          title="Create invite"
+          onClose={() => setCreating(false)}
+          contentClassName="w-[min(28rem,calc(100vw-2rem))]"
+        >
           {code ? (
             <div className="space-y-3">
               <label>
                 Invite code — copy and share
-                <textarea className="font-mono text-xs" readOnly value={code} onFocus={(event) => event.target.select()} />
+                <textarea
+                  className="font-mono text-xs"
+                  readOnly
+                  value={code}
+                  onFocus={(event) => event.target.select()}
+                />
               </label>
               <div className="flex justify-end gap-2">
                 <button
@@ -337,7 +349,8 @@ function Invites({
                       .catch(() => undefined)
                   }
                 >
-                  {copied ? <Check className="size-4" /> : <Copy className="size-4" />} {copied ? 'Copied' : 'Copy'}
+                  {copied ? <Check className="size-4" /> : <Copy className="size-4" />}{' '}
+                  {copied ? 'Copied' : 'Copy'}
                 </button>
                 <button type="button" className={primaryClass} onClick={() => setCreating(false)}>
                   Done
@@ -362,7 +375,13 @@ function Invites({
                 </div>
                 <label>
                   Maximum uses
-                  <input type="number" min={1} max={100} value={maxUses} onChange={(e) => setMaxUses(Number(e.target.value))} />
+                  <input
+                    type="number"
+                    min={1}
+                    max={100}
+                    value={maxUses}
+                    onChange={(e) => setMaxUses(Number(e.target.value))}
+                  />
                 </label>
               </div>
               {error && (
@@ -384,7 +403,10 @@ function Invites({
                   className={primaryClass}
                   onClick={() =>
                     void run(async () =>
-                      setCode((await api.request<{ code: string }>(`${base}/invites`, 'POST', { hours, maxUses })).code),
+                      setCode(
+                        (await api.request<{ code: string }>(`${base}/invites`, 'POST', { hours, maxUses }))
+                          .code,
+                      ),
                     )
                   }
                 >
@@ -396,7 +418,7 @@ function Invites({
         </Modal>
       )}
       {canList && (
-        <section>
+        <section className="invite-list">
           <div className="mb-2 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-foreground">Active invitations</h3>
             <span className="font-mono text-[10px] text-muted-foreground">{invites.length}</span>
@@ -404,12 +426,17 @@ function Invites({
           {invites.length ? (
             <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-background/35">
               {invites.map((invite) => (
-                <div className="member-row flex min-h-14 items-center gap-3 px-3.5 py-2.5 text-sm" key={invite.id}>
+                <div
+                  className="member-row flex min-h-14 items-center gap-3 px-3.5 py-2.5 text-sm"
+                  key={invite.id}
+                >
                   <span className="flex min-w-0 flex-col">
                     <strong className="font-medium text-foreground">
                       {invite.uses} of {invite.maxUses} uses
                     </strong>
-                    <small className="text-xs text-muted-foreground">Expires {new Date(invite.expiresAt).toLocaleString()}</small>
+                    <small className="text-xs text-muted-foreground">
+                      Expires {new Date(invite.expiresAt).toLocaleString()}
+                    </small>
                   </span>
                   <button
                     className="ml-auto rounded-md px-2.5 py-1.5 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10"
@@ -429,7 +456,10 @@ function Invites({
         </section>
       )}
       {error && (
-        <p className="form-error rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive" role="alert">
+        <p
+          className="form-error rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive"
+          role="alert"
+        >
           {error}
         </p>
       )}

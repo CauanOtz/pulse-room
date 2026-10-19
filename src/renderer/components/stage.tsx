@@ -4,6 +4,7 @@ import type { Participant } from '../domain/conference';
 import { MediaOutput } from './media-output';
 import { cn } from './ui/utils';
 import { ParticipantTiles } from './participant-tiles';
+import { VoiceWaveform } from './voice-waveform';
 
 /** One empty list, so "nobody is being watched" is the same value each time. */
 const nobody: string[] = [];
@@ -60,10 +61,20 @@ export function Stage({
   }, []);
 
   const stageRef = useRef<HTMLElement>(null);
+  const speaker = participants.find((participant) => participant.isSpeaking && !participant.isMuted);
+  const [lastSpeakerId, setLastSpeakerId] = useState<string>();
+  useEffect(() => {
+    if (speaker) setLastSpeakerId(speaker.id);
+  }, [speaker?.id]);
+  const featured =
+    speaker ??
+    participants.find((person) => person.id === lastSpeakerId) ??
+    participants.find((person) => person.isLocal) ??
+    participants[0];
   const [fullScreen, setFullScreen] = useState(false);
   // Screen audio arrives at the level the sender's machine was playing it, so
   // half volume leaves room to push a quiet stream well past its own level.
-  const screenVolume = active ? screenVolumes?.[active.id] ?? 50 : 50;
+  const screenVolume = active ? (screenVolumes?.[active.id] ?? 50) : 50;
   // The controls sit over the picture, so they step aside while nobody reaches
   // for them, the way a video player does.
   const [controlsVisible, setControlsVisible] = useState(true);
@@ -130,14 +141,25 @@ export function Stage({
 
   if (!joined) {
     return (
-      <section className="stage stage-empty relative flex size-full flex-col items-center justify-center overflow-hidden rounded-xl border border-border bg-stage p-8 text-center shadow-[var(--gloss)]" ref={stageRef}>
-        <div className="stage-symbol mb-4 grid size-12 place-items-center rounded-xl border border-border bg-secondary text-primary shadow-[var(--gloss)]"><Radio size={20} /></div>
+      <section
+        className="stage stage-empty relative flex size-full flex-col items-center justify-center overflow-hidden rounded-xl border border-border bg-stage p-8 text-center shadow-[var(--gloss)]"
+        ref={stageRef}
+      >
+        <div className="stage-symbol mb-4 grid size-12 place-items-center rounded-xl border border-border bg-secondary text-primary shadow-[var(--gloss)]">
+          <Radio size={20} />
+        </div>
         <h1>Come as you are</h1>
         <p>A quiet place for loud nights. Pick a voice channel on the left to join.</p>
         <div className="stage-facts flex flex-wrap justify-center gap-4 text-xs text-muted-foreground [&>span]:flex [&>span]:items-center [&>span]:gap-1.5">
-          <span><ShieldCheck size={16} /> Noise suppression</span>
-          <span><Headphones size={16} /> Separate volumes</span>
-          <span><MonitorUp size={16} /> 1080p screen audio</span>
+          <span>
+            <ShieldCheck size={16} /> Noise suppression
+          </span>
+          <span>
+            <Headphones size={16} /> Separate volumes
+          </span>
+          <span>
+            <MonitorUp size={16} /> 1080p screen audio
+          </span>
         </div>
       </section>
     );
@@ -145,12 +167,44 @@ export function Stage({
 
   if (!active || !picture) {
     return (
-      <section className="stage stage-room relative flex size-full flex-col overflow-hidden rounded-xl border border-border bg-stage shadow-[var(--gloss)]" ref={stageRef}>
+      <section
+        className="stage stage-room relative flex size-full flex-col overflow-hidden rounded-xl border border-border bg-stage shadow-[var(--gloss)]"
+        ref={stageRef}
+      >
+        <div className="voice-session-meta">
+          <span><Radio size={13} aria-hidden="true" /> Voice room</span>
+          <span>{participants.length} connected</span>
+        </div>
+        <button
+          className="voice-expand"
+          type="button"
+          onClick={toggleFullScreen}
+          aria-label={fullScreen ? 'Exit full screen' : 'Enter full screen'}
+        >
+          {fullScreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+        </button>
         <ParticipantTiles
           avatars={avatars}
           participants={participants}
           watching={watched}
-          layout="grid"
+          layout="spotlight"
+          featuredId={featured?.id}
+          information={
+            <header className="voice-room-heading">
+              <p>{speaker ? 'Speaking' : featured ? 'In the room' : 'Joining voice'}</p>
+              <h2 title={featured?.name}>{featured?.name ?? 'Connecting…'}</h2>
+              <span className="voice-room-caption">
+                {speaker
+                  ? 'Microphone on'
+                  : featured?.isMuted
+                    ? 'Microphone muted'
+                    : 'Listening to the conversation'}
+              </span>
+              {speaker?.microphoneStream && (
+                <VoiceWaveform stream={speaker.microphoneStream} name={speaker.name} />
+              )}
+            </header>
+          }
           onFocus={focus}
           onOptions={onOptions}
         />
@@ -173,15 +227,16 @@ export function Stage({
     >
       <div
         className={cn(
-            'live-toolbar absolute inset-x-0 top-0 z-2 flex items-center justify-between gap-3 px-4 py-3 transition-opacity duration-200',
-            'bg-gradient-to-b from-black/80 to-transparent',
-            controlsVisible ? 'opacity-100' : 'is-hidden pointer-events-none opacity-0',
-          )}
+          'live-toolbar absolute inset-x-0 top-0 z-2 flex items-center justify-between gap-3 px-4 py-3 transition-opacity duration-200',
+          'bg-gradient-to-b from-black/80 to-transparent',
+          controlsVisible ? 'opacity-100' : 'is-hidden pointer-events-none opacity-0',
+        )}
         onMouseEnter={holdControls}
         onMouseMove={holdControls}
       >
         <div className="live-source flex min-w-0 items-center gap-2 truncate text-xs font-medium text-foreground">
-          <span className="live-pulse size-1.5 shrink-0 rounded-full bg-destructive" /> Live from {active.isLocal ? 'your screen' : active.name}
+          <span className="live-pulse size-1.5 shrink-0 rounded-full bg-destructive" /> Live from{' '}
+          {active.isLocal ? 'your screen' : active.name}
         </div>
 
         <div className="live-tools flex items-center gap-3">
@@ -237,10 +292,10 @@ export function Stage({
 
       <div
         className={cn(
-            'live-overlay pointer-events-none absolute inset-x-0 bottom-0 z-2 flex flex-col items-center gap-2 p-3 transition-opacity duration-200',
-            '[&_*]:pointer-events-auto',
-            controlsVisible ? 'opacity-100' : 'is-hidden opacity-0 [&_*]:pointer-events-none',
-          )}
+          'live-overlay pointer-events-none absolute inset-x-0 bottom-0 z-2 flex flex-col items-center gap-2 p-3 transition-opacity duration-200',
+          '[&_*]:pointer-events-auto',
+          controlsVisible ? 'opacity-100' : 'is-hidden opacity-0 [&_*]:pointer-events-none',
+        )}
         onMouseEnter={holdControls}
         onMouseMove={holdControls}
       >

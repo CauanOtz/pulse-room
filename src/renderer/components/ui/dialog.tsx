@@ -2,6 +2,7 @@ import * as Primitive from '@radix-ui/react-dialog';
 import { X } from 'lucide-react';
 import type { ComponentProps } from 'react';
 import { cn } from './utils';
+import { useOverlayContainer } from './overlay-portal';
 
 export const Dialog = Primitive.Root;
 export const DialogTrigger = Primitive.Trigger;
@@ -14,8 +15,9 @@ export function DialogContent({
   children,
   ...props
 }: ComponentProps<typeof Primitive.Content>) {
+  const container = useOverlayContainer();
   return (
-    <Primitive.Portal>
+    <Primitive.Portal container={container}>
       <Primitive.Overlay className="fixed inset-0 z-50 bg-black/70 backdrop-blur-[2px]" />
       <Primitive.Content
         className={cn(

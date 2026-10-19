@@ -94,12 +94,14 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
     );
     await expect(window.getByText('Only our little circle.', { exact: true })).toHaveCount(0);
     await window.getByRole('button', { name: 'Server settings and members' }).click();
-    // A member reads as one line: picture, name, handle, then the controls, all
-    // on the right edge at the same place however long the name is.
+    // The directory keeps identity and access aligned in one row, with room
+    // for membership details while staying shorter than a profile card.
     const memberRow = window.locator('.member-row').first();
     await expect(memberRow.locator('.avatar')).toBeVisible();
     await expect(memberRow).toContainText('@owner');
-    expect((await memberRow.boundingBox())!.height).toBeLessThan(72);
+    await expect(memberRow.locator('.member-access')).toHaveText('Owner');
+    await expect(window.getByRole('textbox', { name: 'Search members' })).toBeVisible();
+    expect((await memberRow.boundingBox())!.height).toBeLessThan(96);
     await window.getByRole('button', { name: 'Close dialog' }).click();
 
     // Channels are made and opened where they are read: a plus on the group
@@ -425,16 +427,16 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
     // A picture given to the server is stored, attached, and drawn back on the
     // rail beside every other server.
     await window
-      .getByLabel('Server picture', { exact: true })
+      .getByLabel('Server artwork file', { exact: true })
       .setInputFiles({ name: 'crest.png', mimeType: 'image/png', buffer: png(256) });
     const crest = window.getByRole('dialog', { name: 'Add server picture' });
     await crest.getByRole('button', { name: 'Save picture' }).click();
     await expect(crest).toHaveCount(0);
-    await expect(window.locator('.picture-preview img')).toBeVisible();
+    await expect(window.locator('.server-icon-frame > img')).toBeVisible();
     await window.screenshot({ path: 'test-results/community-server-icon.png' });
     const longServerName = 'Our private room for games and conversations with friends';
     await window.getByLabel('Server name', { exact: true }).fill(longServerName);
-    await window.getByRole('button', { name: 'Rename server', exact: true }).click();
+    await window.getByRole('button', { name: 'Save changes', exact: true }).click();
     await expect(window.getByRole('dialog', { name: longServerName, exact: true })).toBeVisible();
     await expectContainedDialog(window);
     await window.getByRole('button', { name: 'Close dialog' }).click();
@@ -452,7 +454,7 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
       }),
     ).toBe(true);
     expect(
-      await window.locator('.server-heading > span').evaluate((element) => {
+      await window.locator('.server-name').evaluate((element) => {
         return (
           element.scrollWidth > element.clientWidth && getComputedStyle(element).textOverflow === 'ellipsis'
         );

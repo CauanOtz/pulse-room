@@ -1,6 +1,8 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { MonitorOff, UserRound, VolumeX, Volume2 } from 'lucide-react';
 import type { RosterEntry } from '../domain/roster';
+import { createPortal } from 'react-dom';
+import { useOverlayContainer } from './ui/overlay-portal';
 
 interface ParticipantPopoverProps {
   entry: RosterEntry;
@@ -29,6 +31,7 @@ export function ParticipantPopover({
   onClose,
 }: ParticipantPopoverProps) {
   const cardRef = useRef<HTMLDivElement>(null);
+  const container = useOverlayContainer();
 
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
@@ -40,7 +43,7 @@ export function ParticipantPopover({
 
   useEffect(() => cardRef.current?.focus(), []);
 
-  return (
+  return createPortal(
     <div className="popover-backdrop fixed inset-0 z-40" role="presentation" onMouseDown={onClose} onContextMenu={(event) => event.preventDefault()}>
       <div
         className="participant-popover fixed z-50 max-h-[calc(100vh-1.5rem)] w-62 overflow-y-auto rounded-lg border border-border bg-popover p-3 text-popover-foreground shadow-2xl"
@@ -110,6 +113,7 @@ export function ParticipantPopover({
 
         {moderation && <div className="mt-2 border-t border-border pt-2">{moderation}</div>}
       </div>
-    </div>
+    </div>,
+    container,
   );
 }

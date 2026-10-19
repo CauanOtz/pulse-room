@@ -1,7 +1,12 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { CommunityDetail, CommunityMember, Role } from '../../src/shared/community';
-import { allPermissions, everyoneDefault, Permission, type PermissionOverride } from '../../src/shared/permissions';
+import {
+  allPermissions,
+  everyoneDefault,
+  Permission,
+  type PermissionOverride,
+} from '../../src/shared/permissions';
 import { myAccess, outranks } from '../../src/renderer/domain/access';
 import { groupMembers } from '../../src/renderer/domain/members';
 import { PermissionOverridesEditor } from '../../src/renderer/components/permission-overrides';
@@ -9,11 +14,20 @@ import { RoleEditor } from '../../src/renderer/components/role-editor';
 import { ChannelSidebar } from '../../src/renderer/components/channel-sidebar';
 import { TooltipProvider } from '../../src/renderer/components/ui/tooltip';
 import type { CommunityClient } from '../../src/renderer/infrastructure/community-client';
+import { ApiError } from '../../src/renderer/infrastructure/community-client';
 
 afterEach(cleanup);
 
 const roles: Role[] = [
-  { id: 'admin', name: 'Admin', colour: '#e0452b', position: 3, permissions: Permission.Administrator, isDefault: false, hoist: true },
+  {
+    id: 'admin',
+    name: 'Admin',
+    colour: '#e0452b',
+    position: 3,
+    permissions: Permission.Administrator,
+    isDefault: false,
+    hoist: true,
+  },
   {
     id: 'mod',
     name: 'Moderator',
@@ -24,9 +38,22 @@ const roles: Role[] = [
     hoist: true,
   },
   { id: 'vip', name: 'VIP', colour: null, position: 1, permissions: 0, isDefault: false, hoist: false },
-  { id: 'everyone', name: '@everyone', colour: null, position: 0, permissions: everyoneDefault, isDefault: true, hoist: false },
+  {
+    id: 'everyone',
+    name: '@everyone',
+    colour: null,
+    position: 0,
+    permissions: everyoneDefault,
+    isDefault: true,
+    hoist: false,
+  },
 ];
-const member = (id: string, name: string, roleIds: string[], role: CommunityMember['role'] = 'member'): CommunityMember => ({
+const member = (
+  id: string,
+  name: string,
+  roleIds: string[],
+  role: CommunityMember['role'] = 'member',
+): CommunityMember => ({
   id,
   username: name.toLowerCase(),
   displayName: name,
@@ -59,7 +86,11 @@ describe('where you stand', () => {
   });
 
   it('falls back to the fixed standing when a service sends no permissions', () => {
-    const old: CommunityDetail = { server: { id: 's', name: 'Old', role: 'admin' }, channels: [], members: [] };
+    const old: CommunityDetail = {
+      server: { id: 's', name: 'Old', role: 'admin' },
+      channels: [],
+      members: [],
+    };
     expect(myAccess(old, 'x').permissions).toBe(allPermissions);
   });
 });
@@ -105,7 +136,10 @@ describe('PermissionOverridesEditor', () => {
   it('always lists @everyone, and starts every permission at inherit', () => {
     edit([]);
     expect(screen.getByRole('option', { name: /@everyone/ })).toHaveAttribute('aria-selected', 'true');
-    expect(within(row('View channels')).getByRole('radio', { name: 'Inherit' })).toHaveAttribute('aria-checked', 'true');
+    expect(within(row('View channels')).getByRole('radio', { name: 'Inherit' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
   });
 
   it('writes a deny and an allow as bits, and inherit as neither', () => {
@@ -115,13 +149,17 @@ describe('PermissionOverridesEditor', () => {
       { targetType: 'role', targetId: 'everyone', allow: 0, deny: Permission.ViewChannels },
     ]);
     cleanup();
-    const again = edit([{ targetType: 'role', targetId: 'everyone', allow: 0, deny: Permission.ViewChannels }]);
+    const again = edit([
+      { targetType: 'role', targetId: 'everyone', allow: 0, deny: Permission.ViewChannels },
+    ]);
     fireEvent.click(within(row('View channels')).getByRole('radio', { name: 'Allow' }));
     expect(again).toHaveBeenLastCalledWith([
       { targetType: 'role', targetId: 'everyone', allow: Permission.ViewChannels, deny: 0 },
     ]);
     cleanup();
-    const back = edit([{ targetType: 'role', targetId: 'everyone', allow: Permission.ViewChannels, deny: 0 }]);
+    const back = edit([
+      { targetType: 'role', targetId: 'everyone', allow: Permission.ViewChannels, deny: 0 },
+    ]);
     fireEvent.click(within(row('View channels')).getByRole('radio', { name: 'Inherit' }));
     expect(back).toHaveBeenLastCalledWith([{ targetType: 'role', targetId: 'everyone', allow: 0, deny: 0 }]);
   });
@@ -147,7 +185,11 @@ describe('PermissionOverridesEditor', () => {
 
   it('lets an administrator change anything', () => {
     const detail = detailFor(allPermissions);
-    edit([{ targetType: 'role', targetId: 'admin', allow: 0, deny: 0 }], { detail, userId: 'ada', actor: allPermissions });
+    edit([{ targetType: 'role', targetId: 'admin', allow: 0, deny: 0 }], {
+      detail,
+      userId: 'ada',
+      actor: allPermissions,
+    });
     fireEvent.click(screen.getByRole('option', { name: /Admin/ }));
     expect(within(row('View channels')).getByRole('radio', { name: 'Deny' })).toBeEnabled();
   });
@@ -170,14 +212,14 @@ describe('RoleEditor', () => {
       </TooltipProvider>,
     );
     const list = screen.getByRole('list', { name: 'Roles, highest first' });
-    expect(within(list).getAllByRole('listitem').map((item) => item.textContent?.replace(/\d+$/, ''))).toEqual([
-      'Admin',
-      'Moderator',
-      'VIP',
-      '@everyone',
-    ]);
-    expect(within(list).getAllByLabelText('Above your highest role')).toHaveLength(2);
-    expect(screen.getByText(/at or above your highest role/)).toBeInTheDocument();
+    expect(
+      within(list)
+        .getAllByRole('listitem')
+        .map((item) => item.querySelector('strong')?.textContent),
+    ).toEqual(['Admin', 'Moderator', 'VIP', '@everyone']);
+    expect(within(list).getByRole('button', { name: 'Reorder Admin' })).toBeDisabled();
+    expect(within(list).getByRole('button', { name: 'Reorder Moderator' })).toBeDisabled();
+    expect(screen.getByText(/protected by the hierarchy/)).toBeInTheDocument();
   });
 
   it('only lets a permission be granted by somebody who holds it', () => {
@@ -186,10 +228,16 @@ describe('RoleEditor', () => {
         <RoleEditor api={api()} detail={modDetail} userId="mo" onChanged={async () => undefined} />
       </TooltipProvider>,
     );
-    fireEvent.click(screen.getByRole('button', { name: /^VIP/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Select role VIP' }));
     fireEvent.click(screen.getByRole('tab', { name: 'Permissions' }));
+    fireEvent.click(
+      within(screen.getByRole('navigation', { name: 'Permission categories' })).getByRole('button', {
+        name: 'Members',
+      }),
+    );
     expect(screen.getByLabelText('Kick members')).toBeEnabled();
     expect(screen.getByLabelText('Ban members')).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Advanced' }));
     expect(screen.getByLabelText('Administrator')).toBeDisabled();
   });
 
@@ -200,18 +248,22 @@ describe('RoleEditor', () => {
         <RoleEditor api={client} detail={modDetail} userId="mo" onChanged={async () => undefined} />
       </TooltipProvider>,
     );
-    fireEvent.click(screen.getByRole('button', { name: /^VIP/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Select role VIP' }));
     fireEvent.change(screen.getByLabelText('Role name'), { target: { value: 'Regulars' } });
     fireEvent.click(screen.getByRole('tab', { name: 'Permissions' }));
+    fireEvent.click(
+      within(screen.getByRole('navigation', { name: 'Permission categories' })).getByRole('button', {
+        name: 'Members',
+      }),
+    );
     fireEvent.click(screen.getByLabelText('Kick members'));
     expect(client.request).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'Save role' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
     await waitFor(() =>
       expect(client.request).toHaveBeenCalledWith('/api/servers/s/roles/vip', 'PATCH', {
         name: 'Regulars',
-        colour: null,
         permissions: Permission.KickMembers,
-        hoist: false,
+        expectedRevision: undefined,
       }),
     );
   });
@@ -230,13 +282,14 @@ describe('RoleEditor', () => {
     expect(within(dialog).getByRole('button', { name: 'Create role' })).toBeDisabled();
     expect(client.request).not.toHaveBeenCalled();
     fireEvent.change(within(dialog).getByLabelText('Role name'), { target: { value: '  Helpers ' } });
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Role colour: #45cf8a' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Role colour: #2bb467' }));
     fireEvent.click(within(dialog).getByLabelText('Display separately'));
     fireEvent.click(within(dialog).getByRole('button', { name: 'Create role' }));
     await waitFor(() =>
       expect(client.request).toHaveBeenCalledWith('/api/servers/s/roles', 'POST', {
         name: 'Helpers',
-        colour: '#45cf8a',
+        colour: '#2bb467',
+        description: '',
         permissions: 0,
         hoist: true,
       }),
@@ -253,9 +306,12 @@ describe('RoleEditor', () => {
         <RoleEditor api={client} detail={detail} userId="owner" onChanged={async () => undefined} />
       </TooltipProvider>,
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Move VIP up' }));
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Reorder VIP' }), { key: 'ArrowUp', altKey: true });
     await waitFor(() =>
-      expect(client.request).toHaveBeenCalledWith('/api/servers/s/roles', 'PUT', { roleIds: ['admin', 'vip', 'mod'] }),
+      expect(client.request).toHaveBeenCalledWith('/api/servers/s/roles', 'PUT', {
+        roleIds: ['admin', 'vip', 'mod'],
+        expectedOrder: ['admin', 'mod', 'vip'],
+      }),
     );
     cleanup();
     render(
@@ -264,7 +320,147 @@ describe('RoleEditor', () => {
       </TooltipProvider>,
     );
     // VIP is the moderator's to move, but not above their own role.
-    expect(screen.getByRole('button', { name: 'Move VIP up' })).toBeDisabled();
+    const locked = api();
+    cleanup();
+    render(
+      <TooltipProvider>
+        <RoleEditor api={locked} detail={modDetail} userId="mo" onChanged={async () => undefined} />
+      </TooltipProvider>,
+    );
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Reorder VIP' }), { key: 'ArrowUp', altKey: true });
+    expect(locked.request).not.toHaveBeenCalled();
+  });
+
+  it('selects only the current category and confirms critical bulk grants', async () => {
+    const client = api();
+    render(
+      <TooltipProvider>
+        <RoleEditor
+          api={client}
+          detail={detailFor(allPermissions, 'owner')}
+          userId="owner"
+          initialRoleId="vip"
+          onChanged={async () => undefined}
+        />
+      </TooltipProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Select all' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Voice channels' }));
+    expect(screen.getByRole('switch', { name: 'Connect' })).not.toBeChecked();
+    fireEvent.click(
+      within(screen.getByRole('navigation', { name: 'Permission categories' })).getByRole('button', {
+        name: 'Members',
+      }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Select all' }));
+    const confirm = screen.getByRole('dialog', { name: 'Grant these permissions?' });
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Cancel' }));
+    expect(screen.getByRole('switch', { name: 'Ban members' })).not.toBeChecked();
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+    await waitFor(() =>
+      expect(client.request).toHaveBeenCalledWith('/api/servers/s/roles/vip', 'PATCH', {
+        expectedRevision: undefined,
+        permissions:
+          Permission.ViewChannels |
+          Permission.SendMessages |
+          Permission.CreateInvites |
+          Permission.ManageMessages,
+      }),
+    );
+  });
+
+  it('asks before granting Administrator and shows its effective access', async () => {
+    render(
+      <TooltipProvider>
+        <RoleEditor
+          api={api()}
+          detail={detailFor(allPermissions, 'owner')}
+          userId="owner"
+          initialRoleId="vip"
+          onChanged={async () => undefined}
+        />
+      </TooltipProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Advanced' }));
+    fireEvent.click(screen.getByRole('switch', { name: 'Administrator' }));
+    const confirm = screen.getByRole('dialog', { name: 'Grant Administrator?' });
+    expect(screen.getByRole('switch', { name: 'Administrator', hidden: true })).not.toBeChecked();
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Grant Administrator' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Grant Administrator?' })).toBeNull());
+    expect(screen.getByRole('switch', { name: 'Administrator' })).toBeChecked();
+    fireEvent.click(screen.getByRole('button', { name: 'General' }));
+    expect(screen.getByRole('switch', { name: 'Manage messages' })).toBeDisabled();
+    expect(screen.getAllByText('Granted by Administrator')).toHaveLength(4);
+  });
+
+  it('preserves draft fields across polling and tabs, then rebases only local changes after a conflict', async () => {
+    const client = api();
+    const original = {
+      ...detailFor(allPermissions, 'owner'),
+      roles: roles.map((role) => ({ ...role, revision: 1 })),
+    };
+    const view = (detail: CommunityDetail) => (
+      <TooltipProvider>
+        <RoleEditor
+          api={client}
+          detail={detail}
+          userId="owner"
+          initialRoleId="vip"
+          onChanged={async () => undefined}
+        />
+      </TooltipProvider>
+    );
+    const mounted = render(view(original));
+    fireEvent.change(screen.getByLabelText('Role description'), { target: { value: 'A local description' } });
+    fireEvent.click(screen.getByRole('tab', { name: /Members/ }));
+    const remote = {
+      ...original,
+      roles: original.roles.map((role) =>
+        role.id === 'vip' ? { ...role, revision: 2, name: 'Remote name', hoist: true } : role,
+      ),
+    };
+    mounted.rerender(view(remote));
+    expect(screen.getByLabelText('Role description')).toHaveValue('A local description');
+    expect(screen.getByLabelText('Role name')).toHaveValue('VIP');
+    expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Keep my changes' }));
+    expect(screen.getByLabelText('Role name')).toHaveValue('Remote name');
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+    await waitFor(() =>
+      expect(client.request).toHaveBeenCalledWith('/api/servers/s/roles/vip', 'PATCH', {
+        expectedRevision: 2,
+        description: 'A local description',
+      }),
+    );
+  });
+
+  it('keeps failed edits and guards switching roles until explicitly discarded', async () => {
+    const client = {
+      request: vi.fn().mockRejectedValue(new ApiError(503, 'Try again shortly.')),
+    } as unknown as CommunityClient;
+    render(
+      <TooltipProvider>
+        <RoleEditor
+          api={client}
+          detail={detailFor(allPermissions, 'owner')}
+          userId="owner"
+          initialRoleId="vip"
+          onChanged={async () => undefined}
+        />
+      </TooltipProvider>,
+    );
+    fireEvent.change(screen.getByLabelText('Role name'), { target: { value: 'Keep this draft' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+    await screen.findByText('Try again shortly.');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Select role Moderator' })).toBeEnabled());
+    expect(screen.getByLabelText('Role name')).toHaveValue('Keep this draft');
+    fireEvent.click(screen.getByRole('button', { name: 'Select role Moderator' }));
+    const confirmation = screen.getByRole('dialog', { name: 'Discard role changes?' });
+    fireEvent.click(within(confirmation).getByRole('button', { name: 'Cancel' }));
+    expect(screen.getByLabelText('Role name')).toHaveValue('Keep this draft');
+    fireEvent.click(screen.getByRole('button', { name: 'Discard' }));
+    expect(screen.getByLabelText('Role name')).toHaveValue('VIP');
+    expect(screen.queryByRole('region', { name: 'Unsaved role changes' })).toBeNull();
   });
 });
 
@@ -280,8 +476,29 @@ describe('ChannelSidebar with categories', () => {
             { id: 'v2', name: 'Staff call', categoryId: 'c1' },
           ]}
           textChannels={[
-            { id: 't1', serverId: 's', name: 'general', type: 'text', private: false, memberIds: [], allowSpeak: true, allowShare: true, readOnly: false },
-            { id: 't2', serverId: 's', name: 'logs', type: 'text', categoryId: 'c1', private: true, memberIds: [], allowSpeak: true, allowShare: true, readOnly: false },
+            {
+              id: 't1',
+              serverId: 's',
+              name: 'general',
+              type: 'text',
+              private: false,
+              memberIds: [],
+              allowSpeak: true,
+              allowShare: true,
+              readOnly: false,
+            },
+            {
+              id: 't2',
+              serverId: 's',
+              name: 'logs',
+              type: 'text',
+              categoryId: 'c1',
+              private: true,
+              memberIds: [],
+              allowSpeak: true,
+              allowShare: true,
+              readOnly: false,
+            },
           ]}
           categories={[{ id: 'c1', name: 'STAFF' }]}
           activeChannelId=""

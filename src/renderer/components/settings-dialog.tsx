@@ -17,6 +17,8 @@ import { MicrophoneMeter } from './microphone-meter';
 import { Switch } from './ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { cn } from './ui/utils';
+import { createPortal } from 'react-dom';
+import { useOverlayContainer } from './ui/overlay-portal';
 import type { UserSettings } from '../application/ports/settings-repository';
 import type { AvailableMediaDevices, MediaDeviceOption } from '../infrastructure/media/media-devices-service';
 import type { UpdateStatus } from '../../shared/desktop-api';
@@ -52,6 +54,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
   const [settings, setSettings] = useState(props.initialSettings);
   const [activeSection, setActiveSection] = useState<SettingsSection>('input');
   const bodyRef = useRef<HTMLDivElement>(null);
+  const container = useOverlayContainer();
 
   useEffect(() => setSettings(props.initialSettings), [props.initialSettings, props.open]);
   if (!props.open) return null;
@@ -80,7 +83,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
     setActiveSection(visible);
   };
 
-  return (
+  return createPortal(
     <div
       className="dialog-backdrop fixed inset-0 z-50 grid place-items-center bg-black/75 p-4 backdrop-blur-[3px]"
       role="presentation"
@@ -118,7 +121,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
           </button>
         </header>
 
-        <div className="grid min-h-0 flex-1 grid-cols-[11.5rem_minmax(0,1fr)] max-[720px]:grid-cols-1">
+        <div className="audio-settings-workspace grid min-h-0 flex-1 grid-cols-[11.5rem_minmax(0,1fr)] max-[720px]:grid-cols-1">
           <aside className="settings-nav flex min-h-0 flex-col border-r border-border bg-background/55 px-3 py-4 max-[720px]:hidden">
             <p className="px-2 pb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
               Audio settings
@@ -363,8 +366,8 @@ export function SettingsDialog(props: SettingsDialogProps) {
                   />
                 </div>
                 <p className="text-[11px] leading-4 text-muted-foreground">
-                  Lower delay leaves less room for a computer or connection that briefly stalls. Changes apply
-                  on the next call.
+                  Lower delay leaves less room for a computer or connection that briefly stalls. Changes
+                  apply on the next call.
                 </p>
                 {props.readHealth && (
                   <div className="settings-health">
@@ -381,7 +384,9 @@ export function SettingsDialog(props: SettingsDialogProps) {
               >
                 <div className="update-row flex flex-wrap items-center justify-between gap-4 rounded-lg border border-border bg-background/45 px-4 py-3.5">
                   <div className="flex min-w-0 flex-col gap-0.5">
-                    <strong className="text-[13px] font-semibold text-foreground">Application updates</strong>
+                    <strong className="text-[13px] font-semibold text-foreground">
+                      Application updates
+                    </strong>
                     <span className="text-[11px] text-muted-foreground">{updateCopy}</span>
                   </div>
                   {props.updateStatus.state === 'downloaded' ? (
@@ -398,7 +403,8 @@ export function SettingsDialog(props: SettingsDialogProps) {
                       type="button"
                       onClick={props.onCheckUpdates}
                       disabled={
-                        props.updateStatus.state === 'checking' || props.updateStatus.state === 'downloading'
+                        props.updateStatus.state === 'checking' ||
+                        props.updateStatus.state === 'downloading'
                       }
                     >
                       <RefreshCw
@@ -432,7 +438,8 @@ export function SettingsDialog(props: SettingsDialogProps) {
           </button>
         </footer>
       </section>
-    </div>
+    </div>,
+    container,
   );
 }
 
