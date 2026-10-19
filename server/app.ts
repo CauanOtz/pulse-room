@@ -15,6 +15,8 @@ import { allPermissions, channelScoped, has, Permission } from '../src/shared/pe
 import { RoleService } from './role-service.js';
 import { registrationMode, screenShareCeiling } from './platform-settings.js';
 import { clientVersion } from './client-version.js';
+import { ChatService } from './chat-service.js';
+import { attachmentLimit, attachmentsPerMessage, reactionEmojis } from '../src/shared/chat.js';
 import { TagService, type TagInput } from './tag-service.js';
 import {
   publishSources,
@@ -60,6 +62,8 @@ const roleInput = z
     colour: colour.nullable(),
     permissions: bits(allPermissions),
     hoist: z.boolean(),
+    description: z.string().max(200).optional(),
+    iconId: z.string().regex(/^[0-9a-f]{64}$/).nullable().optional(),
   })
   .strict();
 const password = z.string().min(12).max(128);
@@ -106,6 +110,7 @@ export async function createServer(
   await migrate(db);
   const accounts = new AccountService(db);
   const communities = new CommunityService(db);
+  const chat = new ChatService(db, communities);
   const images = new ImageService(db);
   const tokens = new TokenService(configuration);
   const voice = new VoiceAccessService(db, communities, configuration, voiceClient);
@@ -125,6 +130,11 @@ export async function createServer(
   server.addContentTypeParser(
     ['image/png', 'image/webp', 'image/gif'],
     { parseAs: 'buffer', bodyLimit: imageLimits.bytes },
+    (_request, body, done) => done(null, body),
+  );
+  server.addContentTypeParser(
+    'application/octet-stream',
+    { parseAs: 'buffer', bodyLimit: attachmentLimit },
     (_request, body, done) => done(null, body),
   );
   const authenticated = new WeakMap<FastifyRequest, AuthenticatedAccount>();
@@ -254,11 +264,33 @@ export async function createServer(
     communities.detail(actor(request).id, id(request, 'serverId')),
   );
   server.patch('/api/servers/:serverId', async (request) => {
-    await communities.rename(
+    const imageId = z
+      .string()
+      .regex(/^[0-9a-f]{64}$/)
+      .nullable()
+      .optional();
+    await communities.updateSettings(
       actor(request).id,
       id(request, 'serverId'),
-      z.object({ name }).strict().parse(request.body).name,
+      z
+        .object({
+          name: name.optional(),
+          description: z.string().max(200).optional(),
+          iconId: imageId,
+          bannerId: imageId,
+          welcomeBannerId: imageId,
+          landingChannelId: z.uuid().nullable().optional(),
+          welcomeMessage: z.string().max(300).optional(),
+        })
+        .strict()
+        .refine((value) => Object.keys(value).length > 0)
+        .parse(request.body),
+      images,
     );
+    return { ok: true };
+  });
+  server.post('/api/servers/:serverId/welcome/ack', async (request) => {
+    await communities.acknowledgeWelcome(actor(request).id, id(request, 'serverId'));
     return { ok: true };
   });
   server.delete('/api/servers/:serverId', async (request) => {
@@ -288,7 +320,8 @@ export async function createServer(
       actor(request).id,
       id(request, 'serverId'),
       id(request, 'roleId'),
-      roleInput.parse(request.body),
+      roleInput.partial().extend({ expectedRevision: z.number().int().positive().optional() })
+        .refine((value) => Object.keys(value).some((key) => key !== 'expectedRevision')).parse(request.body),
     );
     enforce();
     return { ok: true };
@@ -299,11 +332,11 @@ export async function createServer(
     return { ok: true };
   });
   server.put('/api/servers/:serverId/roles', async (request) => {
-    const { roleIds } = z
-      .object({ roleIds: z.array(z.uuid()).max(50) })
+    const { roleIds, expectedOrder } = z
+      .object({ roleIds: z.array(z.uuid()).max(50), expectedOrder: z.array(z.uuid()).max(50).optional() })
       .strict()
       .parse(request.body);
-    await roles.reorder(actor(request).id, id(request, 'serverId'), roleIds);
+    await roles.reorder(actor(request).id, id(request, 'serverId'), roleIds, expectedOrder);
     return { ok: true };
   });
   server.put('/api/servers/:serverId/members/:userId/roles', async (request) => {
@@ -312,6 +345,13 @@ export async function createServer(
       .strict()
       .parse(request.body);
     await roles.setMemberRoles(actor(request).id, id(request, 'serverId'), id(request, 'userId'), roleIds);
+    enforce();
+    return { ok: true };
+  });
+  server.patch('/api/servers/:serverId/roles/:roleId/members', async (request) => {
+    const { addUserIds, removeUserIds } = z.object({ addUserIds: z.array(z.uuid()).max(100).default([]),
+      removeUserIds: z.array(z.uuid()).max(100).default([]) }).strict().parse(request.body);
+    await roles.changeRoleMembers(actor(request).id, id(request, 'serverId'), id(request, 'roleId'), addUserIds, removeUserIds);
     enforce();
     return { ok: true };
   });
@@ -462,19 +502,25 @@ export async function createServer(
   });
   server.get('/api/channels/:channelId/messages', async (request) => {
     const { before } = z.object({ before: z.uuid().optional() }).parse(request.query);
-    return { messages: await communities.messages(actor(request).id, id(request, 'channelId'), before) };
+    return { messages: await chat.messages(actor(request).id, id(request, 'channelId'), before) };
   });
   server.post(
     '/api/channels/:channelId/messages',
     { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
     async (request) => {
+      const body = z
+        .object({
+          content: z.string().trim().max(2000).default(''),
+          attachmentIds: z.array(z.uuid()).max(attachmentsPerMessage).default([]),
+        })
+        .strict()
+        .refine((body) => body.content.length > 0 || body.attachmentIds.length > 0)
+        .parse(request.body);
       await communities.sendMessage(
         actor(request).id,
         id(request, 'channelId'),
-        z
-          .object({ content: z.string().trim().min(1).max(2000) })
-          .strict()
-          .parse(request.body).content,
+        body.content,
+        body.attachmentIds,
       );
       return { ok: true };
     },
@@ -482,6 +528,52 @@ export async function createServer(
   server.delete('/api/channels/:channelId/messages/:messageId', async (request) => {
     await communities.deleteMessage(actor(request).id, id(request, 'channelId'), id(request, 'messageId'));
     return { ok: true };
+  });
+  const reactionBody = z.object({ emoji: z.string().refine((value) => reactionEmojis.has(value)) }).strict();
+  for (const method of ['PUT', 'DELETE'] as const)
+    server.route({
+      method,
+      url: '/api/channels/:channelId/messages/:messageId/reactions',
+      config: { rateLimit: { max: 60, timeWindow: '1 minute' } },
+      handler: async (request) => ({
+        reactions: await chat.react(
+          actor(request).id,
+          id(request, 'channelId'),
+          id(request, 'messageId'),
+          reactionBody.parse(request.body).emoji,
+          method === 'PUT',
+        ),
+      }),
+    });
+  server.post(
+    '/api/channels/:channelId/attachments',
+    { bodyLimit: attachmentLimit, config: { rateLimit: { max: 24, timeWindow: '10 minutes' } } },
+    async (request) => {
+      if (!Buffer.isBuffer(request.body)) throw new HttpError(415, 'Send the file as binary data.');
+      const { name, type } = z
+        .object({ name: z.string().min(1).max(300), type: z.string().max(100).default('') })
+        .parse(request.query);
+      return chat.upload(actor(request).id, id(request, 'channelId'), request.body, name, type);
+    },
+  );
+  server.get('/api/channels/:channelId/attachments/:attachmentId', async (request, reply) => {
+    const file = await chat.read(actor(request).id, id(request, 'channelId'), id(request, 'attachmentId'));
+    return reply
+      .header('Content-Type', file.mime)
+      .header('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(file.name)}`)
+      .header('X-Content-Type-Options', 'nosniff')
+      .header('Content-Security-Policy', "default-src 'none'; sandbox")
+      .send(file.bytes);
+  });
+  server.delete('/api/channels/:channelId/attachments/:attachmentId', async (request) => {
+    await chat.discard(actor(request).id, id(request, 'channelId'), id(request, 'attachmentId'));
+    return { ok: true };
+  });
+  server.get('/api/channels/:channelId/resources', async (request) => {
+    const { kind, before } = z
+      .object({ kind: z.enum(['media', 'links']), before: z.uuid().optional() })
+      .parse(request.query);
+    return chat.resources(actor(request).id, id(request, 'channelId'), kind, before);
   });
   server.post('/api/rooms/:roomId/token', async (request) => {
     const user = actor(request);
@@ -513,6 +605,24 @@ export async function createServer(
     if (!Buffer.isBuffer(request.body)) throw new HttpError(415, 'Send a PNG, WebP or GIF image.');
     return request.body;
   };
+  server.post('/api/servers/:serverId/roles/:roleId/icon', uploadLimit, async (request) => ({
+    imageId: await roles.stageIcon(actor(request).id, id(request, 'serverId'), id(request, 'roleId'), uploaded(request)),
+  }));
+  server.post('/api/servers/:serverId/appearance-images', uploadLimit, async (request) => {
+    const { kind } = z
+      .object({ kind: z.enum(['icon', 'banner', 'welcomeBanner']) })
+      .strict()
+      .parse(request.query);
+    return {
+      imageId: await communities.stageImage(
+        actor(request).id,
+        id(request, 'serverId'),
+        kind,
+        uploaded(request),
+        images,
+      ),
+    };
+  });
 
   server.post('/api/account/avatar', uploadLimit, async (request) => {
     const imageId = await images.store(uploaded(request), 'avatar');

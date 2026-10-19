@@ -13,7 +13,7 @@ import type { Database } from './database.js';
 import { HttpError } from './security.js';
 
 export const roleColumns = `r.id, r.name, r.colour, r.position, r.permissions::int AS permissions,
-  r.is_default AS "isDefault", r.hoist`;
+  r.is_default AS "isDefault", r.hoist, r.description, r.icon_id AS "iconId", r.revision`;
 
 /** Where one person stands in one server, read once per request. */
 export interface Access {

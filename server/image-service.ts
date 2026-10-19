@@ -269,7 +269,10 @@ export class ImageService {
     await db.query(
       `DELETE FROM images WHERE id=$1
          AND NOT EXISTS(SELECT 1 FROM accounts WHERE avatar_id=$1 OR banner_id=$1)
-         AND NOT EXISTS(SELECT 1 FROM communities WHERE icon_id=$1)`,
+         AND NOT EXISTS(SELECT 1 FROM communities WHERE icon_id=$1 OR banner_id=$1 OR welcome_banner_id=$1)
+         AND NOT EXISTS(SELECT 1 FROM server_image_uploads WHERE image_id=$1)
+         AND NOT EXISTS(SELECT 1 FROM roles WHERE icon_id=$1)
+         AND NOT EXISTS(SELECT 1 FROM role_image_uploads WHERE image_id=$1)`,
       [id],
     );
   }
@@ -293,7 +296,13 @@ export class ImageService {
          OR EXISTS(
            SELECT 1 FROM communities c
            JOIN memberships viewer ON viewer.server_id=c.id AND viewer.account_id=$2
-           WHERE c.icon_id=i.id))`,
+           WHERE c.icon_id=i.id OR c.banner_id=i.id OR c.welcome_banner_id=i.id)
+         OR EXISTS(SELECT 1 FROM server_image_uploads u JOIN memberships m
+           ON m.server_id=u.server_id AND m.account_id=u.account_id
+           WHERE u.image_id=i.id AND u.account_id=$2 AND u.created_at > now()-interval '24 hours')
+         OR EXISTS(SELECT 1 FROM roles r JOIN memberships m ON m.server_id=r.server_id AND m.account_id=$2 WHERE r.icon_id=i.id)
+         OR EXISTS(SELECT 1 FROM role_image_uploads u JOIN memberships m ON m.server_id=u.server_id AND m.account_id=u.account_id
+           WHERE u.image_id=i.id AND u.account_id=$2 AND u.created_at > now()-interval '24 hours'))`,
       [id, viewerId],
     );
     const image = rows[0];

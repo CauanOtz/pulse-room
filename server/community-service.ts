@@ -8,10 +8,13 @@ import type {
   CommunityInvite,
   CommunityMember,
   MemberRole,
+  ServerImageKind,
+  ServerSettingsPatch,
 } from '../src/shared/community.js';
 import {
   allPermissions,
   channelScoped,
+  channelPermissionsFor,
   everyoneDefault,
   has,
   Permission,
@@ -27,6 +30,7 @@ import {
   type Access,
 } from './access.js';
 import type { Database } from './database.js';
+import type { ImageService } from './image-service.js';
 import { profileColumns, profileJoins, toAccount, type ProfileRow } from './profile.js';
 import { digest, HttpError, opaqueToken } from './security.js';
 import { tagDefinitions } from './tag-service.js';
@@ -52,7 +56,8 @@ export interface LegacyChannelInput {
   readOnly: boolean;
 }
 
-const isLegacy = (input: ChannelInput | LegacyChannelInput): input is LegacyChannelInput => 'private' in input;
+const isLegacy = (input: ChannelInput | LegacyChannelInput): input is LegacyChannelInput =>
+  'private' in input;
 
 const channelColumns = `c.id, c.server_id AS "serverId", c.name, c.type,
   c.category_id AS "categoryId", c.permissions_synced AS "synced"`;
@@ -68,7 +73,21 @@ interface ChannelRow {
   synced: boolean;
 }
 
-const serverColumns = 'c.id, c.name, c.icon_id AS "iconId"';
+const serverColumns = `c.id, c.name, c.icon_id AS "iconId", c.description, c.banner_id AS "bannerId",
+  c.welcome_banner_id AS "welcomeBannerId", c.landing_channel_id AS "landingChannelId",
+  c.welcome_message AS "welcomeMessage", c.created_at AS "createdAt"`;
+type ServerRow = Omit<Community, 'role'>;
+
+const openToNewMembers = (row: ChannelRow, roles: Access['roles'], maps: OverrideMaps) =>
+  row.type === 'text' &&
+  has(
+    channelPermissionsFor(
+      { id: '00000000-0000-0000-0000-000000000000', isOwner: false, roleIds: [] },
+      roles,
+      effective(row, maps),
+    ),
+    Permission.ViewChannels,
+  );
 
 /** Every override in a server, by the channel or category it belongs to. */
 async function serverOverrides(db: Database, serverId: string) {
@@ -79,7 +98,8 @@ async function serverOverrides(db: Database, serverId: string) {
     JOIN channels c ON c.id = o.channel_id WHERE c.server_id=$1`,
     [serverId],
   );
-  for (const { owner, ...override } of channelRows) channels.set(owner, [...(channels.get(owner) ?? []), override]);
+  for (const { owner, ...override } of channelRows)
+    channels.set(owner, [...(channels.get(owner) ?? []), override]);
   const { rows: categoryRows } = await db.query<PermissionOverride & { owner: string }>(
     `SELECT o.category_id AS owner, ${overrideColumns} FROM category_overrides o
     JOIN categories c ON c.id = o.category_id WHERE c.server_id=$1`,
@@ -94,7 +114,9 @@ type OverrideMaps = Awaited<ReturnType<typeof serverOverrides>>;
 
 /** A synced channel wears its category's overrides; any other wears its own. */
 const effective = (row: ChannelRow, maps: OverrideMaps): PermissionOverride[] =>
-  row.synced && row.categoryId ? (maps.categories.get(row.categoryId) ?? []) : (maps.channels.get(row.id) ?? []);
+  row.synced && row.categoryId
+    ? (maps.categories.get(row.categoryId) ?? [])
+    : (maps.channels.get(row.id) ?? []);
 
 const same = (a: PermissionOverride, b: PermissionOverride) =>
   a.targetType === b.targetType && a.targetId === b.targetId;
@@ -104,7 +126,7 @@ export class CommunityService {
   constructor(private readonly db: Database) {}
 
   async list(userId: string): Promise<Community[]> {
-    const { rows } = await this.db.query<{ id: string; name: string; iconId: string | null }>(
+    const { rows } = await this.db.query<ServerRow>(
       `SELECT ${serverColumns} FROM communities c
       JOIN memberships m ON m.server_id=c.id WHERE m.account_id=$1 ORDER BY c.created_at,c.id`,
       [userId],
@@ -140,7 +162,10 @@ export class CommunityService {
       if (Number(count.count) >= 10) throw new HttpError(409, 'You can own up to 10 servers.');
       const id = randomUUID();
       await db.query('INSERT INTO communities(id,name) VALUES($1,$2)', [id, name]);
-      await db.query("INSERT INTO memberships(server_id,account_id,role) VALUES($1,$2,'owner')", [id, userId]);
+      await db.query("INSERT INTO memberships(server_id,account_id,role) VALUES($1,$2,'owner')", [
+        id,
+        userId,
+      ]);
       await db.query(
         `INSERT INTO roles(id,server_id,name,position,permissions,is_default) VALUES($1,$2,'@everyone',0,$3,true)`,
         [randomUUID(), id, everyoneDefault],
@@ -185,10 +210,9 @@ export class CommunityService {
     const access = await loadAccess(this.db, userId, serverId);
     const {
       rows: [serverRow],
-    } = await this.db.query<{ id: string; name: string; iconId: string | null }>(
-      `SELECT ${serverColumns} FROM communities c WHERE c.id=$1`,
-      [serverId],
-    );
+    } = await this.db.query<ServerRow>(`SELECT ${serverColumns} FROM communities c WHERE c.id=$1`, [
+      serverId,
+    ]);
     const maps = await serverOverrides(this.db, serverId);
     const { rows: channelRows } = await this.db.query<ChannelRow>(
       `SELECT ${channelColumns} FROM channels c WHERE c.server_id=$1 ORDER BY c.created_at,c.id`,
@@ -245,9 +269,20 @@ export class CommunityService {
     });
     const tags = await tagDefinitions(this.db, serverId, has(access.permissions, Permission.ManageTags));
     const [first] = tags;
+    const {
+      rows: [welcome],
+    } = await this.db.query<{ pending: boolean }>(
+      "SELECT welcome_seen_at IS NULL AND role <> 'owner' AS pending FROM memberships WHERE server_id=$1 AND account_id=$2",
+      [serverId, userId],
+    );
     return {
       server: {
         ...serverRow,
+        landingChannelId: channels.some(
+          (channel) => channel.type === 'text' && channel.id === serverRow.landingChannelId,
+        )
+          ? serverRow.landingChannelId
+          : null,
         role: legacyRole(access),
         permissions: access.permissions,
         tag: first ? { text: first.text, badge: first.badge, colour: first.colour } : null,
@@ -257,6 +292,25 @@ export class CommunityService {
       roles: access.roles,
       categories,
       tags,
+      ...(has(access.permissions, Permission.ManageServer)
+        ? {
+            channelCount: channelRows.length,
+            landingChannelIds: channelRows
+              .filter(
+                (row) =>
+                  openToNewMembers(row, access.roles, maps) &&
+                  channels.some((channel) => channel.id === row.id),
+              )
+              .map((row) => row.id),
+          }
+        : {}),
+      welcomePending: Boolean(
+        welcome?.pending &&
+        (serverRow.welcomeMessage ||
+          serverRow.description ||
+          serverRow.bannerId ||
+          serverRow.welcomeBannerId),
+      ),
     };
   }
 
@@ -281,7 +335,8 @@ export class CommunityService {
     }
     const channel = this.present(row, access, await serverOverrides(db, row.serverId));
     const permissions = channel.permissions ?? 0;
-    if (!has(permissions, Permission.ViewChannels)) throw new HttpError(404, 'Channel not found or access denied.');
+    if (!has(permissions, Permission.ViewChannels))
+      throw new HttpError(404, 'Channel not found or access denied.');
     return { channel, access, permissions, role: legacyRole(access) };
   }
 
@@ -296,9 +351,10 @@ export class CommunityService {
       requirePermission(access, Permission.ManageServer, 'You need Manage server to change the picture.');
       const {
         rows: [current],
-      } = await db.query<{ iconId: string | null }>('SELECT icon_id AS "iconId" FROM communities WHERE id=$1', [
-        serverId,
-      ]);
+      } = await db.query<{ iconId: string | null }>(
+        'SELECT icon_id AS "iconId" FROM communities WHERE id=$1',
+        [serverId],
+      );
       await db.query('UPDATE communities SET icon_id=$2 WHERE id=$1', [serverId, imageId]);
       if (current?.iconId && current.iconId !== imageId) await images.collect(current.iconId, db);
     });
@@ -309,6 +365,120 @@ export class CommunityService {
       requirePermission(access, Permission.ManageServer, 'You need Manage server to rename it.');
       await db.query('UPDATE communities SET name=$1 WHERE id=$2', [name, serverId]);
     });
+  }
+
+  /** Stage artwork without changing the live identity until Save changes. */
+  async stageImage(
+    userId: string,
+    serverId: string,
+    kind: ServerImageKind,
+    bytes: Buffer,
+    images: ImageService,
+  ): Promise<string> {
+    return withServer(this.db, userId, serverId, async (db, access) => {
+      requirePermission(access, Permission.ManageServer, 'You need Manage server to change its appearance.');
+      const { rows: expired } = await db.query<{ imageId: string }>(
+        `DELETE FROM server_image_uploads WHERE server_id=$1 AND created_at < now()-interval '24 hours'
+         RETURNING image_id AS "imageId"`,
+        [serverId],
+      );
+      for (const image of expired) await images.collect(image.imageId, db);
+      const {
+        rows: [count],
+      } = await db.query<{ count: string }>(
+        'SELECT count(*) FROM server_image_uploads WHERE server_id=$1 AND account_id=$2',
+        [serverId, userId],
+      );
+      if (Number(count.count) >= 24)
+        throw new HttpError(429, 'Too many pending pictures. Save or try again tomorrow.');
+      const imageId = await images.store(bytes, kind === 'icon' ? 'icon' : 'banner', db);
+      await db.query(
+        `INSERT INTO server_image_uploads(server_id,account_id,image_id,kind) VALUES($1,$2,$3,$4)
+        ON CONFLICT(server_id,account_id,image_id,kind) DO UPDATE SET created_at=now()`,
+        [serverId, userId, imageId, kind],
+      );
+      return imageId;
+    });
+  }
+
+  /** All identity fields commit together; a guessed image hash cannot attach another server's artwork. */
+  async updateSettings(
+    userId: string,
+    serverId: string,
+    input: ServerSettingsPatch,
+    images: ImageService,
+  ): Promise<void> {
+    await withServer(this.db, userId, serverId, async (db, access) => {
+      requirePermission(access, Permission.ManageServer, 'You need Manage server to change its settings.');
+      const {
+        rows: [current],
+      } = await db.query<ServerRow>(`SELECT ${serverColumns} FROM communities c WHERE c.id=$1`, [serverId]);
+      if (input.landingChannelId) {
+        const {
+          rows: [row],
+        } = await db.query<ChannelRow>(
+          `SELECT ${channelColumns} FROM channels c WHERE c.id=$1 AND c.server_id=$2`,
+          [input.landingChannelId, serverId],
+        );
+        const maps = await serverOverrides(db, serverId);
+        if (
+          !row ||
+          !openToNewMembers(row, access.roles, maps) ||
+          !has(inChannel(access, effective(row, maps)), Permission.ViewChannels)
+        )
+          throw new HttpError(422, 'Choose a text channel that new members can access.');
+      }
+      for (const [field, kind] of [
+        ['iconId', 'icon'],
+        ['bannerId', 'banner'],
+        ['welcomeBannerId', 'welcomeBanner'],
+      ] as const) {
+        const imageId = input[field];
+        if (imageId && imageId !== current[field]) {
+          const { rows } = await db.query(
+            `SELECT 1 FROM server_image_uploads WHERE server_id=$1 AND account_id=$2 AND image_id=$3
+             AND kind=$4 AND created_at > now()-interval '24 hours'`,
+            [serverId, userId, imageId, kind],
+          );
+          if (!rows.length) throw new HttpError(422, 'Upload that picture again before saving.');
+        }
+      }
+      const columns = {
+        name: 'name',
+        description: 'description',
+        iconId: 'icon_id',
+        bannerId: 'banner_id',
+        welcomeBannerId: 'welcome_banner_id',
+        landingChannelId: 'landing_channel_id',
+        welcomeMessage: 'welcome_message',
+      } as const;
+      const fields = (Object.keys(columns) as (keyof ServerSettingsPatch)[]).filter(
+        (field) => input[field] !== undefined,
+      );
+      if (fields.length)
+        await db.query(
+          `UPDATE communities SET ${fields.map((field, index) => `${columns[field]}=$${index + 2}`).join(',')} WHERE id=$1`,
+          [serverId, ...fields.map((field) => input[field])],
+        );
+      for (const field of ['iconId', 'bannerId', 'welcomeBannerId'] as const) {
+        if (input[field] === undefined) continue;
+        if (input[field])
+          await db.query(
+            'DELETE FROM server_image_uploads WHERE server_id=$1 AND account_id=$2 AND image_id=$3',
+            [serverId, userId, input[field]],
+          );
+        if (current[field] !== input[field]) await images.collect(current[field], db);
+      }
+    });
+  }
+
+  async acknowledgeWelcome(userId: string, serverId: string): Promise<void> {
+    await loadAccess(this.db, userId, serverId);
+    await this.db.query(
+      `UPDATE memberships SET welcome_seen_at=COALESCE(welcome_seen_at,now())
+      WHERE server_id=$1 AND account_id=$2`,
+      [serverId, userId],
+    );
   }
 
   async deleteServer(userId: string, serverId: string): Promise<void> {
@@ -338,7 +508,10 @@ export class CommunityService {
       [accountId, serverId],
     );
     await db.query('DELETE FROM memberships WHERE server_id=$1 AND account_id=$2', [serverId, accountId]);
-    await db.query('UPDATE accounts SET tag_server_id=NULL WHERE id=$1 AND tag_server_id=$2', [accountId, serverId]);
+    await db.query('UPDATE accounts SET tag_server_id=NULL WHERE id=$1 AND tag_server_id=$2', [
+      accountId,
+      serverId,
+    ]);
   }
 
   /** Leaving, for yourself; kicking, for somebody below you. */
@@ -365,8 +538,14 @@ export class CommunityService {
       if (!access.member.isOwner || userId === targetId)
         throw new HttpError(403, 'Choose another member to become owner.');
       await rankOf(db, access, targetId);
-      await db.query("UPDATE memberships SET role='member' WHERE server_id=$1 AND account_id=$2", [serverId, userId]);
-      await db.query("UPDATE memberships SET role='owner' WHERE server_id=$1 AND account_id=$2", [serverId, targetId]);
+      await db.query("UPDATE memberships SET role='member' WHERE server_id=$1 AND account_id=$2", [
+        serverId,
+        userId,
+      ]);
+      await db.query("UPDATE memberships SET role='owner' WHERE server_id=$1 AND account_id=$2", [
+        serverId,
+        targetId,
+      ]);
     });
   }
 
@@ -399,7 +578,8 @@ export class CommunityService {
       keys.add(keyOf(override));
       if ((override.allow | override.deny) & ~channelScoped)
         throw new HttpError(400, 'Only channel permissions can be set on a channel.');
-      if (override.allow & override.deny) throw new HttpError(400, 'A permission cannot be allowed and denied at once.');
+      if (override.allow & override.deny)
+        throw new HttpError(400, 'A permission cannot be allowed and denied at once.');
       if (override.targetType === 'role' && !access.roles.some((role) => role.id === override.targetId))
         throw new HttpError(400, 'That role does not belong to this server.');
       if (override.targetType === 'member' && !members.some((member) => member.id === override.targetId))
@@ -456,7 +636,9 @@ export class CommunityService {
       (input.allowSpeak ? 0 : Permission.Speak) |
       (input.allowShare ? 0 : Permission.ShareScreen) |
       (input.readOnly ? Permission.SendMessages : 0);
-    const overrides: PermissionOverride[] = deny ? [{ targetType: 'role', targetId: everyone.id, allow: 0, deny }] : [];
+    const overrides: PermissionOverride[] = deny
+      ? [{ targetType: 'role', targetId: everyone.id, allow: 0, deny }]
+      : [];
     if (input.private)
       for (const id of new Set(input.memberIds))
         overrides.push({ targetType: 'member', targetId: id, allow: Permission.ViewChannels, deny: 0 });
@@ -467,14 +649,21 @@ export class CommunityService {
     if (!categoryId) return null;
     const {
       rows: [category],
-    } = await db.query<{ id: string }>('SELECT id FROM categories WHERE id=$1 AND server_id=$2', [categoryId, serverId]);
+    } = await db.query<{ id: string }>('SELECT id FROM categories WHERE id=$1 AND server_id=$2', [
+      categoryId,
+      serverId,
+    ]);
     if (!category) throw new HttpError(400, 'That category does not belong to this server.');
     return category.id;
   }
 
   // -------------------------------------------------------------- channels
 
-  async createChannel(userId: string, serverId: string, input: ChannelInput | LegacyChannelInput): Promise<string> {
+  async createChannel(
+    userId: string,
+    serverId: string,
+    input: ChannelInput | LegacyChannelInput,
+  ): Promise<string> {
     return withServer(this.db, userId, serverId, async (db, access) => {
       requirePermission(access, Permission.ManageChannels, 'You need Manage channels to create a channel.');
       const {
@@ -502,7 +691,11 @@ export class CommunityService {
    * category, which is a change of permissions and is judged as one; moving
    * out keeps what it had, now as its own.
    */
-  async updateChannel(userId: string, channelId: string, input: ChannelInput | LegacyChannelInput): Promise<void> {
+  async updateChannel(
+    userId: string,
+    channelId: string,
+    input: ChannelInput | LegacyChannelInput,
+  ): Promise<void> {
     const { channel } = await this.channel(userId, channelId);
     await withServer(this.db, userId, channel.serverId, async (db, access) => {
       requirePermission(access, Permission.ManageChannels, 'You need Manage channels to change a channel.');
@@ -535,16 +728,26 @@ export class CommunityService {
         ]);
       } else {
         await this.writeOverrides(db, 'channel_overrides', channelId, before);
-        await db.query('UPDATE channels SET category_id=NULL, permissions_synced=false WHERE id=$1', [channelId]);
+        await db.query('UPDATE channels SET category_id=NULL, permissions_synced=false WHERE id=$1', [
+          channelId,
+        ]);
       }
     });
   }
 
   /** Gives a channel permissions of its own, which stops it following its category. */
-  async setChannelOverrides(userId: string, channelId: string, overrides: PermissionOverride[]): Promise<void> {
+  async setChannelOverrides(
+    userId: string,
+    channelId: string,
+    overrides: PermissionOverride[],
+  ): Promise<void> {
     const { channel } = await this.channel(userId, channelId);
     await withServer(this.db, userId, channel.serverId, async (db, access) => {
-      requirePermission(access, Permission.ManageChannels, 'You need Manage channels to change its permissions.');
+      requirePermission(
+        access,
+        Permission.ManageChannels,
+        'You need Manage channels to change its permissions.',
+      );
       const { channel: current } = await this.channel(userId, channelId, db);
       await this.checkOverrides(db, access, current.permissions ?? 0, current.overrides ?? [], overrides);
       await this.writeOverrides(db, 'channel_overrides', channelId, overrides);
@@ -598,9 +801,10 @@ export class CommunityService {
   private async categoryServer(categoryId: string): Promise<string> {
     const {
       rows: [category],
-    } = await this.db.query<{ serverId: string }>('SELECT server_id AS "serverId" FROM categories WHERE id=$1', [
-      categoryId,
-    ]);
+    } = await this.db.query<{ serverId: string }>(
+      'SELECT server_id AS "serverId" FROM categories WHERE id=$1',
+      [categoryId],
+    );
     if (!category) throw new HttpError(404, 'Category not found.');
     return category.serverId;
   }
@@ -617,10 +821,18 @@ export class CommunityService {
    * Changes a category's permissions, and with them every channel still
    * synced with it. A category is judged as a channel would be.
    */
-  async setCategoryOverrides(userId: string, categoryId: string, overrides: PermissionOverride[]): Promise<void> {
+  async setCategoryOverrides(
+    userId: string,
+    categoryId: string,
+    overrides: PermissionOverride[],
+  ): Promise<void> {
     const serverId = await this.categoryServer(categoryId);
     await withServer(this.db, userId, serverId, async (db, access) => {
-      requirePermission(access, Permission.ManageChannels, 'You need Manage channels to change its permissions.');
+      requirePermission(
+        access,
+        Permission.ManageChannels,
+        'You need Manage channels to change its permissions.',
+      );
       const before = (await serverOverrides(db, serverId)).categories.get(categoryId) ?? [];
       await this.checkOverrides(db, access, inChannel(access, before), before, overrides);
       await this.writeOverrides(db, 'category_overrides', categoryId, overrides);
@@ -681,7 +893,10 @@ export class CommunityService {
   async revokeInvite(userId: string, serverId: string, inviteId: string): Promise<void> {
     await withServer(this.db, userId, serverId, async (db, access) => {
       requirePermission(access, Permission.ManageServer, 'You need Manage server to revoke invitations.');
-      await db.query('UPDATE invitations SET revoked=true WHERE id=$1 AND server_id=$2', [inviteId, serverId]);
+      await db.query('UPDATE invitations SET revoked=true WHERE id=$1 AND server_id=$2', [
+        inviteId,
+        serverId,
+      ]);
     });
   }
 
@@ -690,9 +905,10 @@ export class CommunityService {
       // Same lock order as the writes above, then consume atomically.
       const {
         rows: [lookup],
-      } = await db.query<{ serverId: string }>('SELECT server_id AS "serverId" FROM invitations WHERE code_hash=$1', [
-        digest(code),
-      ]);
+      } = await db.query<{ serverId: string }>(
+        'SELECT server_id AS "serverId" FROM invitations WHERE code_hash=$1',
+        [digest(code)],
+      );
       if (!lookup) throw new HttpError(404, 'Invite is invalid or expired.');
       await db.query('SELECT id FROM communities WHERE id=$1 FOR UPDATE', [lookup.serverId]);
       const {
@@ -718,11 +934,14 @@ export class CommunityService {
         } = await db.query<{ count: string }>('SELECT count(*) FROM memberships WHERE server_id=$1', [
           invite.serverId,
         ]);
-        if (Number(count.count) >= 100) throw new HttpError(409, 'This server has reached its 100-member limit.');
-        await db.query("INSERT INTO memberships(server_id,account_id,role) VALUES($1,$2,'member')", [
-          invite.serverId,
-          userId,
-        ]);
+        if (Number(count.count) >= 100)
+          throw new HttpError(409, 'This server has reached its 100-member limit.');
+        await db.query(
+          `INSERT INTO memberships(server_id,account_id,role,welcome_seen_at)
+          SELECT $1,$2,'member',CASE WHEN description<>'' OR welcome_message<>'' OR banner_id IS NOT NULL
+            OR welcome_banner_id IS NOT NULL THEN NULL ELSE now() END FROM communities WHERE id=$1`,
+          [invite.serverId, userId],
+        );
         await db.query('UPDATE invitations SET uses=uses+1 WHERE id=$1', [invite.id]);
       }
       return { serverId: invite.serverId };
@@ -746,21 +965,49 @@ export class CommunityService {
     ).rows.reverse();
   }
 
-  async sendMessage(userId: string, channelId: string, content: string): Promise<void> {
+  async sendMessage(
+    userId: string,
+    channelId: string,
+    content: string,
+    attachmentIds: string[] = [],
+  ): Promise<void> {
     const { channel } = await this.channel(userId, channelId);
     await withServer(this.db, userId, channel.serverId, async (db, access) => {
       const { channel: current, permissions } = await this.channel(userId, channelId, db);
       if (current.type !== 'text' || !has(permissions, Permission.SendMessages))
         throw new HttpError(
           403,
-          access.timedOut ? 'You are in a timeout and cannot write yet.' : 'You cannot send messages in this channel.',
+          access.timedOut
+            ? 'You are in a timeout and cannot write yet.'
+            : 'You cannot send messages in this channel.',
         );
+      if (
+        (!content.trim() && !attachmentIds.length) ||
+        content.length > 2000 ||
+        attachmentIds.length > 4 ||
+        new Set(attachmentIds).size !== attachmentIds.length
+      )
+        throw new HttpError(400, 'Send text or up to four attachments.');
+      if (attachmentIds.length) {
+        const { rows } = await db.query(
+          'SELECT id FROM chat_attachments WHERE id=ANY($1::uuid[]) AND channel_id=$2 AND uploader_id=$3 AND message_id IS NULL FOR UPDATE',
+          [attachmentIds, channelId, userId],
+        );
+        if (rows.length !== attachmentIds.length)
+          throw new HttpError(400, 'An attachment is unavailable. Choose the file again.');
+      }
+      const messageId = randomUUID();
       await db.query('INSERT INTO messages(id,channel_id,author_id,content) VALUES($1,$2,$3,$4)', [
-        randomUUID(),
+        messageId,
         channelId,
         userId,
         content,
       ]);
+      if (attachmentIds.length)
+        await db.query('UPDATE chat_attachments SET message_id=$1 WHERE id=ANY($2::uuid[])', [
+          messageId,
+          attachmentIds,
+        ]);
     });
   }
 

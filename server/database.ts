@@ -214,6 +214,69 @@ export async function migrate(database: Database): Promise<void> {
       ALTER TABLE sessions ADD COLUMN IF NOT EXISTS last_seen_at timestamptz;
       INSERT INTO schema_migrations(version) VALUES(8) ON CONFLICT DO NOTHING;
     `);
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS chat_attachments (
+        id uuid PRIMARY KEY,
+        channel_id uuid NOT NULL REFERENCES channels(id) ON DELETE CASCADE,
+        uploader_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        message_id uuid REFERENCES messages(id) ON DELETE CASCADE,
+        name text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 180),
+        mime text NOT NULL,
+        size integer NOT NULL CHECK (size BETWEEN 1 AND 26214400),
+        bytes bytea NOT NULL CHECK (octet_length(bytes) = size),
+        created_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS chat_attachments_channel_idx ON chat_attachments(channel_id,created_at DESC,id DESC);
+      CREATE INDEX IF NOT EXISTS chat_attachments_message_idx ON chat_attachments(message_id);
+      CREATE TABLE IF NOT EXISTS message_reactions (
+        message_id uuid NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+        account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        emoji text NOT NULL CHECK (char_length(emoji) BETWEEN 1 AND 32),
+        PRIMARY KEY(message_id,account_id,emoji)
+      );
+      INSERT INTO schema_migrations(version) VALUES(9) ON CONFLICT DO NOTHING;
+    `);
+    const {
+      rows: [appearance],
+    } = await db.query<{ applied: boolean }>(
+      'SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version=10) AS applied',
+    );
+    if (!appearance?.applied)
+      await db.query(`
+      ALTER TABLE communities ADD COLUMN description text NOT NULL DEFAULT '' CHECK (char_length(description) <= 200);
+      ALTER TABLE communities ADD COLUMN banner_id text REFERENCES images(id) ON DELETE SET NULL;
+      ALTER TABLE communities ADD COLUMN welcome_banner_id text REFERENCES images(id) ON DELETE SET NULL;
+      ALTER TABLE communities ADD COLUMN landing_channel_id uuid REFERENCES channels(id) ON DELETE SET NULL;
+      ALTER TABLE communities ADD COLUMN welcome_message text NOT NULL DEFAULT '' CHECK (char_length(welcome_message) <= 300);
+      ALTER TABLE memberships ADD COLUMN welcome_seen_at timestamptz;
+      -- Existing members have already arrived; editing a server must not onboard them again.
+      UPDATE memberships SET welcome_seen_at=now();
+      CREATE TABLE server_image_uploads (
+        server_id uuid NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
+        account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        image_id text NOT NULL REFERENCES images(id) ON DELETE CASCADE,
+        kind text NOT NULL CHECK (kind IN ('icon','banner','welcomeBanner')),
+        created_at timestamptz NOT NULL DEFAULT now(),
+        PRIMARY KEY(server_id,account_id,image_id,kind)
+      );
+      CREATE INDEX server_image_uploads_age_idx ON server_image_uploads(created_at);
+      INSERT INTO schema_migrations(version) VALUES(10);
+    `);
+    await db.query(`
+      ALTER TABLE roles ADD COLUMN IF NOT EXISTS description text NOT NULL DEFAULT '' CHECK (char_length(description) <= 200);
+      ALTER TABLE roles ADD COLUMN IF NOT EXISTS icon_id text REFERENCES images(id) ON DELETE SET NULL;
+      ALTER TABLE roles ADD COLUMN IF NOT EXISTS revision integer NOT NULL DEFAULT 1 CHECK (revision > 0);
+      CREATE TABLE IF NOT EXISTS role_image_uploads (
+        server_id uuid NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
+        role_id uuid NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
+        account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        image_id text NOT NULL REFERENCES images(id) ON DELETE CASCADE,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        PRIMARY KEY(role_id,account_id,image_id)
+      );
+      CREATE INDEX IF NOT EXISTS role_image_uploads_age_idx ON role_image_uploads(created_at);
+      INSERT INTO schema_migrations(version) VALUES(11) ON CONFLICT DO NOTHING;
+    `);
   });
 }
 

@@ -6,13 +6,17 @@ import { CommunityService } from './community-service.js';
 import type { Database } from './database.js';
 import { HttpError } from './security.js';
 import { pruneTags } from './tag-service.js';
+import { ImageService } from './image-service.js';
 
 export interface RoleInput {
   name: string;
   colour: string | null;
   permissions: number;
   hoist: boolean;
+  description?: string;
+  iconId?: string | null;
 }
+export type RolePatch = Partial<RoleInput> & { expectedRevision?: number };
 
 export interface ModerationInput {
   /** Minutes from now, or null to lift a timeout. */
@@ -48,7 +52,8 @@ export class RoleService {
     const {
       rows: [role],
     } = await db.query<Role>(
-      `SELECT id, name, colour, position, permissions::int AS permissions, is_default AS "isDefault", hoist
+      `SELECT id, name, colour, position, permissions::int AS permissions, is_default AS "isDefault", hoist,
+        description, icon_id AS "iconId", revision
       FROM roles WHERE id=$1 AND server_id=$2`,
       [roleId, serverId],
     );
@@ -67,37 +72,48 @@ export class RoleService {
     return withServer(this.db, userId, serverId, async (db, access) => {
       requirePermission(access, Permission.ManageRoles, 'You need Manage roles to create a role.');
       this.checkGrant(access, 0, input.permissions);
+      if (input.iconId) throw new HttpError(422, 'Create the role before uploading its icon.');
       const {
         rows: [count],
       } = await db.query<{ count: string }>('SELECT count(*) FROM roles WHERE server_id=$1', [serverId]);
       if (Number(count.count) >= 50) throw new HttpError(409, 'A server can have up to 50 roles.');
-      await db.query('UPDATE roles SET position=position+1 WHERE server_id=$1 AND NOT is_default', [serverId]);
+      await db.query('UPDATE roles SET position=position+1,revision=revision+1 WHERE server_id=$1 AND NOT is_default', [serverId]);
       const id = randomUUID();
       await db.query(
-        'INSERT INTO roles(id, server_id, name, colour, position, permissions, hoist) VALUES($1,$2,$3,$4,1,$5,$6)',
-        [id, serverId, input.name, input.colour, input.permissions, input.hoist],
+        'INSERT INTO roles(id, server_id, name, colour, position, permissions, hoist,description) VALUES($1,$2,$3,$4,1,$5,$6,$7)',
+        [id, serverId, input.name, input.colour, input.permissions, input.hoist, input.description ?? ''],
       );
       return id;
     });
   }
 
   /** @everyone keeps its name and has no colour of its own; its permissions can change. */
-  async update(userId: string, serverId: string, roleId: string, input: RoleInput): Promise<void> {
+  async update(userId: string, serverId: string, roleId: string, input: RolePatch): Promise<void> {
     await withServer(this.db, userId, serverId, async (db, access) => {
       requirePermission(access, Permission.ManageRoles, 'You need Manage roles to change a role.');
       const role = await this.role(db, serverId, roleId);
       this.below(access, role, 'change');
-      this.checkGrant(access, role.permissions, input.permissions);
+      if (input.expectedRevision !== undefined && input.expectedRevision !== role.revision)
+        throw new HttpError(409, 'This role changed while you were editing. Review the latest version before saving.');
+      const next = { ...role, ...input };
+      this.checkGrant(access, role.permissions, next.permissions);
+      if (role.isDefault && (input.iconId || input.description)) throw new HttpError(400, '@everyone has no custom icon or description.');
+      if (input.iconId && input.iconId !== role.iconId) {
+        const { rows } = await db.query(`SELECT 1 FROM role_image_uploads WHERE server_id=$1 AND role_id=$2 AND account_id=$3
+          AND image_id=$4 AND created_at>now()-interval '24 hours'`, [serverId, roleId, userId, input.iconId]);
+        if (!rows.length) throw new HttpError(422, 'Upload that role icon again before saving.');
+      }
       if (role.isDefault)
-        await db.query('UPDATE roles SET permissions=$2 WHERE id=$1', [roleId, input.permissions]);
+        await db.query('UPDATE roles SET permissions=$2,revision=revision+1 WHERE id=$1', [roleId, next.permissions]);
       else
-        await db.query('UPDATE roles SET name=$2, colour=$3, permissions=$4, hoist=$5 WHERE id=$1', [
+        await db.query('UPDATE roles SET name=$2, colour=$3, permissions=$4, hoist=$5,description=$6,icon_id=$7,revision=revision+1 WHERE id=$1', [
           roleId,
-          input.name,
-          input.colour,
-          input.permissions,
-          input.hoist,
+          next.name, next.colour, next.permissions, next.hoist, next.description ?? '', next.iconId ?? null,
         ]);
+      if (input.iconId !== undefined) {
+        if (input.iconId) await db.query('DELETE FROM role_image_uploads WHERE role_id=$1 AND account_id=$2 AND image_id=$3', [roleId, userId, input.iconId]);
+        if (role.iconId !== input.iconId) await new ImageService(db).collect(role.iconId, db);
+      }
     });
   }
 
@@ -107,12 +123,15 @@ export class RoleService {
       const role = await this.role(db, serverId, roleId);
       if (role.isDefault) throw new HttpError(400, '@everyone cannot be deleted.');
       this.below(access, role, 'delete');
+      const { rows: pending } = await db.query<{ imageId: string }>('SELECT image_id AS "imageId" FROM role_image_uploads WHERE role_id=$1', [roleId]);
       await db.query("DELETE FROM channel_overrides WHERE target_type='role' AND target_id=$1", [roleId]);
       await db.query("DELETE FROM category_overrides WHERE target_type='role' AND target_id=$1", [roleId]);
       await db.query('DELETE FROM roles WHERE id=$1', [roleId]);
+      await new ImageService(db).collect(role.iconId, db);
+      for (const image of pending) await new ImageService(db).collect(image.imageId, db);
       // Close the gap, so positions stay 1..n under whatever is left.
       await db.query(
-        `UPDATE roles r SET position = ranked.position FROM (
+        `UPDATE roles r SET position = ranked.position, revision=r.revision+1 FROM (
           SELECT id, row_number() OVER (ORDER BY position) AS position FROM roles WHERE server_id=$1 AND NOT is_default
         ) ranked WHERE r.id = ranked.id`,
         [serverId],
@@ -126,10 +145,12 @@ export class RoleService {
    * roles you cannot manage must stay exactly where they are; the rest may go
    * anywhere below your own highest role.
    */
-  async reorder(userId: string, serverId: string, roleIds: string[]): Promise<void> {
+  async reorder(userId: string, serverId: string, roleIds: string[], expectedOrder?: string[]): Promise<void> {
     await withServer(this.db, userId, serverId, async (db, access) => {
       requirePermission(access, Permission.ManageRoles, 'You need Manage roles to reorder roles.');
       const roles = access.roles.filter((role) => !role.isDefault);
+      if (expectedOrder && JSON.stringify(expectedOrder) !== JSON.stringify([...roles].sort((a,b) => b.position-a.position).map((role) => role.id)))
+        throw new HttpError(409, 'The role order changed. Refresh the list before reordering it.');
       if (roleIds.length !== roles.length || new Set(roleIds).size !== roles.length ||
         roleIds.some((id) => !roles.some((role) => role.id === id)))
         throw new HttpError(400, 'List every role of this server once.');
@@ -140,7 +161,7 @@ export class RoleService {
           if (role.position >= access.rank ? position !== role.position : position >= access.rank)
             throw new HttpError(403, 'You can only move roles below your highest role, and only below it.');
         }
-      for (const [id, position] of next) await db.query('UPDATE roles SET position=$2 WHERE id=$1', [id, position]);
+      for (const [id, position] of next) await db.query('UPDATE roles SET position=$2,revision=revision+1 WHERE id=$1 AND position<>$2', [id, position]);
     });
   }
 
@@ -166,6 +187,7 @@ export class RoleService {
       const current = new Set(rows.map((row) => row.roleId));
       const changed = [...wanted].filter((id) => !current.has(id)).concat([...current].filter((id) => !wanted.has(id)));
       for (const id of changed) this.below(access, access.roles.find((role) => role.id === id)!, 'give or take away');
+      for (const id of wanted) if (!current.has(id)) this.checkGrant(access, 0, access.roles.find((role) => role.id === id)!.permissions);
       await db.query('DELETE FROM member_roles WHERE server_id=$1 AND account_id=$2', [serverId, targetId]);
       for (const id of wanted)
         await db.query('INSERT INTO member_roles(server_id, account_id, role_id) VALUES($1,$2,$3)', [
@@ -177,8 +199,50 @@ export class RoleService {
     });
   }
 
-  // ------------------------------------------------------------ moderation
+  // ----------------------------------------------------- role customization
+  async stageIcon(userId: string, serverId: string, roleId: string, bytes: Buffer): Promise<string> {
+    return withServer(this.db, userId, serverId, async (db, access) => {
+      requirePermission(access, Permission.ManageRoles, 'You need Manage roles to change an icon.');
+      const role = await this.role(db, serverId, roleId);
+      this.below(access, role, 'change');
+      if (role.isDefault) throw new HttpError(400, '@everyone cannot have an icon.');
+      if (bytes.length > 2_097_152) throw new HttpError(413, 'Choose an icon smaller than 2 MB.');
+      const images = new ImageService(db);
+      const { rows: expired } = await db.query<{ imageId: string }>(
+        `DELETE FROM role_image_uploads WHERE server_id=$1 AND created_at<now()-interval '24 hours' RETURNING image_id AS "imageId"`, [serverId]);
+      for (const image of expired) await images.collect(image.imageId, db);
+      const { rows: [count] } = await db.query<{ count: string }>('SELECT count(*) FROM role_image_uploads WHERE role_id=$1 AND account_id=$2', [roleId, userId]);
+      if (Number(count.count) >= 24) throw new HttpError(429, 'Too many pending icons. Save or try again tomorrow.');
+      const imageId = await images.store(bytes, 'icon', db);
+      await db.query(`INSERT INTO role_image_uploads(server_id,role_id,account_id,image_id) VALUES($1,$2,$3,$4)
+        ON CONFLICT(role_id,account_id,image_id) DO UPDATE SET created_at=now()`, [serverId, roleId, userId, imageId]);
+      return imageId;
+    });
+  }
 
+  /** Add/remove one role without replacing a member's concurrently edited other roles. All targets succeed together. */
+  async changeRoleMembers(userId: string, serverId: string, roleId: string, add: string[], remove: string[]): Promise<void> {
+    await withServer(this.db, userId, serverId, async (db, access) => {
+      requirePermission(access, Permission.ManageRoles, 'You need Manage roles to change role members.');
+      const role = await this.role(db, serverId, roleId);
+      if (role.isDefault) throw new HttpError(400, 'Every member holds @everyone automatically.');
+      this.below(access, role, 'give or take away');
+      const added = new Set(add), removed = new Set(remove);
+      if ([...added].some((id) => removed.has(id))) throw new HttpError(400, 'A person cannot be added and removed together.');
+      if (added.size) this.checkGrant(access, 0, role.permissions);
+      for (const targetId of new Set([...added, ...removed])) {
+        const target = await rankOf(db, access, targetId);
+        if (targetId !== userId && !access.member.isOwner && (target.isOwner || target.rank >= access.rank))
+          throw new HttpError(403, 'You can only change the roles of people below you.');
+      }
+      for (const targetId of added) await db.query(`INSERT INTO member_roles(server_id,account_id,role_id) VALUES($1,$2,$3)
+        ON CONFLICT(account_id,role_id) DO NOTHING`, [serverId, targetId, roleId]);
+      for (const targetId of removed) await db.query('DELETE FROM member_roles WHERE server_id=$1 AND account_id=$2 AND role_id=$3', [serverId, targetId, roleId]);
+      if (removed.size) await pruneTags(db, serverId);
+    });
+  }
+
+  // ------------------------------------------------------------ moderation
   /** A timeout, a server mute and a server deafen, each needing its own permission. */
   async moderate(userId: string, serverId: string, targetId: string, input: ModerationInput): Promise<void> {
     await withServer(this.db, userId, serverId, async (db, access) => {

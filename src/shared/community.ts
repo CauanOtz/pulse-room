@@ -97,6 +97,10 @@ export interface Role {
   isDefault: boolean;
   /** Its members are listed under it rather than among everybody else. */
   hoist: boolean;
+  description?: string;
+  iconId?: string | null;
+  /** Optimistic concurrency token for editable role properties. */
+  revision?: number;
 }
 
 export interface Category {
@@ -141,6 +145,12 @@ export interface Community {
   /** Everything you may do in this server, before any channel has a say. */
   permissions?: number;
   iconId?: string | null;
+  description?: string;
+  bannerId?: string | null;
+  welcomeBannerId?: string | null;
+  landingChannelId?: string | null;
+  welcomeMessage?: string;
+  createdAt?: string;
   /** The server's first tag, for clients that knew only one. */
   tag?: ServerTag | null;
 }
@@ -190,6 +200,35 @@ export interface ChatMessage {
   authorName: string;
   content: string;
   createdAt: string;
+  attachments?: ChatAttachment[];
+  reactions?: ChatReaction[];
+}
+export interface ChatAttachment {
+  id: string;
+  name: string;
+  mime: string;
+  size: number;
+}
+export interface ChatReaction {
+  emoji: string;
+  count: number;
+  mine: boolean;
+}
+export interface ChannelMedia extends ChatAttachment {
+  messageId: string;
+  authorName: string;
+  createdAt: string;
+}
+export interface ChannelLink {
+  messageId: string;
+  url: string;
+  authorName: string;
+  createdAt: string;
+}
+export interface ChannelResources {
+  media: ChannelMedia[];
+  links: ChannelLink[];
+  nextBefore?: string;
 }
 export interface CommunityDetail {
   server: Community;
@@ -198,6 +237,23 @@ export interface CommunityDetail {
   roles?: Role[];
   categories?: Category[];
   tags?: ServerTagDefinition[];
+  /** Text channels visible to a new member through @everyone. Admins only. */
+  landingChannelIds?: string[];
+  /** Acknowledged per membership, never inserted as a chat message. */
+  welcomePending?: boolean;
+  /** Full channel count for people managing the server, without exposing private channel names. */
+  channelCount?: number;
+}
+
+export type ServerImageKind = 'icon' | 'banner' | 'welcomeBanner';
+export interface ServerSettingsPatch {
+  name?: string;
+  description?: string;
+  iconId?: string | null;
+  bannerId?: string | null;
+  welcomeBannerId?: string | null;
+  landingChannelId?: string | null;
+  welcomeMessage?: string;
 }
 export interface CommunityInvite {
   id: string;
