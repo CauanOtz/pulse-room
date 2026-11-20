@@ -1,11 +1,11 @@
 /* Server overview follows the supplied composition; other settings keep their own density. */
 .settings-screen.server-settings-screen {
-  background: radial-gradient(ellipse at 36% 0, rgb(255 255 255 / 0.018), transparent 62%), #101315;
+  background: radial-gradient(ellipse at 36% 0, rgb(var(--ink) / 0.018), transparent 62%), var(--lift-1);
 }
 .server-settings-screen .settings-rail {
   width: 254px;
-  background: linear-gradient(110deg, #1a1f21, #15191b);
-  border-color: rgb(255 255 255 / 0.07);
+  background: linear-gradient(110deg, var(--lift-3), var(--lift-2));
+  border-color: rgb(var(--ink) / 0.07);
 }
 .server-settings-screen .settings-rail > div {
   padding: 28px 18px 28px 20px;
@@ -43,8 +43,8 @@
   height: 18px;
 }
 .server-settings-screen .settings-nav-button[aria-pressed='true'] {
-  background: linear-gradient(120deg, #2b3337, #262d30);
-  border-color: rgb(255 255 255 / 0.09);
+  background: linear-gradient(120deg, var(--lift-5), var(--lift-4));
+  border-color: rgb(var(--ink) / 0.09);
 }
 .server-settings-screen .settings-close {
   width: 74px;
@@ -93,18 +93,18 @@
 .server-settings-card {
   min-width: 0;
   padding: 17px 24px 14px;
-  border: 1px solid rgb(255 255 255 / 0.075);
+  border: 1px solid rgb(var(--ink) / 0.075);
   border-radius: 14px;
-  background: linear-gradient(115deg, rgb(255 255 255 / 0.012), transparent 70%), #191e20;
+  background: linear-gradient(115deg, rgb(var(--ink) / 0.012), transparent 70%), var(--lift-3);
   box-shadow:
-    inset 0 1px rgb(255 255 255 / 0.02),
+    inset 0 1px rgb(var(--ink) / 0.02),
     0 6px 18px rgb(0 0 0 / 0.045);
 }
 .server-card-heading {
   margin-bottom: 15px;
 }
 .server-card-heading h3 {
-  color: #f3f4f5;
+  color: var(--text-1);
   font-size: 17px;
   font-weight: 600;
   line-height: 22px;
@@ -113,7 +113,7 @@
 .server-card-heading p {
   margin-top: 3px;
   font-size: 11.5px;
-  color: #a5adb1;
+  color: var(--text-3);
   line-height: 18px;
 }
 .server-identity-grid {
@@ -142,10 +142,10 @@
   width: 128px;
   height: 128px;
   padding: 8px;
-  border: 1px solid rgb(255 255 255 / 0.12);
+  border: 1px solid rgb(var(--ink) / 0.12);
   border-radius: 25px;
   position: relative;
-  background: #191e20;
+  background: var(--lift-3);
 }
 .server-icon-frame > img,
 .server-icon-preview {
@@ -188,7 +188,7 @@
   font-size: 12px;
   line-height: 16px;
   font-weight: 400;
-  color: #e0e4e6;
+  color: var(--text-1);
 }
 .counted-input {
   display: block;
@@ -200,10 +200,10 @@
   width: 100%;
   min-width: 0;
   margin: 0;
-  color: #edf0f2;
-  border: 1px solid rgb(255 255 255 / 0.12);
+  color: var(--text-1);
+  border: 1px solid rgb(var(--ink) / 0.12);
   border-radius: 9px;
-  background: #111719;
+  background: var(--lift-2);
   padding: 9px 13px;
   font-family: inherit;
   font-size: 12px;
@@ -236,11 +236,11 @@
   height: 48px;
 }
 .server-identity-editor .counted-input :is(input, textarea):focus {
-  border-color: #747c80;
-  box-shadow: 0 0 0 2px rgb(255 255 255 / 0.035);
+  border-color: var(--text-4);
+  box-shadow: 0 0 0 2px rgb(var(--ink) / 0.035);
 }
 .server-identity-editor .counted-input :is(input, textarea)::placeholder {
-  color: #838d93;
+  color: var(--text-4);
 }
 .counted-input > small {
   position: absolute;
@@ -250,7 +250,7 @@
   font-size: 10px;
   line-height: 16px;
   font-variant-numeric: tabular-nums;
-  color: #8e989e;
+  color: var(--text-3);
 }
 .counted-input:has(input) > small {
   top: 11px;
@@ -261,8 +261,8 @@
   isolation: isolate;
   overflow: hidden;
   border-radius: 9px;
-  border: 1px solid rgb(255 255 255 / 0.15);
-  background: #111719;
+  border: 1px solid rgb(var(--ink) / 0.15);
+  background: var(--lift-2);
 }
 .server-artwork > img {
   position: absolute;
@@ -309,9 +309,9 @@
   min-height: 39px;
   padding: 8px 14px;
   border-radius: 9px;
-  border: 1px solid rgb(255 255 255 / 0.1);
-  color: #eef0f1;
-  background: linear-gradient(130deg, rgb(255 255 255 / 0.025), transparent), #1b2124;
+  border: 1px solid rgb(var(--ink) / 0.1);
+  color: var(--text-1);
+  background: linear-gradient(130deg, rgb(var(--ink) / 0.025), transparent), var(--lift-3);
   font-size: 11px;
   font-weight: 550;
   line-height: 18px;
@@ -320,8 +320,8 @@
     border-color 160ms;
 }
 .server-settings-button:hover {
-  border-color: rgb(255 255 255 / 0.22);
-  background-color: #292f32;
+  border-color: rgb(var(--ink) / 0.22);
+  background-color: var(--lift-5);
 }
 .server-settings-button:focus-visible,
 .server-management-link:focus-visible,
@@ -332,7 +332,7 @@
 .server-settings-button.artwork-edit {
   backdrop-filter: blur(10px);
   background-color: rgb(30 37 40 / 0.84);
-  border-color: rgb(255 255 255 / 0.17);
+  border-color: rgb(var(--ink) / 0.17);
 }
 .server-banner-actions {
   display: grid;
@@ -359,7 +359,7 @@
 .artwork-remove {
   display: block;
   margin: 7px auto 0;
-  color: #a8b0b4;
+  color: var(--text-3);
   font-size: 10px;
 }
 .artwork-remove:hover {
@@ -370,7 +370,7 @@
   display: grid;
   grid-template-columns: 1fr 1fr 1.4fr;
   gap: 0;
-  border-top: 1px solid rgb(255 255 255 / 0.07);
+  border-top: 1px solid rgb(var(--ink) / 0.07);
   padding-top: 12px;
   margin-top: 10px;
 }
@@ -381,26 +381,26 @@
   min-width: 0;
   min-height: 36px;
   padding: 0 26px;
-  border-left: 1px solid rgb(255 255 255 / 0.08);
+  border-left: 1px solid rgb(var(--ink) / 0.08);
 }
 .server-facts > div:first-child {
   border-left: 0;
   padding-left: 12px;
 }
 .server-facts svg {
-  color: #b9c2c7;
+  color: var(--text-2);
   flex: none;
   stroke-width: 1.6;
 }
 .server-facts dt {
   font-size: 12px;
   font-weight: 550;
-  color: #eef1f2;
+  color: var(--text-1);
   line-height: 17px;
 }
 .server-facts dd {
   font-size: 11px;
-  color: #a2acb1;
+  color: var(--text-3);
   margin: 2px 0 0;
   line-height: 15px;
 }
@@ -474,13 +474,13 @@
   padding: 1px 0 12px;
 }
 .server-onboarding-row + .server-onboarding-row {
-  border-top: 1px solid rgb(255 255 255 / 0.07);
+  border-top: 1px solid rgb(var(--ink) / 0.07);
   padding-top: 15px;
   padding-bottom: 0;
 }
 .server-identity-editor .server-setting-explanation label {
   display: block;
-  color: #eef0f1;
+  color: var(--text-1);
   font-weight: 500;
   font-size: 12px;
   line-height: 16px;
@@ -489,13 +489,13 @@
   margin-top: 4px;
   font-size: 10.5px;
   line-height: 16px;
-  color: #a2abb0;
+  color: var(--text-3);
 }
 .server-identity-editor [role='combobox'] {
   height: 38px;
   min-width: 0;
-  background: #111719;
-  border: 1px solid rgb(255 255 255 / 0.12);
+  background: var(--lift-2);
+  border: 1px solid rgb(var(--ink) / 0.12);
   border-radius: 9px;
   padding-inline: 13px;
   font-size: 12px;
@@ -544,15 +544,15 @@
   min-width: 0;
   padding: 10px 11px;
   border-radius: 10px;
-  border: 1px solid rgb(255 255 255 / 0.09);
-  background: linear-gradient(115deg, rgb(255 255 255 / 0.015), transparent);
+  border: 1px solid rgb(var(--ink) / 0.09);
+  background: linear-gradient(115deg, rgb(var(--ink) / 0.015), transparent);
   transition:
     background 160ms,
     border-color 160ms;
 }
 .server-management-link:hover {
-  background: rgb(255 255 255 / 0.035);
-  border-color: rgb(255 255 255 / 0.18);
+  background: rgb(var(--ink) / 0.035);
+  border-color: rgb(var(--ink) / 0.18);
 }
 .management-icon {
   display: grid;
@@ -560,10 +560,10 @@
   flex: none;
   width: 50px;
   height: 50px;
-  border: 1px solid rgb(255 255 255 / 0.075);
+  border: 1px solid rgb(var(--ink) / 0.075);
   border-radius: 12px;
-  background: linear-gradient(135deg, #2a3236, #242b2e);
-  box-shadow: inset 0 1px rgb(255 255 255 / 0.02);
+  background: linear-gradient(135deg, var(--lift-5), var(--lift-4));
+  box-shadow: inset 0 1px rgb(var(--ink) / 0.02);
 }
 .management-icon svg {
   width: 23px;
@@ -585,11 +585,11 @@
   font-size: 10.5px;
   line-height: 16px;
   margin-top: 3px;
-  color: #a4adb2;
+  color: var(--text-3);
   max-width: 200px;
 }
 .server-management-link > svg {
-  color: #a8b2b8;
+  color: var(--text-2);
   flex: none;
 }
 .server-settings-card.server-danger-zone {
@@ -607,7 +607,7 @@
 }
 .server-danger-zone p {
   font-size: 11px;
-  color: #a5adb2;
+  color: var(--text-3);
   margin-top: 2px;
   line-height: 16px;
 }
@@ -630,7 +630,7 @@
   gap: 12px;
   margin: 18px 0 0;
   padding: 12px 16px;
-  border: 1px solid #4b555b;
+  border: 1px solid var(--lift-6);
   border-radius: 11px;
   background: rgb(28 35 39 / 0.97);
   backdrop-filter: blur(18px);
@@ -647,8 +647,8 @@
   gap: 8px;
   min-height: 34px;
   border-radius: 7px;
-  background: #e8ebed;
-  color: #171c1f;
+  background: var(--text-1);
+  color: var(--lift-3);
   padding: 7px 14px;
   font-size: 12px;
   font-weight: 550;
@@ -659,7 +659,7 @@
 .server-reset-button {
   min-height: 34px;
   padding-inline: 10px;
-  color: #c7cfd3;
+  color: var(--text-2);
 }
 .server-reset-button:hover {
   color: #fff;
@@ -682,7 +682,7 @@
   align-items: center;
   gap: 7px;
   margin-top: 12px;
-  color: #bec7cc;
+  color: var(--text-2);
   font-size: 11px;
 }
 .server-preview-modal {
@@ -759,7 +759,7 @@
   padding: 20px 0 0;
 }
 .server-welcome-body p {
-  color: #bdc6cb;
+  color: var(--text-2);
   font-size: 14px;
   line-height: 22px;
   white-space: pre-wrap;

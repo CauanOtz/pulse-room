@@ -1,4 +1,5 @@
-import { MonitorUp, PhoneOff } from 'lucide-react';
+import { ArrowUpRight, Info, MonitorUp, MonitorX, PhoneOff, Users } from 'lucide-react';
+import { keysOf } from '../../shared/shortcuts';
 import { cn } from './ui/utils';
 import type { ConnectionReport, ConnectionState, SignalQuality } from '../domain/conference';
 import { ConnectionDetails } from './connection-details';
@@ -36,72 +37,69 @@ export function VoicePanel(props: VoicePanelProps) {
         : 'Voice connected';
 
   return (
-    <section
-      className="voice-panel mx-2 mb-2 flex flex-col gap-2 rounded-lg border border-border bg-secondary/45 p-2.5 shadow-[var(--gloss)]"
-      aria-label="Voice status"
-    >
-      <div className="voice-status flex items-center gap-1">
-        <div className="flex min-w-0 flex-1 flex-col gap-0.5 px-1 py-0.5 leading-tight">
-          <ConnectionHeading
-            heading={heading}
-            troubled={reconnecting || troubled}
-            signal={props.signal ?? (reconnecting ? 'poor' : 'excellent')}
-            read={props.readConnection}
-          />
-          <button
-            className={cn(
-              'group flex min-w-0 items-center text-left',
-              props.onReturn ? 'cursor-pointer focus-visible:outline-none' : 'cursor-default',
-            )}
-            type="button"
-            aria-label={props.onReturn ? 'Return to call' : 'Current call'}
-            disabled={!props.onReturn}
-            onClick={props.onReturn}
+    <section className={cn('voice-panel', props.screenSharing && 'is-sharing')} aria-label="Voice status">
+      <div className="voice-status">
+        <ConnectionHeading
+          heading={heading}
+          troubled={reconnecting || troubled}
+          signal={props.signal ?? (reconnecting ? 'poor' : 'excellent')}
+          read={props.readConnection}
+        />
+        <div className="voice-actions">
+          <Tooltip
+            label={props.screenSharing ? 'Stop sharing' : 'Share your screen'}
+            shortcut={keysOf('share')}
           >
-            <span className="flex min-w-0 flex-1 flex-col leading-tight">
-              {/* The path reads the way you would say it out loud. */}
-              <span className="truncate text-xs text-muted-foreground group-hover:underline group-focus-visible:underline [text-underline-offset:3px]">
-                {props.channelName}
-                {props.serverName && <span className="text-muted-foreground/60"> / {props.serverName}</span>}
-                {props.headcount !== undefined && (
-                  <span className="text-muted-foreground/60">
-                    {' '}
-                    · {props.headcount} {props.headcount === 1 ? 'person' : 'people'}
-                  </span>
-                )}
-              </span>
-            </span>
-          </button>
+            <button
+              className={cn('voice-share voice-action', props.screenSharing && 'is-sharing')}
+              type="button"
+              aria-label={props.screenSharing ? 'Stop sharing' : 'Share full screen'}
+              onClick={props.onShare}
+            >
+              {props.screenSharing ? <MonitorX size={16} /> : <MonitorUp size={16} />}
+            </button>
+          </Tooltip>
+          <Tooltip label="Disconnect" shortcut={keysOf('leave')}>
+            <button
+              className="voice-action voice-leave"
+              type="button"
+              aria-label="Leave call"
+              disabled={props.busy}
+              onClick={props.onLeave}
+            >
+              <PhoneOff size={15} />
+            </button>
+          </Tooltip>
         </div>
-        <Tooltip label="Disconnect">
-          <button
-            className="grid size-7.5 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
-            type="button"
-            aria-label="Leave call"
-            disabled={props.busy}
-            onClick={props.onLeave}
-          >
-            <PhoneOff size={15} />
-          </button>
-        </Tooltip>
       </div>
-
       <button
-        className={cn(
-          'voice-share flex h-8 w-full items-center justify-center gap-2 rounded-md border border-border bg-card/70 text-xs font-semibold text-foreground transition-colors',
-          'hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-          props.screenSharing && 'is-sharing border-destructive/40 bg-destructive/12 text-destructive',
-        )}
+        className={cn('voice-where', props.onReturn ? 'is-link' : undefined)}
         type="button"
-        aria-label={props.screenSharing ? 'Stop sharing' : 'Share full screen'}
-        onClick={props.onShare}
+        aria-label={props.onReturn ? 'Return to call' : 'Current call'}
+        disabled={!props.onReturn}
+        onClick={props.onReturn}
       >
-        {props.screenSharing ? (
-          <span className="size-1.5 shrink-0 rounded-full bg-destructive" />
-        ) : (
-          <MonitorUp size={14} />
+        {/* The path reads the way you would say it out loud. */}
+        <span className="voice-where-name">{props.channelName}</span>
+        {props.serverName && <span className="voice-where-server"> / {props.serverName}</span>}
+        {props.headcount !== undefined && (
+          <>
+            <span className="sr-only">
+              {' '}
+              · {props.headcount} {props.headcount === 1 ? 'person' : 'people'}
+            </span>
+            <span className="voice-where-count font-mono" aria-hidden="true">
+              {String(props.headcount).padStart(2, '0')}
+              <Users size={11} />
+            </span>
+          </>
         )}
-        {props.screenSharing ? 'Stop sharing' : 'Share screen'}
+        {props.screenSharing && (
+          <span className="voice-where-live">
+            <i /> Live
+          </span>
+        )}
+        {props.onReturn && <ArrowUpRight className="voice-where-go" size={13} aria-hidden="true" />}
       </button>
     </section>
   );
@@ -141,15 +139,32 @@ function ConnectionHeading({
     <Popover>
       <PopoverTrigger asChild>
         <button
-          className="connection-heading flex min-w-0 items-center gap-2 self-start rounded-sm text-left hover:[&>strong]:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [text-underline-offset:3px]"
+          className="connection-heading flex min-w-0 items-center gap-2 self-start rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           type="button"
           aria-label={`${heading}: connection details`}
         >
           {content}
         </button>
       </PopoverTrigger>
-      <PopoverContent side="top" align="start" sideOffset={14} className="w-80 p-4" aria-label="Connection">
-        <h3 className="mb-3 text-sm font-semibold text-foreground">Connection</h3>
+      <PopoverContent
+        side="top"
+        align="start"
+        sideOffset={14}
+        className="connection-popover w-80 p-4"
+        aria-label="Connection"
+      >
+        <header className="connection-head">
+          <h3>Connection</h3>
+          <Tooltip
+            side="right"
+            className="max-w-72 leading-relaxed"
+            label="Audio starts to feel late from about 250 ms. Loss above 10% makes your voice sound robotic to everyone else. If both are low here and somebody still sounds choppy, the trouble is on their line."
+          >
+            <button type="button" className="connection-info" aria-label="What these numbers mean">
+              <Info size={14} />
+            </button>
+          </Tooltip>
+        </header>
         <ConnectionDetails read={read} />
       </PopoverContent>
     </Popover>

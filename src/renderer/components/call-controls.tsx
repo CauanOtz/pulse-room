@@ -4,6 +4,7 @@ import { StreamMenu } from './stream-menu';
 import { DropdownMenu, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { Tooltip } from './ui/tooltip';
 import { cn } from './ui/utils';
+import { keysOf } from '../../shared/shortcuts';
 
 interface CallControlsProps {
   microphoneEnabled: boolean;
@@ -29,7 +30,7 @@ export function CallControls(props: CallControlsProps) {
       className="call-dock flex items-center gap-1.5 rounded-xl border border-border bg-popover p-1.5 shadow-lg shadow-black/30"
       aria-label="Call controls"
     >
-      <Tooltip label={props.microphoneEnabled ? 'Mute' : 'Unmute'}>
+      <Tooltip label={props.microphoneEnabled ? 'Mute' : 'Unmute'} shortcut={keysOf('mute')}>
         <button
           className={cn(
             'grid size-9 place-items-center rounded-lg bg-secondary text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
@@ -45,7 +46,7 @@ export function CallControls(props: CallControlsProps) {
         </button>
       </Tooltip>
 
-      <Tooltip label={props.deafened ? 'Undeafen' : 'Deafen'}>
+      <Tooltip label={props.deafened ? 'Undeafen' : 'Deafen'} shortcut={keysOf('deafen')}>
         <button
           className={cn(
             'grid size-9 place-items-center rounded-lg bg-secondary text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
@@ -62,7 +63,7 @@ export function CallControls(props: CallControlsProps) {
       </Tooltip>
 
       <span className="dock-split flex items-center">
-        <Tooltip label={props.screenSharing ? 'Stop sharing' : 'Share your screen'}>
+        <Tooltip label={props.screenSharing ? 'Stop sharing' : 'Share your screen'} shortcut={keysOf('share')}>
           <button
             className={cn(
               'grid size-9 place-items-center rounded-lg bg-secondary text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
@@ -97,7 +98,7 @@ export function CallControls(props: CallControlsProps) {
       </span>
 
       <span className="call-divider" aria-hidden="true" />
-      <Tooltip label="Audio settings">
+      <Tooltip label="Audio settings" shortcut={keysOf('settings')}>
         <button
           className="grid size-9 place-items-center rounded-lg bg-secondary text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           type="button"
@@ -108,7 +109,7 @@ export function CallControls(props: CallControlsProps) {
         </button>
       </Tooltip>
 
-      <Tooltip label="Disconnect">
+      <Tooltip label="Disconnect" shortcut={keysOf('leave')}>
         <button
           className="leave-button grid size-9 place-items-center rounded-lg bg-primary text-primary-foreground transition-colors hover:bg-destructive hover:text-destructive-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
           type="button"

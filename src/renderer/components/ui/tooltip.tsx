@@ -31,18 +31,20 @@ export function Tooltip({ label, children, side = 'top', shortcut, className }: 
           sideOffset={8}
           collisionPadding={12}
           className={cn(
-            'pulse-tooltip z-50 flex max-w-64 items-center gap-2 rounded-lg border border-border bg-popover px-2.5 py-1.5',
-            'text-xs font-medium text-popover-foreground shadow-lg will-change-[transform,opacity]',
+            'pulse-tooltip z-50 flex max-w-64 items-center gap-2 rounded-[10px] px-2.5 py-1.5',
+            'text-xs font-medium will-change-[transform,opacity]',
             className,
           )}
         >
-          {label}
+          <span className="pulse-tooltip-label">{label}</span>
           {shortcut && (
-            <kbd className="rounded border border-border bg-secondary px-1.5 py-0.5 font-sans text-[10px] text-muted-foreground">
-              {shortcut}
-            </kbd>
+            <span className="pulse-tooltip-keys" aria-label={`Shortcut ${shortcut}`}>
+              {shortcut.split('+').map((key) => (
+                <kbd key={key}>{key}</kbd>
+              ))}
+            </span>
           )}
-          <Primitive.Arrow className="fill-popover" width={10} height={5} />
+          <Primitive.Arrow className="pulse-tooltip-arrow" width={10} height={5} />
         </Primitive.Content>
       </Primitive.Portal>
     </Primitive.Root>

@@ -1,4 +1,5 @@
 import { Compass, Plus, UserRound } from 'lucide-react';
+import { motion } from 'motion/react';
 import appIconUrl from '../../../assets/app-icon.png';
 import type { Community } from '../../shared/community';
 import { Avatar } from './avatar';
@@ -59,7 +60,7 @@ export function ServerRail({
             'server-button grid size-9.5 shrink-0 place-items-center rounded-[13px] bg-secondary text-[10px] font-bold text-secondary-foreground transition-[border-radius,background-color,color] duration-150',
             'hover:rounded-[10px] hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             server.active &&
-              'is-active rounded-[10px] bg-accent text-foreground ring-1 ring-inset ring-white/10',
+              'is-active rounded-[10px] bg-accent text-foreground ring-1 ring-inset ring-[rgb(var(--ink)/0.1)]',
           )}
           key={server.id}
           type="button"
@@ -68,6 +69,14 @@ export function ServerRail({
           aria-current={server.active}
           onClick={() => onSelect?.(server.id)}
         >
+          {server.active && (
+            <motion.span
+              layoutId="server-selection"
+              className="server-selection"
+              aria-hidden="true"
+              transition={{ type: 'spring', stiffness: 480, damping: 36 }}
+            />
+          )}
           <span className="server-indicator" aria-hidden="true" />
           <Avatar
             className="server-picture size-full overflow-hidden rounded-[inherit]"

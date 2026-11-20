@@ -1,10 +1,33 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Headphones, Maximize2, Minimize2, MonitorUp, Radio, ShieldCheck, Volume2, X } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
+import {
+  ArrowLeft,
+  ExternalLink,
+  Headphones,
+  LayoutGrid,
+  Maximize2,
+  Minimize2,
+  MonitorUp,
+  Radio,
+  ShieldCheck,
+  Square,
+  SquareStack,
+  Volume2,
+} from 'lucide-react';
 import type { Participant } from '../domain/conference';
 import { MediaOutput } from './media-output';
+import { LiveStreamNavigation, LiveVoicePeers } from './live-stream-navigation';
 import { cn } from './ui/utils';
 import { ParticipantTiles } from './participant-tiles';
+import { Tooltip } from './ui/tooltip';
 import { VoiceWaveform } from './voice-waveform';
+import {
+  openLiveWindow,
+  openLiveWindowIds,
+  subscribeLiveWindows,
+  updateLiveWindow,
+} from '../infrastructure/media/live-windows';
+
+const noWindows: string[] = [];
 
 /** One empty list, so "nobody is being watched" is the same value each time. */
 const nobody: string[] = [];
@@ -51,9 +74,34 @@ export function Stage({
   // and only the menu on a tile hangs up on one.
   const [openId, setOpenId] = useState<string>();
   const [closed, setClosed] = useState(false);
-  const openedId = openId && watched.includes(openId) ? openId : watched[0];
+  const available = (id: string) => broadcasts.some((broadcast) => broadcast.id === id);
+  const openedId = openId && watched.includes(openId) && available(openId) ? openId : watched.find(available);
   const active = closed ? undefined : broadcasts.find((broadcast) => broadcast.id === openedId);
   const picture = active?.screenStream?.getVideoTracks().length ? active.screenStream : undefined;
+  // Every screen this client took and can draw, for watching them side by side.
+  const received = broadcasts.filter(
+    (broadcast) => watched.includes(broadcast.id) && broadcast.screenStream?.getVideoTracks().length,
+  );
+  const [sideBySide, setSideBySide] = useState(false);
+  const mosaic = sideBySide && received.length > 1;
+
+  // Screens popped out into windows follow the person: a new stream replaces
+  // the old one, and an ended live says so instead of freezing.
+  const poppedOut = useSyncExternalStore(subscribeLiveWindows, openLiveWindowIds, () => noWindows);
+  useEffect(() => {
+    for (const id of poppedOut) {
+      const person = participants.find((participant) => participant.id === id);
+      const stream =
+        person?.isBroadcasting && watched.includes(id) && person.screenStream?.getVideoTracks().length
+          ? person.screenStream
+          : undefined;
+      updateLiveWindow(id, person?.name ?? 'Live', stream);
+    }
+  }, [participants, poppedOut, watched]);
+  const popOut = useCallback((participant: Participant) => {
+    const stream = participant.screenStream;
+    if (stream?.getVideoTracks().length) openLiveWindow(participant.id, participant.name, stream);
+  }, []);
 
   const open = useCallback((participantId: string) => {
     setOpenId(participantId);
@@ -125,18 +173,12 @@ export function Stage({
   const focus = useCallback(
     (participant: Participant) => {
       if (!participant.isBroadcasting) return;
-      if (!watched.includes(participant.id)) {
-        onWatch(participant.id, true);
-        open(participant.id);
-        return;
-      }
-      // Already taken. The one filling the room says "Stop watching" and
-      // means it: the stream is handed back, and the next one taken, if any,
-      // fills the room instead. Any other is brought up to fill it.
-      if (participant.id === activeId) onWatch(participant.id, false);
-      else open(participant.id);
+      if (!watched.includes(participant.id)) onWatch(participant.id, true);
+      // Choosing a view never leaves another stream, including one still
+      // connecting. Unsubscribing belongs to the explicit Stop watching action.
+      open(participant.id);
     },
-    [activeId, onWatch, open, watched],
+    [onWatch, open, watched],
   );
 
   if (!joined) {
@@ -172,7 +214,9 @@ export function Stage({
         ref={stageRef}
       >
         <div className="voice-session-meta">
-          <span><Radio size={13} aria-hidden="true" /> Voice room</span>
+          <span>
+            <Radio size={13} aria-hidden="true" /> Voice room
+          </span>
           <span>{participants.length} connected</span>
         </div>
         <button
@@ -217,7 +261,9 @@ export function Stage({
   return (
     <section
       className={cn(
-        'stage stage-live relative size-full overflow-hidden rounded-xl border border-border bg-stage shadow-[var(--gloss)]',
+        'stage stage-live live-workspace relative size-full overflow-hidden rounded-xl border border-border bg-stage shadow-[var(--gloss)]',
+        broadcasts.length > 1 && !mosaic && 'has-stream-navigation',
+        mosaic && 'is-mosaic',
         !controlsVisible && 'is-idle cursor-none',
       )}
       ref={stageRef}
@@ -227,19 +273,27 @@ export function Stage({
     >
       <div
         className={cn(
-          'live-toolbar absolute inset-x-0 top-0 z-2 flex items-center justify-between gap-3 px-4 py-3 transition-opacity duration-200',
-          'bg-gradient-to-b from-black/80 to-transparent',
+          'live-toolbar z-2 flex items-center justify-between gap-3 px-4 py-3 transition-opacity duration-200',
           controlsVisible ? 'opacity-100' : 'is-hidden pointer-events-none opacity-0',
         )}
         onMouseEnter={holdControls}
         onMouseMove={holdControls}
       >
         <div className="live-source flex min-w-0 items-center gap-2 truncate text-xs font-medium text-foreground">
-          <span className="live-pulse size-1.5 shrink-0 rounded-full bg-destructive" /> Live from{' '}
-          {active.isLocal ? 'your screen' : active.name}
+          <span className="live-pulse" aria-hidden="true" />
+          {mosaic ? (
+            <>
+              <SquareStack size={15} aria-hidden="true" /> {received.length} screens side by side
+            </>
+          ) : (
+            <>
+              <MonitorUp size={15} aria-hidden="true" /> Live from{' '}
+              {active.isLocal ? 'your screen' : active.name}
+            </>
+          )}
         </div>
 
-        <div className="live-tools flex items-center gap-3">
+        <div className="live-tools flex items-center gap-2">
           {!active.isLocal && (
             <label className="live-volume flex items-center gap-2 text-xs text-muted-foreground">
               <Volume2 size={15} />
@@ -254,61 +308,158 @@ export function Stage({
               <span>{screenVolume}%</span>
             </label>
           )}
-
-          <button
-            className="live-action inline-flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground shadow-[var(--gloss)] transition-colors hover:bg-secondary hover:text-foreground"
-            type="button"
-            onClick={toggleFullScreen}
-            aria-label={fullScreen ? 'Exit full screen' : 'Enter full screen'}
+          <span className="live-tools-rule" aria-hidden="true" />
+          {received.length > 1 && (
+            <Tooltip label={mosaic ? 'One at a time' : 'Side by side'} side="bottom">
+              <button
+                className="live-action is-icon"
+                type="button"
+                aria-label={mosaic ? 'One at a time' : 'Side by side'}
+                aria-pressed={mosaic}
+                onClick={() => setSideBySide(!mosaic)}
+              >
+                <LayoutGrid size={16} />
+              </button>
+            </Tooltip>
+          )}
+          {!mosaic && (
+            <Tooltip label="Open in a new window" side="bottom">
+              <button
+                className="live-action is-icon"
+                type="button"
+                aria-label={`Open ${active.isLocal ? 'your screen' : active.name} in a window`}
+                onClick={() => popOut(active)}
+              >
+                <ExternalLink size={16} />
+              </button>
+            </Tooltip>
+          )}
+          <Tooltip
+            label={fullScreen ? 'Exit full screen' : 'Full screen'}
+            shortcut="Double-click"
+            side="bottom"
           >
-            {fullScreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
-            <span>{fullScreen ? 'Exit' : 'Full screen'}</span>
-          </button>
-
-          <button
-            className="live-action inline-flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground shadow-[var(--gloss)] transition-colors hover:bg-secondary hover:text-foreground"
-            type="button"
-            onClick={() => setClosed(true)}
-            aria-label="Back to the room"
-          >
-            <X size={15} />
-            <span>Back to the room</span>
-          </button>
+            <button
+              className="live-action is-icon"
+              type="button"
+              onClick={toggleFullScreen}
+              aria-label={fullScreen ? 'Exit full screen' : 'Enter full screen'}
+            >
+              {fullScreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+            </button>
+          </Tooltip>
+          <Tooltip label="Stop watching" side="bottom">
+            <button
+              className="live-action live-stop is-icon"
+              type="button"
+              aria-label={`Stop watching ${active.name}`}
+              onClick={() => onWatch(active.id, false)}
+              onContextMenu={(event) => {
+                if (!onOptions || active.isLocal) return;
+                event.preventDefault();
+                onOptions(active, { x: event.clientX, y: event.clientY });
+              }}
+            >
+              <Square size={14} />
+            </button>
+          </Tooltip>
+          <Tooltip label="Back to the room" side="bottom">
+            <button
+              className="live-action is-icon"
+              type="button"
+              onClick={() => setClosed(true)}
+              aria-label="Back to the room"
+            >
+              <ArrowLeft size={16} />
+            </button>
+          </Tooltip>
         </div>
       </div>
 
-      <div className="live-surface absolute inset-0 flex bg-stage" onDoubleClick={toggleFullScreen}>
-        <MediaOutput
-          key={active.id}
-          stream={picture}
-          // The room plays the sound of a screen, so this element never does:
-          // one owner means leaving a stream cannot take its music away.
-          muted
-          speakerDeviceId={speakerDeviceId}
-          video
-          className={expandLevels ? 'screen-video is-expanded' : 'screen-video'}
-        />
+      <div className="live-player-body">
+        {mosaic ? (
+          <div className="live-mosaic" data-count={Math.min(received.length, 4)}>
+            {received.map((person) => (
+              <figure key={person.id} className="live-mosaic-cell">
+                <button
+                  type="button"
+                  className="live-mosaic-picture"
+                  aria-label={`Show only ${person.name}`}
+                  onClick={() => {
+                    setSideBySide(false);
+                    open(person.id);
+                  }}
+                  onContextMenu={(event) => {
+                    if (!onOptions || person.isLocal) return;
+                    event.preventDefault();
+                    onOptions(person, { x: event.clientX, y: event.clientY });
+                  }}
+                >
+                  <MediaOutput
+                    stream={person.screenStream}
+                    muted
+                    video
+                    label={`${person.name} screen`}
+                    className={expandLevels ? 'screen-video is-expanded' : 'screen-video'}
+                  />
+                </button>
+                <figcaption>
+                  <span className="live-dot" aria-hidden="true" />
+                  <span className="min-w-0 truncate">{person.isLocal ? 'Your screen' : person.name}</span>
+                  <button
+                    type="button"
+                    className="live-mosaic-tool"
+                    aria-label={`Open ${person.name} in a window`}
+                    onClick={() => popOut(person)}
+                  >
+                    <ExternalLink size={13} />
+                  </button>
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+        ) : (
+          <div className="live-surface flex bg-stage" onDoubleClick={toggleFullScreen}>
+            <MediaOutput
+              key={active.id}
+              stream={picture}
+              // The room plays the sound of a screen, so this element never does:
+              // one owner means leaving a stream cannot take its music away.
+              muted
+              speakerDeviceId={speakerDeviceId}
+              video
+              className={expandLevels ? 'screen-video is-expanded' : 'screen-video'}
+            />
+          </div>
+        )}
+        {broadcasts.length > 1 && !mosaic && (
+          <LiveStreamNavigation
+            participants={broadcasts}
+            watching={watched}
+            activeId={active.id}
+            avatars={avatars}
+            onSelect={focus}
+            onStop={(id) => onWatch(id, false)}
+            onOptions={onOptions}
+          />
+        )}
       </div>
 
       <div
         className={cn(
-          'live-overlay pointer-events-none absolute inset-x-0 bottom-0 z-2 flex flex-col items-center gap-2 p-3 transition-opacity duration-200',
+          'live-overlay live-player-footer z-2 transition-opacity duration-200',
           '[&_*]:pointer-events-auto',
           controlsVisible ? 'opacity-100' : 'is-hidden opacity-0 [&_*]:pointer-events-none',
         )}
         onMouseEnter={holdControls}
         onMouseMove={holdControls}
       >
-        <ParticipantTiles
+        <LiveVoicePeers
+          participants={participants.filter((person) => !person.isBroadcasting)}
           avatars={avatars}
-          participants={participants}
-          watching={watched}
-          focusedId={active.id}
-          layout="strip"
-          onFocus={focus}
           onOptions={onOptions}
         />
-        {children}
+        <div className="live-player-controls">{children}</div>
       </div>
     </section>
   );

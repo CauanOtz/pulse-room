@@ -12,6 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { GooeyFilter, StatusTooltip } from './status-tooltip';
 import { Tooltip } from './ui/tooltip';
 import { cn } from './ui/utils';
+import { keysOf } from '../../shared/shortcuts';
 
 interface ProfileBarProps {
   displayName: string;
@@ -99,7 +100,7 @@ export function ProfileBar(props: ProfileBarProps) {
       </Popover>
 
       <span className="device-control flex items-center rounded-md bg-secondary/70">
-        <Tooltip label={props.microphoneEnabled ? 'Mute' : 'Unmute'}>
+        <Tooltip label={props.microphoneEnabled ? 'Mute' : 'Unmute'} shortcut={keysOf('mute')}>
           <Button
             variant="ghost"
             size="icon-sm"
@@ -125,7 +126,7 @@ export function ProfileBar(props: ProfileBarProps) {
       </span>
 
       <span className="device-control flex items-center rounded-md bg-secondary/70">
-        <Tooltip label={props.deafened ? 'Undeafen' : 'Deafen'}>
+        <Tooltip label={props.deafened ? 'Undeafen' : 'Deafen'} shortcut={keysOf('deafen')}>
           <Button
             variant="ghost"
             size="icon-sm"
@@ -147,7 +148,7 @@ export function ProfileBar(props: ProfileBarProps) {
       </span>
 
       <span className="flex items-center">
-        <Tooltip label="Audio settings">
+        <Tooltip label="Audio settings" shortcut={keysOf('settings')}>
           <Button
             variant="ghost"
             size="icon-sm"

@@ -21,7 +21,7 @@ export function PopoverContent({
         sideOffset={sideOffset}
         collisionPadding={12}
         className={cn(
-          'z-50 w-72 rounded-xl border border-border bg-popover p-4 text-popover-foreground shadow-2xl outline-none',
+          'pulse-pop z-50 w-72 rounded-xl border border-border bg-popover p-4 text-popover-foreground shadow-2xl outline-none',
           className,
         )}
         {...props}

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { LoaderCircle, Monitor, Volume2 } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
+import { Check, LoaderCircle, Monitor, Volume2 } from 'lucide-react';
 import type { CaptureSource } from '../../shared/desktop-api';
 import { Button } from './ui/button';
 import {
@@ -50,7 +51,7 @@ export function SourcePicker({ open, onClose, onSelect }: SourcePickerProps) {
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
       <DialogContent
-        className="source-dialog w-[min(46rem,calc(100vw-2rem))]"
+        className="source-dialog w-[min(52rem,calc(100vw-2rem))]"
         onOpenAutoFocus={(event) => event.preventDefault()}
       >
         <DialogHeader className="items-start">
@@ -69,44 +70,62 @@ export function SourcePicker({ open, onClose, onSelect }: SourcePickerProps) {
             Finding displays…
           </DialogBody>
         ) : sources.length > 0 ? (
-          <DialogBody className="source-grid grid grid-cols-2 gap-3 space-y-0">
-            {sources.map((source) => {
+          <DialogBody
+            className="source-grid grid grid-cols-2 gap-3 space-y-0"
+            onKeyDown={(event) => {
+              const index = sources.findIndex((source) => source.id === selectedId);
+              if (event.key === 'Enter') onSelect(selectedId);
+              const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
+              if (!step) return;
+              event.preventDefault();
+              setSelectedId(sources[(index + step + sources.length) % sources.length]?.id);
+            }}
+          >
+            {sources.map((source, index) => {
               const selected = selectedId === source.id;
               return (
-                <button
+                <motion.button
                   key={source.id}
-                  className={cn(
-                    'source-card group/source flex flex-col gap-2 rounded-xl p-2 text-left transition-colors',
-                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                    selected ? 'is-selected bg-secondary' : 'hover:bg-accent',
-                  )}
+                  className={cn('source-card', selected && 'is-selected')}
                   type="button"
                   aria-pressed={selected}
+                  initial={{ opacity: 0, y: 12, scale: 0.97 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ delay: 0.05 * index, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
                   onClick={() => setSelectedId(source.id)}
                   onDoubleClick={() => onSelect(source.id)}
                 >
                   {/* One box, whatever shape the monitor is, and the whole
                       picture inside it rather than a crop of the middle. */}
-                  <span
-                    className={cn(
-                      'grid aspect-video w-full place-items-center overflow-hidden rounded-lg bg-background',
-                      selected
-                        ? 'shadow-[inset_0_0_0_2px_var(--primary)]'
-                        : 'shadow-[inset_0_0_0_1px_var(--border)]',
+                  <span className="source-frame">
+                    <img src={source.thumbnailDataUrl} alt="" />
+                    {selected && (
+                      <motion.span
+                        layoutId="source-selection"
+                        className="source-ring"
+                        transition={{ type: 'spring', stiffness: 480, damping: 38 }}
+                      />
                     )}
-                  >
-                    <img className="size-full object-contain" src={source.thumbnailDataUrl} alt="" />
+                    <span className="source-index font-mono">{String(index + 1).padStart(2, '0')}</span>
+                    <AnimatePresence>
+                      {selected && (
+                        <motion.span
+                          className="source-check"
+                          initial={{ scale: 0.3, opacity: 0, rotate: -40 }}
+                          animate={{ scale: 1, opacity: 1, rotate: 0 }}
+                          exit={{ scale: 0.3, opacity: 0 }}
+                          transition={{ type: 'spring', stiffness: 520, damping: 26 }}
+                        >
+                          <Check size={13} strokeWidth={3} />
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
                   </span>
-                  <span
-                    className={cn(
-                      'flex min-w-0 items-center gap-2 px-0.5 text-xs font-medium',
-                      selected ? 'text-foreground' : 'text-muted-foreground',
-                    )}
-                  >
-                    <Monitor aria-hidden="true" className="size-4 shrink-0" />
+                  <span className="source-name">
+                    <Monitor aria-hidden="true" className="size-3.5 shrink-0" />
                     <span className="truncate">{source.name}</span>
                   </span>
-                </button>
+                </motion.button>
               );
             })}
           </DialogBody>
@@ -118,10 +137,19 @@ export function SourcePicker({ open, onClose, onSelect }: SourcePickerProps) {
           </DialogBody>
         )}
 
-        <footer className="flex items-center gap-2 border-t border-border px-5 py-4">
-          <span className="audio-badge mr-auto flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
+        <footer className="source-footer flex items-center gap-2 border-t border-border px-5 py-4">
+          <span className="audio-badge mr-auto">
+            <span className="audio-bars" aria-hidden="true">
+              <i />
+              <i />
+              <i />
+            </span>
             <Volume2 aria-hidden="true" className="size-3.5" />
             System audio on
+          </span>
+          <span className="source-hint" aria-hidden="true">
+            <kbd>←</kbd>
+            <kbd>→</kbd> choose <kbd>Enter</kbd> share
           </span>
           <Button variant="ghost" type="button" onClick={onClose}>
             Cancel

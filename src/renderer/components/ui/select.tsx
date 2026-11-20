@@ -40,7 +40,7 @@ export function SelectContent({ className, children, ...props }: ComponentProps<
         sideOffset={6}
         collisionPadding={12}
         className={cn(
-          'z-50 max-h-[min(20rem,var(--radix-select-content-available-height))] w-[var(--radix-select-trigger-width)]',
+          'pulse-pop z-50 max-h-[min(20rem,var(--radix-select-content-available-height))] w-[var(--radix-select-trigger-width)]',
           'overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-xl',
           className,
         )}

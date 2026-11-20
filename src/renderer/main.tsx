@@ -1,5 +1,6 @@
 import '@fontsource-variable/schibsted-grotesk';
 import '@fontsource-variable/jetbrains-mono';
+import '@fontsource/instrument-serif/400-italic.css';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { App } from './app';

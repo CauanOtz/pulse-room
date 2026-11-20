@@ -1,8 +1,9 @@
-import { memo, type ReactNode } from 'react';
+import { memo, type CSSProperties, type ReactNode } from 'react';
 import { Eye, MicOff, MonitorUp, Tv } from 'lucide-react';
 import type { Participant } from '../domain/conference';
 import { accountOf } from '../domain/roster';
 import { Avatar } from './avatar';
+import { BroadcastCard } from './broadcast-card';
 import { MediaOutput } from './media-output';
 import { SignalBars } from './signal-bars';
 import { cn } from './ui/utils';
@@ -41,13 +42,18 @@ export function ParticipantTiles({
   onFocus,
   onOptions,
 }: ParticipantTilesProps) {
-  const tile = (participant: Participant, featured = false) => (
+  // Everyone keeps their place in the sheet: the speaker is marked where they
+  // stand rather than pulled to the front, so faces never shuffle mid-sentence.
+  const placeOf = (participant: Participant) => participants.indexOf(participant);
+  const tile = (participant: Participant, featured = false, avatarOnly = false) => (
     <ParticipantTile
       key={participant.id}
+      index={placeOf(participant)}
       participant={participant}
       wanted={participant.isLocal || Boolean(watching?.includes(participant.id))}
       focused={participant.id === focusedId}
       featured={featured}
+      avatarOnly={avatarOnly}
       layout={layout === 'strip' ? 'strip' : 'grid'}
       avatarId={avatars?.get(accountOf(participant.id))}
       onFocus={onFocus}
@@ -56,18 +62,52 @@ export function ParticipantTiles({
   );
   if (layout === 'spotlight') {
     const featured = participants.find((person) => person.id === featuredId) ?? participants[0];
+    const broadcasts = participants.filter((person) => person.isBroadcasting);
+    const secondary = participants.filter((person) => person.id !== featured?.id && !person.isBroadcasting);
+    if (broadcasts.length)
+      return (
+        <div className="tile-grid voice-ensemble contact-sheet has-broadcasts">
+          <div className="voice-room-people">
+            {information}
+            <div className="sheet-row">
+              <div className="voice-people-focus">
+                {featured && !featured.isBroadcasting && tile(featured, true, true)}
+              </div>
+              {secondary.length > 0 && (
+                <div className="voice-secondary" aria-label="Other participants">
+                  {secondary.map((person) => tile(person, false, true))}
+                </div>
+              )}
+            </div>
+          </div>
+          <section className="room-broadcasts" aria-label="Live streams">
+            <header>
+              <span>Screen sharing</span>
+              <span>{broadcasts.length} live</span>
+            </header>
+            <div className={`room-broadcast-grid ${broadcasts.length > 1 ? 'has-multiple' : ''}`}>
+              {broadcasts.map((person) => (
+                <BroadcastCard
+                  key={person.id}
+                  participant={person}
+                  wanted={person.isLocal || Boolean(watching?.includes(person.id))}
+                  avatarId={avatars?.get(accountOf(person.id))}
+                  onFocus={onFocus}
+                  onOptions={onOptions}
+                />
+              ))}
+            </div>
+          </section>
+        </div>
+      );
     return (
-      <div className="tile-grid voice-ensemble">
+      <div className="tile-grid voice-ensemble contact-sheet" data-count={Math.min(participants.length, 8)}>
         {information}
-        {featured && tile(featured, true)}
-        <div
-          className="voice-secondary"
-          aria-label="Other participants"
-          style={{
-            gridTemplateColumns: `repeat(${Math.max(1, Math.min(3, participants.length - 1))}, minmax(0, 1fr))`,
-          }}
-        >
-          {participants.filter((person) => person.id !== featured?.id).map((person) => tile(person))}
+        <div className="sheet-row">
+          {featured && tile(featured, true)}
+          <div className="voice-secondary" aria-label="Other participants">
+            {participants.filter((person) => person.id !== featured?.id).map((person) => tile(person))}
+          </div>
         </div>
       </div>
     );
@@ -87,9 +127,12 @@ export function ParticipantTiles({
 
 interface ParticipantTileProps {
   participant: Participant;
+  /** Where they stand in the room, which the sheet numbers and keeps. */
+  index: number;
   wanted: boolean;
   focused: boolean;
   featured?: boolean;
+  avatarOnly?: boolean;
   layout: 'grid' | 'strip';
   avatarId?: string | null;
   onFocus(participant: Participant): void;
@@ -105,9 +148,11 @@ interface ParticipantTileProps {
  */
 const ParticipantTile = memo(function ParticipantTile({
   participant,
+  index,
   wanted,
   focused,
   featured,
+  avatarOnly = false,
   layout,
   avatarId,
   onFocus,
@@ -119,10 +164,12 @@ const ParticipantTile = memo(function ParticipantTile({
   // machine, so your tile shows it without asking: it is how you check you
   // picked the right monitor.
   const picture =
-    wanted && participant.screenStream?.getVideoTracks().length ? participant.screenStream : undefined;
+    !avatarOnly && wanted && participant.screenStream?.getVideoTracks().length
+      ? participant.screenStream
+      : undefined;
   // Whether they are live is theirs to say; whether a picture is drawn depends
   // on whether this client asked for one.
-  const live = participant.isBroadcasting;
+  const live = participant.isBroadcasting && !avatarOnly;
   const taken = Boolean(picture) && !participant.isLocal;
   const small = layout === 'strip';
   const speaking = participant.isSpeaking && !participant.isMuted;
@@ -144,6 +191,7 @@ const ParticipantTile = memo(function ParticipantTile({
         focused && 'is-focused',
       )}
       type="button"
+      style={{ order: index, '--i': index } as CSSProperties}
       aria-label={
         !live
           ? participant.name
@@ -235,6 +283,20 @@ const ParticipantTile = memo(function ParticipantTile({
         </span>
       )}
 
+      {!picture && (
+        <>
+          <span className="tile-index" aria-hidden="true">
+            {String(index + 1).padStart(2, '0')}
+          </span>
+          <span className="tile-pulse" aria-hidden="true">
+            <i />
+            <i />
+            <i />
+            <i />
+            <i />
+          </span>
+        </>
+      )}
       <span
         className={cn(
           'tile-name absolute inset-x-0 bottom-0 flex items-center gap-2 truncate px-3 py-2.5 text-xs font-medium',
@@ -253,6 +315,17 @@ const ParticipantTile = memo(function ParticipantTile({
         >
           {participant.isLocal ? `${participant.name} (you)` : participant.name}
         </span>
+        {!picture && (
+          <span className="tile-status" aria-hidden="true">
+            {speaking
+              ? 'Talking'
+              : participant.isMuted
+                ? 'Muted'
+                : participant.isBroadcasting
+                  ? 'Sharing'
+                  : 'Here'}
+          </span>
+        )}
         <SignalBars className="ml-auto text-white" signal={participant.signal} />
       </span>
     </button>

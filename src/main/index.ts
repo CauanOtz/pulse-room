@@ -1,5 +1,6 @@
 import path from 'node:path';
-import { app, BrowserWindow, ipcMain, Menu, nativeImage, session, shell, Tray } from 'electron';
+import { app, BrowserWindow, globalShortcut, ipcMain, Menu, nativeImage, session, shell, Tray } from 'electron';
+import { shortcuts, type ShortcutAction } from '../shared/shortcuts';
 import { ScreenCaptureService } from './application/screen-capture-service';
 import { UpdateService } from './application/update-service';
 import { SessionVault } from './application/session-vault';
@@ -60,7 +61,26 @@ function createMainWindow(): BrowserWindow {
     window.hide();
     announceTray();
   });
-  window.webContents.setWindowOpenHandler(({ url }) => {
+  window.webContents.setWindowOpenHandler(({ url, frameName }) => {
+    // A live screen popped out into a window of its own. The renderer writes
+    // the player into the blank page itself, so it needs no preload, no
+    // navigation and nothing from the network.
+    if (url === 'about:blank' && /^pulse-live-[\w-]{1,96}$/.test(frameName)) {
+      return {
+        action: 'allow',
+        overrideBrowserWindowOptions: {
+          width: 1280,
+          height: 760,
+          minWidth: 320,
+          minHeight: 200,
+          title: 'Pulse Room live',
+          backgroundColor: '#000000',
+          autoHideMenuBar: true,
+          icon: path.join(__dirname, '../../assets/app-icon.png'),
+          webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false },
+        },
+      };
+    }
     try {
       const address = new URL(url);
       if (['http:', 'https:'].includes(address.protocol) && !address.username && !address.password)
@@ -71,6 +91,11 @@ function createMainWindow(): BrowserWindow {
     return { action: 'deny' };
   });
   window.webContents.on('will-navigate', (event) => event.preventDefault());
+  window.webContents.on('did-create-window', (child) => {
+    child.setMenu(null);
+    child.webContents.on('will-navigate', (event) => event.preventDefault());
+    child.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  });
 
   const developmentUrl = process.env.VITE_DEV_SERVER_URL;
   if (developmentUrl) {
@@ -144,7 +169,32 @@ function registerIpcHandlers(): void {
   });
   ipcMain.handle('updates:check', () => updateService.check());
   ipcMain.handle('updates:install', () => updateService.install());
+  ipcMain.handle('shortcuts:set-global', (event, enabled: boolean) => {
+    if (event.sender !== mainWindow?.webContents) throw new Error('Invalid sender');
+    return setGlobalShortcuts(Boolean(enabled));
+  });
 }
+
+/**
+ * Mute and deafen answer even while a game has the keyboard. A combination
+ * another program already holds is simply left to it, and the window's own
+ * shortcut still works whenever Pulse Room is in front.
+ */
+function setGlobalShortcuts(enabled: boolean): ShortcutAction[] {
+  const taken: ShortcutAction[] = [];
+  for (const shortcut of shortcuts) {
+    if (!shortcut.global) continue;
+    globalShortcut.unregister(shortcut.global);
+    if (!enabled) continue;
+    const ok = globalShortcut.register(shortcut.global, () =>
+      mainWindow?.webContents.send('shortcuts:trigger', shortcut.action),
+    );
+    if (ok) taken.push(shortcut.action);
+  }
+  return taken;
+}
+
+app.on('will-quit', () => globalShortcut.unregisterAll());
 
 // A second launch belongs to the window already in the tray.
 if (!app.requestSingleInstanceLock()) {

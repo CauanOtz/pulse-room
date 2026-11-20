@@ -32,13 +32,14 @@ test('launches the secured desktop shell and completes the join flow', async () 
     // Clicking a voice channel is the whole act of joining it.
     await window.getByRole('button', { name: 'Lounge' }).click();
     await expect(window.locator('.tile-grid .participant-tile')).toHaveCount(4);
-    // A face in the room is round: the box that holds it is as tall as it is
-    // wide. An avatar has no size of its own, so this is the shape of a rule
-    // somebody could take away without noticing.
+    // A face in the room is a portrait with a fixed shape. An avatar has no
+    // size of its own, so this is the shape of a rule somebody could take
+    // away without noticing.
     expect(
       await window.locator('.tile-avatar').first().evaluate((element) => {
+        // A portrait on the contact sheet: four wide by five tall.
         const box = element.getBoundingClientRect();
-        return Math.abs(box.width - box.height) <= 1 && box.width > 0;
+        return box.width > 0 && Math.abs(box.height / box.width - 1.25) <= 0.02;
       }),
     ).toBe(true);
     await expect(

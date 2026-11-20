@@ -23,7 +23,7 @@ export function DropdownMenuContent({
         sideOffset={sideOffset}
         collisionPadding={12}
         className={cn(
-          'z-50 min-w-56 max-w-[min(22rem,calc(100vw-2rem))] overflow-y-auto overflow-x-hidden rounded-xl border border-border bg-popover p-1 text-popover-foreground shadow-xl',
+          'pulse-pop z-50 min-w-56 max-w-[min(22rem,calc(100vw-2rem))] overflow-y-auto overflow-x-hidden rounded-xl border border-border bg-popover p-1 text-popover-foreground shadow-xl',
           'max-h-[min(24rem,var(--radix-dropdown-menu-content-available-height))]',
           'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
           className,

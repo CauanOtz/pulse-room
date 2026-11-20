@@ -3,18 +3,18 @@
   --members-width: clamp(300px, 22vw, 340px);
 }
 .member-sidebar {
-  --panel-text: #f0f0f0;
-  --panel-secondary: #a0a2a7;
-  --panel-tertiary: #81838a;
-  --panel-line: rgb(255 255 255 / 0.07);
+  --panel-text: var(--text-1);
+  --panel-secondary: var(--text-3);
+  --panel-tertiary: var(--text-4);
+  --panel-line: rgb(var(--ink) / 0.07);
   display: flex;
   flex-direction: column;
   min-height: 0;
   padding: 0 24px 24px;
   overflow: hidden;
   color: var(--panel-text);
-  background: #141718;
-  border-left: 1px solid rgb(255 255 255 / 0.055);
+  background: var(--lift-2);
+  border-left: 1px solid rgb(var(--ink) / 0.055);
   box-shadow: none;
 }
 .member-sidebar .member-heading {
@@ -63,7 +63,7 @@
   left: 0;
   right: 0;
   height: 1px;
-  background: #f0f0f0;
+  background: var(--text-1);
   opacity: 0;
   transition: opacity 170ms ease;
 }
@@ -80,8 +80,8 @@
   height: 18px;
   padding: 0 4px;
   border: 0;
-  background: rgb(255 255 255 / 0.045);
-  color: #bec0c3;
+  background: rgb(var(--ink) / 0.045);
+  color: var(--text-2);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
@@ -96,7 +96,7 @@
   outline-offset: -2px;
 }
 .member-sidebar :is(button, a, [role='tabpanel']):focus-visible {
-  outline: 1px solid #c4c5c9;
+  outline: 1px solid var(--text-2);
   outline-offset: 3px;
 }
 .member-sidebar .sidebar-member-group {
@@ -149,7 +149,7 @@
   transition: background 170ms ease;
 }
 .member-sidebar .member-entry:hover {
-  background: rgb(255 255 255 / 0.035);
+  background: rgb(var(--ink) / 0.035);
 }
 .member-sidebar .member-identity {
   display: flex;
@@ -170,11 +170,11 @@
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background: #2b2e30;
-  color: #e8e8e9;
+  background: var(--lift-5);
+  color: var(--text-1);
   font-size: 12px;
   font-weight: 450;
-  box-shadow: inset 0 1px rgb(255 255 255 / 0.05);
+  box-shadow: inset 0 1px rgb(var(--ink) / 0.05);
 }
 .member-sidebar .member-presence {
   position: absolute;
@@ -182,12 +182,12 @@
   right: 0;
   width: 11px;
   height: 11px;
-  border: 2px solid #141718;
+  border: 2px solid var(--lift-2);
   border-radius: 50%;
   background: var(--success);
 }
 .member-sidebar .member-presence.is-muted {
-  background: #a5a6a8;
+  background: var(--text-3);
 }
 .member-sidebar .member-identity-copy {
   display: flex;
@@ -219,7 +219,7 @@
 .member-sidebar .member-standing {
   display: flex;
   flex: none;
-  color: #c2c3c6;
+  color: var(--text-2);
 }
 .member-sidebar .member-activity {
   overflow: hidden;
@@ -235,7 +235,7 @@
   place-items: center;
   flex: none;
   width: 19px;
-  color: #c4c5c8;
+  color: var(--text-2);
 }
 .member-sidebar .member-more {
   display: grid;
@@ -244,11 +244,11 @@
   width: 24px;
   height: 30px;
   border-radius: 6px;
-  color: #a7a9ae;
+  color: var(--text-3);
 }
 .member-sidebar .member-more:hover {
   color: var(--panel-text);
-  background: rgb(255 255 255 / 0.04);
+  background: rgb(var(--ink) / 0.04);
 }
 .member-sidebar .member-menu-anchor {
   position: absolute;
@@ -309,7 +309,7 @@
   background: transparent;
 }
 .member-sidebar .chat-attachment.is-compact:hover {
-  background: rgb(255 255 255 / 0.035);
+  background: rgb(var(--ink) / 0.035);
 }
 .member-sidebar .is-compact .attachment-image,
 .member-sidebar .is-compact .attachment-file-icon {
@@ -341,13 +341,13 @@
   color: var(--panel-tertiary);
 }
 .member-sidebar .attachment-download:hover {
-  background: rgb(255 255 255 / 0.04);
+  background: rgb(var(--ink) / 0.04);
   color: var(--panel-text);
 }
 .member-sidebar .attachment-play {
-  border-color: #141718;
-  background: #c5c6c9;
-  color: #26282b;
+  border-color: var(--lift-2);
+  background: var(--text-2);
+  color: var(--lift-4);
 }
 .member-sidebar .resource-author {
   overflow: hidden;
@@ -472,14 +472,14 @@
   border-bottom: 0;
 }
 .member-sidebar .shared-link:hover {
-  background: rgb(255 255 255 / 0.025);
+  background: rgb(var(--ink) / 0.025);
 }
 .member-sidebar .shared-link-icon {
   width: 40px;
   height: 42px;
   border-radius: 9px;
-  color: #b9babe;
-  background: #26292b;
+  color: var(--text-2);
+  background: var(--lift-4);
 }
 .member-sidebar .shared-link > span:nth-child(2) {
   gap: 5px;
@@ -520,10 +520,10 @@
 }
 .member-sidebar .resources-empty > svg {
   margin-bottom: 4px;
-  color: #898b90;
+  color: var(--text-4);
 }
 .member-sidebar .resources-empty strong {
-  color: #d1d2d5;
+  color: var(--text-2);
   font-size: 12px;
   font-weight: 450;
 }

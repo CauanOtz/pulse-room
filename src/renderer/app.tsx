@@ -14,6 +14,7 @@ import { RoomAudio } from './components/room-audio';
 import { MediaOutput } from './components/media-output';
 import { ServerRail } from './components/server-rail';
 import { SettingsDialog } from './components/settings-dialog';
+import { ShortcutsDialog, useShortcuts } from './components/keyboard-shortcuts';
 import { SourcePicker } from './components/source-picker';
 import { Stage } from './components/stage';
 import { Tooltip } from './components/ui/tooltip';
@@ -36,6 +37,7 @@ import { Avatar } from './components/avatar';
 import { ServerWelcome } from './components/server-welcome';
 import { landingChannel } from './domain/landing-channel';
 import { MemberActionsSection, type VoiceSeat } from './components/member-actions';
+import { keysOf } from '../shared/shortcuts';
 
 const mediaDevicesService = new MediaDevicesService();
 const roomSoundPlayer = new RoomSoundPlayer();
@@ -504,6 +506,17 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
     void run(() => controller.toggleScreenShare(sourceId));
   };
 
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  useShortcuts({
+    mute: () => joined && canSpeak && void run(() => controller.toggleMicrophone()),
+    deafen: () => joined && void run(() => controller.toggleDeafen()),
+    share: () => joined && handleShareRequest(),
+    leave: () => joined && handleLeave(),
+    members: () => workspace && setMembersOpen((open) => !open),
+    settings: () => setSettingsOpen(true),
+    help: () => setShortcutsOpen((open) => !open),
+  });
+
   const handleSettingsSaved = (nextSettings: typeof settings) => {
     if (workspace) nextSettings = { ...nextSettings, displayName: workspace.user.displayName };
     setSettings(nextSettings);
@@ -634,7 +647,7 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
             </button>
           )}
           {workspace && (
-            <Tooltip label={membersOpen ? 'Hide members' : 'Show members'}>
+            <Tooltip label={membersOpen ? 'Hide members' : 'Show members'} shortcut={keysOf('members')}>
               <button
                 className={cn(
                   'member-toggle grid size-10 shrink-0 place-items-center rounded-full transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
@@ -875,6 +888,7 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
         />
       )}
 
+      {shortcutsOpen && <ShortcutsDialog onClose={() => setShortcutsOpen(false)} />}
       <SourcePicker
         open={sourcePickerOpen}
         onClose={() => setSourcePickerOpen(false)}

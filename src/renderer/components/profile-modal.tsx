@@ -72,7 +72,7 @@ export function ProfileModal({
   return (
     <Primitive.Root open onOpenChange={(open) => !open && onClose()}>
       <Primitive.Portal container={container}>
-        <Primitive.Overlay className="fixed inset-0 z-50 bg-black/70 backdrop-blur-[2px] data-[state=open]:animate-in data-[state=open]:fade-in-0" />
+        <Primitive.Overlay className="pulse-scrim fixed inset-0 z-50 backdrop-blur-[6px]" />
         <Primitive.Content
           aria-describedby={undefined}
           aria-label={`${member.displayName}'s profile`}

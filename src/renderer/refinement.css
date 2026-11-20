@@ -1,15 +1,15 @@
 /* Finish the existing charcoal composition; luminance carries the hierarchy. */
 .app-shell {
-  --edge-light: rgb(255 255 255 / 0.095);
-  --edge-quiet: rgb(255 255 255 / 0.045);
-  --surface-raised: linear-gradient(135deg, rgb(255 255 255 / 0.035), transparent 65%);
+  --edge-light: rgb(var(--ink) / 0.095);
+  --edge-quiet: rgb(var(--ink) / 0.045);
+  --surface-raised: linear-gradient(135deg, rgb(var(--ink) / 0.035), transparent 65%);
 }
 .room-main {
-  background: linear-gradient(165deg, rgb(255 255 255 / 0.012), transparent 45%), var(--background);
+  background: linear-gradient(165deg, rgb(var(--ink) / 0.012), transparent 45%), var(--background);
 }
 .room-header {
   position: relative;
-  background: linear-gradient(180deg, rgb(255 255 255 / 0.018), transparent);
+  background: linear-gradient(180deg, rgb(var(--ink) / 0.018), transparent);
 }
 .room-header::after {
   content: '';
@@ -25,10 +25,10 @@
   letter-spacing: -0.035em;
 }
 .room-description {
-  color: #92989b;
+  color: var(--text-3);
 }
 .server-rail {
-  box-shadow: inset -1px 0 rgb(255 255 255 / 0.025);
+  box-shadow: inset -1px 0 rgb(var(--ink) / 0.025);
 }
 .server-button {
   border: 0;
@@ -37,7 +37,7 @@
   outline: 1px solid var(--edge-light);
   outline-offset: -1px;
   box-shadow:
-    inset 0 1px rgb(255 255 255 / 0.07),
+    inset 0 1px rgb(var(--ink) / 0.07),
     0 6px 18px rgb(0 0 0 / 0.24);
 }
 .server-button.is-active::before {
@@ -52,7 +52,7 @@
 }
 .channel-sidebar {
   box-shadow: inset -1px 0 rgb(0 0 0 / 0.25);
-  background: linear-gradient(130deg, rgb(255 255 255 / 0.018), transparent 60%), var(--sidebar);
+  background: linear-gradient(130deg, rgb(var(--ink) / 0.018), transparent 60%), var(--sidebar);
 }
 .server-heading {
   border-bottom: 1px solid var(--edge-quiet);
@@ -70,7 +70,7 @@
   font-size: 11px;
   font-weight: 550;
   letter-spacing: 0.015em;
-  color: #a9aeb0;
+  color: var(--text-3);
 }
 .channel-row {
   border: 1px solid transparent;
@@ -78,23 +78,23 @@
   height: 60px;
 }
 .channel-row:hover {
-  background: rgb(255 255 255 / 0.025);
+  background: rgb(var(--ink) / 0.025);
 }
 .channel-row.is-selected {
-  background: var(--surface-raised), #25292b;
+  background: var(--surface-raised), var(--lift-4);
   border-color: var(--edge-light);
   box-shadow:
-    inset 0 1px rgb(255 255 255 / 0.035),
+    inset 0 1px rgb(var(--ink) / 0.035),
     0 4px 12px rgb(0 0 0 / 0.08);
 }
 .channel-icon {
   width: 36px;
   height: 36px;
-  box-shadow: inset 0 1px rgb(255 255 255 / 0.06);
+  box-shadow: inset 0 1px rgb(var(--ink) / 0.06);
 }
 .channel-detail {
   font-size: 11px;
-  color: #91989b;
+  color: var(--text-3);
 }
 .voice-roster {
   margin-left: 28px;
@@ -102,23 +102,23 @@
   border-left: 1px solid var(--edge-light);
 }
 .profile-strip {
-  background: linear-gradient(180deg, rgb(255 255 255 / 0.018), transparent), #121516;
+  background: linear-gradient(180deg, rgb(var(--ink) / 0.018), transparent), var(--lift-2);
   box-shadow: 0 -10px 30px rgb(0 0 0 / 0.08);
 }
 .voice-panel {
   border-color: var(--edge-light);
   box-shadow:
-    inset 0 1px rgb(255 255 255 / 0.04),
+    inset 0 1px rgb(var(--ink) / 0.04),
     0 8px 20px rgb(0 0 0 / 0.15);
 }
 .call-presence {
   border: 1px solid var(--edge-quiet);
-  box-shadow: inset 0 1px rgb(255 255 255 / 0.025);
+  box-shadow: inset 0 1px rgb(var(--ink) / 0.025);
 }
 .stage-room {
-  border-color: rgb(255 255 255 / 0.13);
+  border-color: rgb(var(--ink) / 0.13);
   box-shadow:
-    inset 0 1px rgb(255 255 255 / 0.07),
+    inset 0 1px rgb(var(--ink) / 0.07),
     0 14px 38px rgb(0 0 0 / 0.24);
 }
 .stage-room::before {
@@ -139,7 +139,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  color: rgb(255 255 255 / 0.64);
+  color: rgb(var(--ink) / 0.64);
   font-size: 11px;
   line-height: 1.5;
   letter-spacing: 0.02em;
@@ -148,17 +148,17 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  color: rgb(255 255 255 / 0.85);
+  color: rgb(var(--ink) / 0.85);
 }
 .voice-session-meta > span:last-child {
   font-variant-numeric: tabular-nums;
   padding-right: 15px;
-  border-right: 1px solid rgb(255 255 255 / 0.12);
+  border-right: 1px solid rgb(var(--ink) / 0.12);
 }
 .voice-room-heading > p {
   font-size: 11px;
   font-weight: 500;
-  color: rgb(255 255 255 / 0.62);
+  color: rgb(var(--ink) / 0.62);
 }
 .voice-room-heading h2 {
   font-size: 28px;
@@ -168,7 +168,7 @@
 }
 .voice-room-caption {
   padding-top: 12px;
-  border-top: 1px solid rgb(255 255 255 / 0.13);
+  border-top: 1px solid rgb(var(--ink) / 0.13);
   font-size: 12px;
   max-width: 150px;
 }
@@ -183,29 +183,29 @@
 .stage-room .call-dock {
   gap: 12px;
   padding: 9px 12px;
-  border: 1px solid rgb(255 255 255 / 0.09);
-  background: linear-gradient(180deg, #24282a, #1b1e20);
+  border: 1px solid rgb(var(--ink) / 0.09);
+  background: linear-gradient(180deg, var(--lift-4), var(--lift-3));
   box-shadow:
-    inset 0 1px rgb(255 255 255 / 0.035),
+    inset 0 1px rgb(var(--ink) / 0.035),
     0 8px 22px rgb(0 0 0 / 0.25);
 }
 .call-dock > button,
 .call-dock .dock-split > button:first-child {
   box-shadow:
-    inset 0 1px rgb(255 255 255 / 0.055),
+    inset 0 1px rgb(var(--ink) / 0.055),
     0 2px 5px rgb(0 0 0 / 0.1);
 }
 .stage-room > .live-overlay {
   padding-bottom: 18px;
 }
 .stage-empty {
-  background: linear-gradient(150deg, rgb(255 255 255 / 0.025), transparent 55%), #171a1c;
+  background: linear-gradient(150deg, rgb(var(--ink) / 0.025), transparent 55%), var(--lift-2);
 }
 .stage-empty .stage-symbol {
   border-color: var(--input);
-  background: var(--surface-raised), #222628;
+  background: var(--surface-raised), var(--lift-4);
   box-shadow:
-    inset 0 1px rgb(255 255 255 / 0.04),
+    inset 0 1px rgb(var(--ink) / 0.04),
     0 12px 24px rgb(0 0 0 / 0.14);
 }
 .conversation-heading {
@@ -220,7 +220,7 @@
   color: var(--muted-foreground);
 }
 .conversation-heading > span:first-child {
-  color: #d4d7d8;
+  color: var(--text-2);
   font-weight: 500;
   letter-spacing: 0.015em;
 }
@@ -258,12 +258,12 @@
   opacity: 0.8;
 }
 .chat-message p {
-  color: #d6dadc;
+  color: var(--text-1);
   font-size: 14px;
   line-height: 1.75;
 }
 .chat-message .profile-avatar {
-  box-shadow: inset 0 1px rgb(255 255 255 / 0.06);
+  box-shadow: inset 0 1px rgb(var(--ink) / 0.06);
 }
 .chat-message > time {
   width: 44px;
@@ -277,7 +277,7 @@
   letter-spacing: 0.025em;
   padding: 3px 8px;
   border-radius: 5px;
-  background: rgb(255 255 255 / 0.025);
+  background: rgb(var(--ink) / 0.025);
 }
 .voice-surface-compact + .text-chat .chat-column > div:first-of-type .chat-day {
   display: flex;
@@ -286,18 +286,18 @@
   min-height: 40px;
 }
 .chat-composer {
-  background: linear-gradient(0deg, rgb(255 255 255 / 0.012), transparent);
+  background: linear-gradient(0deg, rgb(var(--ink) / 0.012), transparent);
 }
 .composer-field {
   border-radius: 16px;
-  border-color: rgb(255 255 255 / 0.105);
-  background: linear-gradient(120deg, rgb(255 255 255 / 0.025), transparent), #1c2022;
+  border-color: rgb(var(--ink) / 0.105);
+  background: linear-gradient(120deg, rgb(var(--ink) / 0.025), transparent), var(--lift-3);
   box-shadow:
-    inset 0 1px rgb(255 255 255 / 0.035),
+    inset 0 1px rgb(var(--ink) / 0.035),
     0 4px 16px rgb(0 0 0 / 0.12);
 }
 .composer-field:focus-within {
-  border-color: rgb(255 255 255 / 0.25);
+  border-color: rgb(var(--ink) / 0.25);
 }
 .composer-row .primary-action {
   box-shadow:
@@ -305,15 +305,15 @@
     0 3px 12px rgb(0 0 0 / 0.24);
 }
 .member-sidebar {
-  background: linear-gradient(115deg, rgb(255 255 255 / 0.02), transparent 70%), #151819;
-  box-shadow: inset 1px 0 rgb(255 255 255 / 0.025);
+  background: linear-gradient(115deg, rgb(var(--ink) / 0.02), transparent 70%), var(--lift-2);
+  box-shadow: inset 1px 0 rgb(var(--ink) / 0.025);
 }
 .member-heading {
   margin-bottom: 20px;
-  border-bottom-color: rgb(255 255 255 / 0.1);
+  border-bottom-color: rgb(var(--ink) / 0.1);
 }
 .member-heading > span {
-  border: 1px solid rgb(255 255 255 / 0.065);
+  border: 1px solid rgb(var(--ink) / 0.065);
   font-variant-numeric: tabular-nums;
 }
 .member-sidebar > section {
@@ -323,7 +323,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #91989b;
+  color: var(--text-3);
   font-size: 10px;
   letter-spacing: 0.02em;
 }
@@ -339,17 +339,17 @@
   border: 1px solid transparent;
 }
 .member-entry:hover {
-  background: var(--surface-raised), rgb(255 255 255 / 0.025);
+  background: var(--surface-raised), rgb(var(--ink) / 0.025);
   border-color: var(--border);
 }
 .member-entry .avatar {
   box-shadow:
-    inset 0 1px rgb(255 255 255 / 0.07),
+    inset 0 1px rgb(var(--ink) / 0.07),
     0 3px 8px rgb(0 0 0 / 0.14);
 }
 .member-entry > span:nth-child(2) > span:last-child {
   font-size: 11px;
-  color: #979fa3;
+  color: var(--text-3);
 }
 @media (max-width: 1100px) {
   .conversation-heading {
@@ -373,12 +373,12 @@
 
 /* Members: a directory, with identities and access in their own columns. */
 .member-directory {
-  border: 1px solid rgb(255 255 255 / 0.09);
+  border: 1px solid rgb(var(--ink) / 0.09);
   border-radius: 16px;
   overflow: hidden;
-  background: linear-gradient(130deg, rgb(255 255 255 / 0.025), transparent 55%), #191d1f;
+  background: linear-gradient(130deg, rgb(var(--ink) / 0.025), transparent 55%), var(--lift-3);
   box-shadow:
-    inset 0 1px rgb(255 255 255 / 0.035),
+    inset 0 1px rgb(var(--ink) / 0.035),
     0 12px 34px rgb(0 0 0 / 0.15);
 }
 .directory-toolbar {
@@ -421,9 +421,9 @@
   min-width: 0;
   min-height: 38px;
   padding: 0 12px;
-  border: 1px solid rgb(255 255 255 / 0.1);
+  border: 1px solid rgb(var(--ink) / 0.1);
   border-radius: 9px;
-  background: #121617;
+  background: var(--lift-2);
   box-shadow: inset 0 2px 5px rgb(0 0 0 / 0.1);
   color: var(--muted-foreground);
 }
@@ -431,7 +431,7 @@
   flex-direction: row;
 }
 .directory-search:focus-within {
-  border-color: rgb(255 255 255 / 0.3);
+  border-color: rgb(var(--ink) / 0.3);
 }
 .directory-search > input {
   width: 100%;
@@ -471,12 +471,12 @@
   min-height: 43px;
   margin-bottom: -1px;
   border-bottom: 2px solid transparent;
-  color: #9da4a8;
+  color: var(--text-3);
   font-size: 12px;
   white-space: nowrap;
 }
 .directory-filters > button[aria-pressed='true'] {
-  border-bottom-color: #e5e7e8;
+  border-bottom-color: var(--text-1);
   color: var(--foreground);
 }
 .directory-filters > button > span {
@@ -497,7 +497,7 @@
   padding: 13px 24px;
   border-bottom: 1px solid var(--border);
   background: rgb(0 0 0 / 0.13);
-  color: #929a9e;
+  color: var(--text-3);
   font-size: 10px;
   letter-spacing: 0.025em;
 }
@@ -507,16 +507,16 @@
   gap: 14px;
   min-height: 88px;
   padding: 18px 24px;
-  border-color: rgb(255 255 255 / 0.05);
+  border-color: rgb(var(--ink) / 0.05);
 }
 .member-directory .member-row:hover {
-  background: rgb(255 255 255 / 0.025);
+  background: rgb(var(--ink) / 0.025);
 }
 .member-directory .member-row .avatar {
   width: 42px;
   height: 42px;
-  background: linear-gradient(145deg, rgb(255 255 255 / 0.045), transparent), #2c3235;
-  border: 1px solid rgb(255 255 255 / 0.065);
+  background: linear-gradient(145deg, rgb(var(--ink) / 0.045), transparent), var(--lift-5);
+  border: 1px solid rgb(var(--ink) / 0.065);
   box-shadow: 0 3px 9px rgb(0 0 0 / 0.16);
   font-size: 12px;
   font-weight: 500;
@@ -529,7 +529,7 @@
   font-size: 11px;
 }
 .member-directory .member-row .text-warning {
-  color: #c6c9cb;
+  color: var(--text-2);
 }
 .member-role-stack {
   display: flex;
@@ -543,10 +543,10 @@
   flex-basis: 100%;
   margin-bottom: 2px;
   font-size: 12px;
-  color: #ced3d5;
+  color: var(--text-2);
 }
 .member-directory .member-role {
-  background: rgb(255 255 255 / 0.025);
+  background: rgb(var(--ink) / 0.025);
   font-size: 10px;
 }
 .member-restriction {
@@ -558,17 +558,17 @@
 }
 .member-joined {
   font-size: 11px;
-  color: #a0a8ac;
+  color: var(--text-3);
   font-variant-numeric: tabular-nums;
 }
 .member-joined > span {
-  color: #838d92;
+  color: var(--text-4);
 }
 .member-row-action .icon-action {
   width: 32px;
   height: 32px;
   border: 1px solid var(--border);
-  background: rgb(255 255 255 / 0.02);
+  background: rgb(var(--ink) / 0.02);
 }
 .directory-footer {
   display: flex;
@@ -580,7 +580,7 @@
   border-top: 1px solid var(--border);
   background: rgb(0 0 0 / 0.1);
   font-size: 10px;
-  color: #929a9e;
+  color: var(--text-3);
 }
 .directory-empty {
   display: flex;
@@ -669,26 +669,26 @@
 
 /* Settings and administration share the same surface and spacing grammar. */
 .community-modal:not(.settings-screen) {
-  border-color: rgb(255 255 255 / 0.12);
-  background: #1e2427;
-  box-shadow: inset 0 1px rgb(255 255 255 / 0.04), 0 24px 80px rgb(0 0 0 / 0.4);
+  border-color: rgb(var(--ink) / 0.12);
+  background: var(--lift-4);
+  box-shadow: inset 0 1px rgb(var(--ink) / 0.04), 0 24px 80px rgb(0 0 0 / 0.4);
 }
 .community-modal:not(.settings-screen) > header {
   min-height: 70px;
   padding-inline: 24px;
-  background: linear-gradient(130deg, rgb(255 255 255 / 0.025), transparent);
+  background: linear-gradient(130deg, rgb(var(--ink) / 0.025), transparent);
 }
-.community-modal:not(.settings-screen) .modal-body { background: #181e20; }
-.community-modal:not(.settings-screen) .dialog-tabs { padding-block: 5px; background: #151b1e; }
+.community-modal:not(.settings-screen) .modal-body { background: var(--lift-3); }
+.community-modal:not(.settings-screen) .dialog-tabs { padding-block: 5px; background: var(--lift-2); }
 .community-modal:not(.settings-screen) .primary-action { border-radius: 8px; box-shadow: inset 0 1px #fff, 0 3px 9px rgb(0 0 0 / 0.15); }
 .settings-screen {
-  background: #111416;
-  border: 1px solid rgb(255 255 255 / 0.075);
+  background: var(--lift-2);
+  border: 1px solid rgb(var(--ink) / 0.075);
 }
 .settings-screen .settings-rail {
   width: 248px;
-  background: linear-gradient(125deg, rgb(255 255 255 / 0.022), transparent 60%), #171b1d;
-  border-right-color: rgb(255 255 255 / 0.075);
+  background: linear-gradient(125deg, rgb(var(--ink) / 0.022), transparent 60%), var(--lift-3);
+  border-right-color: rgb(var(--ink) / 0.075);
   box-shadow: 5px 0 24px rgb(0 0 0 / 0.08);
 }
 .settings-screen .settings-rail > div {
@@ -708,11 +708,11 @@
   flex: none;
   width: 38px;
   height: 38px;
-  border: 1px solid rgb(255 255 255 / 0.09);
+  border: 1px solid rgb(var(--ink) / 0.09);
   border-radius: 11px;
-  background: linear-gradient(135deg, rgb(255 255 255 / 0.025), transparent), #242a2d;
-  color: #c9ced1;
-  box-shadow: inset 0 1px rgb(255 255 255 / 0.035);
+  background: linear-gradient(135deg, rgb(var(--ink) / 0.025), transparent), var(--lift-4);
+  color: var(--text-2);
+  box-shadow: inset 0 1px rgb(var(--ink) / 0.035);
 }
 .settings-identity > div {
   min-width: 0;
@@ -722,7 +722,7 @@
 }
 .settings-identity small {
   font-size: 10px;
-  color: #929da3;
+  color: var(--text-3);
   letter-spacing: 0.025em;
 }
 .settings-identity strong {
@@ -742,17 +742,17 @@
   font-size: 12px;
 }
 .settings-nav-button[aria-pressed='true'] {
-  background: linear-gradient(120deg, rgb(255 255 255 / 0.025), transparent), #2b3134;
-  border-color: rgb(255 255 255 / 0.075);
+  background: linear-gradient(120deg, rgb(var(--ink) / 0.025), transparent), var(--lift-5);
+  border-color: rgb(var(--ink) / 0.075);
   box-shadow:
-    inset 0 1px rgb(255 255 255 / 0.025),
+    inset 0 1px rgb(var(--ink) / 0.025),
     0 3px 8px rgb(0 0 0 / 0.08);
 }
 .settings-nav-button > svg {
-  color: #abb3b8;
+  color: var(--text-2);
 }
 .settings-screen .settings-body {
-  background: linear-gradient(130deg, rgb(255 255 255 / 0.014), transparent 60%), #111416;
+  background: linear-gradient(130deg, rgb(var(--ink) / 0.014), transparent 60%), var(--lift-2);
 }
 .settings-screen .settings-body > div {
   max-width: 1100px;
@@ -772,7 +772,7 @@
   max-width: 40rem;
   margin-top: 9px;
   font-size: 12px;
-  color: #9da6ab;
+  color: var(--text-3);
   line-height: 1.75;
 }
 .settings-screen .settings-close {
@@ -781,12 +781,12 @@
 }
 .settings-close button {
   border-width: 1px;
-  background: rgb(255 255 255 / 0.02);
-  border-color: rgb(255 255 255 / 0.16);
+  background: rgb(var(--ink) / 0.02);
+  border-color: rgb(var(--ink) / 0.16);
 }
 .settings-close span {
   margin-top: 3px;
-  color: #87939a;
+  color: var(--text-4);
   font-size: 9px;
   letter-spacing: 0.035em;
 }
@@ -797,10 +797,10 @@
 .admin-panel {
   padding: 26px;
   border-radius: 14px;
-  border-color: rgb(255 255 255 / 0.09);
-  background: linear-gradient(130deg, rgb(255 255 255 / 0.025), transparent 60%), #1b2022;
+  border-color: rgb(var(--ink) / 0.09);
+  background: linear-gradient(130deg, rgb(var(--ink) / 0.025), transparent 60%), var(--lift-3);
   box-shadow:
-    inset 0 1px rgb(255 255 255 / 0.025),
+    inset 0 1px rgb(var(--ink) / 0.025),
     0 7px 22px rgb(0 0 0 / 0.13);
 }
 .server-identity .picture-field {
@@ -826,7 +826,7 @@
 }
 .server-identity .picture-actions small {
   font-size: 10px;
-  color: #959fa5;
+  color: var(--text-3);
 }
 .admin-panel > div:first-child {
   margin-bottom: 24px;
@@ -839,7 +839,7 @@
 }
 .admin-panel p {
   font-size: 11px;
-  color: #9da6ab;
+  color: var(--text-3);
 }
 .settings-screen
   :is(input, textarea):not([type='range']):not([type='checkbox']):not([type='file']):not(
@@ -847,13 +847,13 @@
   ) {
   min-height: 40px;
   border-radius: 8px;
-  border-color: rgb(255 255 255 / 0.13);
-  background: #121719;
+  border-color: rgb(var(--ink) / 0.13);
+  background: var(--lift-2);
   box-shadow: inset 0 2px 4px rgb(0 0 0 / 0.12);
   font-size: 12px;
 }
 .settings-screen label {
-  color: #b5bdc1;
+  color: var(--text-2);
   font-size: 12px;
 }
 .settings-screen .directory-search {
@@ -866,7 +866,7 @@
 }
 .settings-screen .primary-action {
   box-shadow:
-    inset 0 1px rgb(255 255 255 / 0.3),
+    inset 0 1px rgb(var(--ink) / 0.3),
     0 3px 9px rgb(0 0 0 / 0.15);
 }
 .role-editor {
@@ -877,13 +877,13 @@
   padding: 14px;
   border: 1px solid var(--border);
   border-radius: 12px;
-  background: linear-gradient(135deg, rgb(255 255 255 / 0.015), transparent), #1b2022;
+  background: linear-gradient(135deg, rgb(var(--ink) / 0.015), transparent), var(--lift-3);
 }
 .role-editor > div:first-child > p {
   font-size: 10px;
   padding: 12px 1px 0;
   border-top: 1px solid var(--border);
-  color: #919da3;
+  color: var(--text-3);
 }
 .role-editor ol {
   padding-block: 6px;
@@ -902,7 +902,7 @@
 }
 .role-editor [role='tablist'] {
   gap: 16px;
-  border-bottom-color: rgb(255 255 255 / 0.1);
+  border-bottom-color: rgb(var(--ink) / 0.1);
 }
 .role-editor [role='tab'] {
   padding: 10px 2px 12px;
@@ -915,13 +915,13 @@
   padding: 0 2px 9px;
   font-size: 10px;
   letter-spacing: 0.055em;
-  color: #adb5ba;
+  color: var(--text-2);
 }
 .permission-group > div {
   border-radius: 12px;
-  background: linear-gradient(120deg, rgb(255 255 255 / 0.018), transparent), #1a1f21;
-  border-color: rgb(255 255 255 / 0.085);
-  box-shadow: inset 0 1px rgb(255 255 255 / 0.02);
+  background: linear-gradient(120deg, rgb(var(--ink) / 0.018), transparent), var(--lift-3);
+  border-color: rgb(var(--ink) / 0.085);
+  box-shadow: inset 0 1px rgb(var(--ink) / 0.02);
 }
 .permission-group label {
   padding: 15px 17px;
@@ -930,7 +930,7 @@
   gap: 5px;
 }
 .permission-group small {
-  color: #9ca7ad;
+  color: var(--text-3);
   font-size: 11px;
   line-height: 1.65;
 }
@@ -941,13 +941,13 @@
   padding: 18px 20px;
   border: 1px solid var(--border);
   border-radius: 12px;
-  background: #1b2022;
+  background: var(--lift-3);
 }
 .invite-list {
   padding: 22px;
   border: 1px solid var(--border);
   border-radius: 14px;
-  background: linear-gradient(130deg, rgb(255 255 255 / 0.02), transparent), #1a1f21;
+  background: linear-gradient(130deg, rgb(var(--ink) / 0.02), transparent), var(--lift-3);
 }
 .invite-list > div:first-child {
   margin-bottom: 18px;
@@ -960,47 +960,47 @@
 }
 .server-workspace-content .border-dashed {
   padding: 38px 24px;
-  background: rgb(255 255 255 / 0.018);
+  background: rgb(var(--ink) / 0.018);
   border-radius: 12px;
   font-size: 12px;
 }
 .server-tag-card {
   padding: 22px;
   border-radius: 13px;
-  background: linear-gradient(130deg, rgb(255 255 255 / 0.02), transparent), #1c2123;
-  box-shadow: inset 0 1px rgb(255 255 255 / 0.025);
+  background: linear-gradient(130deg, rgb(var(--ink) / 0.02), transparent), var(--lift-3);
+  box-shadow: inset 0 1px rgb(var(--ink) / 0.025);
 }
 .account-editor > div > section {
   padding-bottom: 24px;
   border-bottom: 1px solid var(--border);
 }
 .account-editor .picture-field {
-  border-color: rgb(255 255 255 / 0.09);
-  background: rgb(255 255 255 / 0.025);
+  border-color: rgb(var(--ink) / 0.09);
+  background: rgb(var(--ink) / 0.025);
   border-radius: 14px;
   padding: 20px;
 }
 .settings-dialog {
   width: min(65rem, calc(100vw - 2rem));
   border-radius: 18px;
-  border-color: rgb(255 255 255 / 0.13);
-  background: #1b1f21;
+  border-color: rgb(var(--ink) / 0.13);
+  background: var(--lift-3);
   box-shadow:
-    inset 0 1px rgb(255 255 255 / 0.055),
+    inset 0 1px rgb(var(--ink) / 0.055),
     0 28px 100px rgb(0 0 0 / 0.5);
 }
 .settings-dialog > header {
   height: 82px;
   padding-inline: 26px;
-  background: linear-gradient(120deg, rgb(255 255 255 / 0.025), transparent);
+  background: linear-gradient(120deg, rgb(var(--ink) / 0.025), transparent);
 }
 .settings-dialog > header > span {
   width: 40px;
   height: 40px;
-  border: 1px solid rgb(255 255 255 / 0.075);
+  border: 1px solid rgb(var(--ink) / 0.075);
   border-radius: 11px;
-  background: #2a3033;
-  box-shadow: inset 0 1px rgb(255 255 255 / 0.035);
+  background: var(--lift-5);
+  box-shadow: inset 0 1px rgb(var(--ink) / 0.035);
 }
 .settings-dialog #settings-title {
   font-size: 20px;
@@ -1009,7 +1009,7 @@
 }
 .settings-dialog > header p {
   font-size: 11px;
-  color: #a2abb0;
+  color: var(--text-3);
 }
 .settings-dialog > header button {
   border: 1px solid var(--border);
@@ -1020,12 +1020,12 @@
 }
 .settings-dialog .settings-nav {
   padding: 24px 12px;
-  background: #14191b;
-  border-right-color: rgb(255 255 255 / 0.075);
+  background: var(--lift-2);
+  border-right-color: rgb(var(--ink) / 0.075);
 }
 .settings-dialog .settings-nav > p {
   font-size: 9px;
-  color: #8f9ba2;
+  color: var(--text-3);
   letter-spacing: 0.05em;
   padding-bottom: 16px;
 }
@@ -1042,17 +1042,17 @@
   gap: 10px;
 }
 .settings-dialog .settings-nav button[aria-current] {
-  background: linear-gradient(120deg, rgb(255 255 255 / 0.025), transparent), #2c3337;
-  border-color: rgb(255 255 255 / 0.07);
-  box-shadow: inset 0 1px rgb(255 255 255 / 0.025);
+  background: linear-gradient(120deg, rgb(var(--ink) / 0.025), transparent), var(--lift-5);
+  border-color: rgb(var(--ink) / 0.07);
+  box-shadow: inset 0 1px rgb(var(--ink) / 0.025);
 }
 .settings-dialog .settings-nav > div:last-child p {
   font-size: 10px;
   line-height: 1.8;
-  color: #929fa6;
+  color: var(--text-3);
 }
 .settings-dialog .settings-body {
-  background: linear-gradient(150deg, rgb(255 255 255 / 0.01), transparent), #191e20;
+  background: linear-gradient(150deg, rgb(var(--ink) / 0.01), transparent), var(--lift-3);
 }
 .settings-dialog .settings-body > div {
   max-width: 50rem;
@@ -1061,11 +1061,11 @@
 }
 .settings-dialog .settings-section {
   padding: 22px;
-  border: 1px solid rgb(255 255 255 / 0.085);
+  border: 1px solid rgb(var(--ink) / 0.085);
   border-radius: 13px;
-  background: linear-gradient(130deg, rgb(255 255 255 / 0.022), transparent 70%), #202628;
+  background: linear-gradient(130deg, rgb(var(--ink) / 0.022), transparent 70%), var(--lift-4);
   box-shadow:
-    inset 0 1px rgb(255 255 255 / 0.02),
+    inset 0 1px rgb(var(--ink) / 0.02),
     0 4px 12px rgb(0 0 0 / 0.08);
 }
 .settings-dialog .settings-section + .settings-section {
@@ -1078,8 +1078,8 @@
 .settings-dialog .settings-section > header > span {
   width: 30px;
   height: 30px;
-  border: 1px solid rgb(255 255 255 / 0.055);
-  background: #30383d;
+  border: 1px solid rgb(var(--ink) / 0.055);
+  background: var(--lift-5);
   border-radius: 8px;
 }
 .settings-dialog .settings-section > header h3 {
@@ -1090,7 +1090,7 @@
 .settings-dialog .settings-section > header p {
   font-size: 11px;
   line-height: 1.75;
-  color: #a5b0b6;
+  color: var(--text-3);
 }
 .settings-dialog .settings-section > div {
   padding-left: 0;
@@ -1099,9 +1099,9 @@
   padding: 17px 18px;
 }
 .settings-dialog .settings-section .range-row output {
-  border: 1px solid rgb(255 255 255 / 0.07);
+  border: 1px solid rgb(var(--ink) / 0.07);
   border-radius: 5px;
-  background: #2b3337;
+  background: var(--lift-5);
   font-size: 10px;
 }
 .settings-dialog .settings-section .toggle-row strong {
@@ -1111,32 +1111,32 @@
 .settings-dialog .settings-section small {
   font-size: 10px;
   line-height: 1.7;
-  color: #9eacb3;
+  color: var(--text-3);
 }
 .settings-dialog .settings-section [role='combobox'] {
   min-height: 42px;
   border-radius: 8px;
-  background: #141a1d;
-  border-color: rgb(255 255 255 / 0.13);
+  background: var(--lift-2);
+  border-color: rgb(var(--ink) / 0.13);
   box-shadow: inset 0 2px 4px rgb(0 0 0 / 0.12);
   font-size: 12px;
 }
 .settings-dialog .quality-option {
   border-radius: 10px;
-  box-shadow: inset 0 1px rgb(255 255 255 / 0.035);
+  box-shadow: inset 0 1px rgb(var(--ink) / 0.035);
 }
 .settings-dialog .quality-option:has(input:checked) {
-  background: #343d42;
-  border-color: rgb(255 255 255 / 0.5);
+  background: var(--lift-5);
+  border-color: rgb(var(--ink) / 0.5);
 }
 .settings-dialog .meter > i {
-  background: linear-gradient(90deg, #8c9ba3, #e7ebed);
+  background: linear-gradient(90deg, var(--text-3), var(--text-1));
 }
 .settings-dialog > footer {
   min-height: 72px;
   padding-inline: 26px;
-  background: linear-gradient(180deg, rgb(255 255 255 / 0.018), transparent), #141a1d;
-  border-top-color: rgb(255 255 255 / 0.075);
+  background: linear-gradient(180deg, rgb(var(--ink) / 0.018), transparent), var(--lift-2);
+  border-top-color: rgb(var(--ink) / 0.075);
 }
 .settings-dialog > footer button {
   border-radius: 8px;

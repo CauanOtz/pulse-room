@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type { DesktopApi, UpdateStatus } from '../shared/desktop-api';
+import type { ShortcutAction } from '../shared/shortcuts';
 
 const desktopApi: DesktopApi = {
   session: {
@@ -13,6 +14,14 @@ const desktopApi: DesktopApi = {
   capture: {
     listScreens: () => ipcRenderer.invoke('capture:list-screens'),
     selectSource: (sourceId) => ipcRenderer.invoke('capture:select-source', sourceId),
+  },
+  shortcuts: {
+    setGlobal: (enabled) => ipcRenderer.invoke('shortcuts:set-global', enabled),
+    onTrigger: (listener) => {
+      const handler = (_event: Electron.IpcRendererEvent, action: ShortcutAction) => listener(action);
+      ipcRenderer.on('shortcuts:trigger', handler);
+      return () => ipcRenderer.removeListener('shortcuts:trigger', handler);
+    },
   },
   updates: {
     check: () => ipcRenderer.invoke('updates:check'),

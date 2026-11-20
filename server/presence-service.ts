@@ -31,6 +31,7 @@ export interface RoomAdminClient {
 export class LiveKitPresenceSource implements PresenceSource {
   private readonly client: RoomAdminClient;
   private cached?: { at: number; rooms: RoomOccupancy[] };
+  private reading?: Promise<RoomOccupancy[]>;
 
   public constructor(
     configuration: ServerConfiguration,
@@ -52,6 +53,15 @@ export class LiveKitPresenceSource implements PresenceSource {
     const cached = this.cached;
     if (cached && this.now() - cached.at < this.cacheMilliseconds) return cached.rooms;
 
+    // All open clients can reach an expired cache together. Share the lookup
+    // until it settles, including failures, instead of multiplying LiveKit work.
+    this.reading ??= this.readOccupancy().finally(() => {
+      this.reading = undefined;
+    });
+    return this.reading;
+  }
+
+  private async readOccupancy(): Promise<RoomOccupancy[]> {
     const rooms = await this.client.listRooms();
     const occupancy = await Promise.all(
       rooms.map(async (room) => {

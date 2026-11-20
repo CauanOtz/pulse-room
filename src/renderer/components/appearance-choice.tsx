@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import { motion } from 'motion/react';
 import { Monitor, Moon, Sun } from 'lucide-react';
-import { applyTheme, readTheme, saveTheme, type ThemePreference } from './theme';
+import { readTheme, switchTheme, type ThemePreference } from './theme';
 import { cn } from './ui/utils';
 
 const options: { value: ThemePreference; label: string; icon: typeof Sun }[] = [
@@ -13,37 +14,44 @@ const options: { value: ThemePreference; label: string; icon: typeof Sun }[] = [
 export function AppearanceChoice() {
   const [preference, setPreference] = useState<ThemePreference>(readTheme);
 
-  const choose = (next: ThemePreference) => {
-    setPreference(next);
-    saveTheme(next);
-    applyTheme(next);
-  };
-
   return (
     <div className="flex flex-col gap-2">
-      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-        Appearance
-      </span>
-      <div className="flex rounded-lg border border-border p-0.5" role="radiogroup" aria-label="Appearance">
-        {options.map((option) => (
-          <button
-            key={option.value}
-            type="button"
-            role="radio"
-            aria-checked={preference === option.value}
-            className={cn(
-              'flex flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition-colors',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-              preference === option.value
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:bg-accent hover:text-foreground',
-            )}
-            onClick={() => choose(option.value)}
-          >
-            <option.icon className="size-3.5" />
-            {option.label}
-          </button>
-        ))}
+      <span className="text-[11px] font-medium text-muted-foreground">Appearance</span>
+      <div
+        className="relative flex rounded-xl border border-border bg-[rgb(var(--ink)/0.03)] p-1"
+        role="radiogroup"
+        aria-label="Appearance"
+      >
+        {options.map((option) => {
+          const selected = preference === option.value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              className={cn(
+                'relative flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors duration-300',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                selected ? 'text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
+              )}
+              onClick={(event) => {
+                setPreference(option.value);
+                switchTheme(option.value, { x: event.clientX, y: event.clientY });
+              }}
+            >
+              {selected && (
+                <motion.span
+                  layoutId="appearance-thumb"
+                  className="absolute inset-0 rounded-lg bg-primary"
+                  transition={{ type: 'spring', stiffness: 520, damping: 38 }}
+                />
+              )}
+              <option.icon className="relative size-3.5" />
+              <span className="relative">{option.label}</span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

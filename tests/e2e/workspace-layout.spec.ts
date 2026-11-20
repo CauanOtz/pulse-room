@@ -147,12 +147,18 @@ test('voice and chat share the workspace without losing controls on resize', asy
         return Math.max(...tops) - Math.min(...tops) < 1;
       }),
     ).toBe(true);
+    // The room is a contact sheet: the speaker is lit where they stand, on the
+    // same baseline and at the same size as everyone else.
     expect(
       await window.evaluate(() => {
         const lead = document.querySelector('.is-featured .tile-face')!.getBoundingClientRect();
         const other = document.querySelector('.voice-secondary .tile-face')!.getBoundingClientRect();
         const room = document.querySelector('.voice-ensemble')!;
-        return lead.width >= other.width * 1.7 && room.scrollHeight <= room.clientHeight + 1;
+        return (
+          Math.abs(lead.top - other.top) < 1 &&
+          Math.abs(lead.width - other.width) < 1 &&
+          room.scrollHeight <= room.clientHeight + 1
+        );
       }),
     ).toBe(true);
     await window.screenshot({ path: 'test-results/workspace-voice-chat.png' });

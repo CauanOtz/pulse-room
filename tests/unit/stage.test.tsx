@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render as renderBare, screen } from '@testing-library/react';
 import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Stage } from '../../src/renderer/components/stage';
@@ -51,6 +51,9 @@ function Watchable({
     </TooltipProvider>
   );
 }
+
+// The application wraps the window in one tooltip provider; so does every render here.
+const render = (ui: Parameters<typeof renderBare>[0]) => renderBare(ui, { wrapper: TooltipProvider });
 
 const requestFullscreen = vi.fn(async () => undefined);
 const exitFullscreen = vi.fn(async () => undefined);
@@ -121,6 +124,33 @@ describe('Stage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Back to the room' }));
 
     expect(document.querySelectorAll('.tile-taken')).toHaveLength(1);
+  });
+
+  it('separates live offers from people and keeps the watch action visible without decoding', () => {
+    const people = [
+      createParticipant({ id: 'you', name: 'You', isLocal: true }),
+      createParticipant({ id: 'maya', name: 'Maya', isBroadcasting: true, screenStream: liveScreen() }),
+    ];
+    render(<Watchable participants={people} />);
+    expect(document.querySelectorAll('.broadcast-card')).toHaveLength(1);
+    expect(document.querySelectorAll('.voice-room-people .participant-tile')).toHaveLength(1);
+    expect(screen.getByText('Watch stream')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Maya' })).not.toBeInTheDocument();
+    expect(document.querySelector('video')).toBeNull();
+  });
+
+  it('keeps a received preview in the room without duplicating its decoder in the avatar', () => {
+    render(
+      <Watchable
+        participants={[createParticipant({ id: 'maya', name: 'Maya', screenStream: liveScreen() })]}
+        initial="maya"
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Back to the room' }));
+    expect(document.querySelectorAll('video')).toHaveLength(1);
+    expect(document.querySelector('.broadcast-card video')).toBeInTheDocument();
+    expect(document.querySelector('.voice-room-people video')).toBeNull();
+    expect(screen.getByText('Open stream')).toBeInTheDocument();
   });
 
   it('draws a ring around whoever is talking, and around nobody else', () => {
@@ -251,16 +281,16 @@ describe('Stage', () => {
     render(<Watchable participants={participants} initial="maya" />);
     // One fills the room, and only that one is being received.
     expect(screen.getByText('Live from Maya')).toBeInTheDocument();
-    expect(document.querySelectorAll('.tile-video')).toHaveLength(1);
+    expect(document.querySelectorAll('video')).toHaveLength(1);
 
-    // The other is taken from the strip along the bottom, where they are all
-    // standing.
+    // The side navigation offers the other screen without starting its video.
     fireEvent.click(screen.getByRole('button', { name: 'Watch Noah' }));
 
     // Both are being received now: Noah fills the room, and Maya's tile keeps
     // playing rather than falling back to her face.
     expect(screen.getByText('Live from Noah')).toBeInTheDocument();
-    expect(document.querySelectorAll('.tile-video')).toHaveLength(2);
+    expect(document.querySelectorAll('video')).toHaveLength(2);
+    expect(document.querySelector('.is-current video')).toBeNull();
   });
 
   it('lets a viewer switch between two live screens', () => {
@@ -272,18 +302,22 @@ describe('Stage', () => {
     render(<Watchable participants={participants} initial="maya" />);
     expect(screen.getByText('Live from Maya')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Watch You' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Show You' }));
 
     expect(screen.getByText('Live from your screen')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Watch You' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Current stream You' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
     expect(screen.getByRole('button', { name: 'Show Maya' })).toHaveAttribute('aria-pressed', 'false');
 
-    // Clicking the screen you are watching steps back to the room.
-    fireEvent.click(screen.getByRole('button', { name: 'Watch You' }));
+    // Leaving one stream is explicit and keeps the other one open.
+    fireEvent.click(screen.getByRole('button', { name: 'Stop watching You' }));
     expect(screen.queryByText('Live from your screen')).not.toBeInTheDocument();
+    expect(screen.getByText('Live from Maya')).toBeInTheDocument();
   });
 
-  it('keeps the room visible as a strip while a screen is live', () => {
+  it('keeps voice participants below the player without repeating the active screen', () => {
     const participants = [
       createParticipant({ id: 'maya', name: 'Maya', screenStream: liveScreen() }),
       createParticipant({ id: 'noah', name: 'Noah' }),
@@ -292,7 +326,41 @@ describe('Stage', () => {
     render(<Watchable participants={participants} initial="maya" />);
 
     expect(screen.getByText('Live from Maya')).toBeInTheDocument();
-    expect(document.querySelector('.tile-strip')?.querySelectorAll('.participant-tile')).toHaveLength(2);
+    expect(document.querySelectorAll('.live-voice-peer')).toHaveLength(1);
+    expect(document.querySelector('.live-voice-peer')).toHaveTextContent('Noah');
+    expect(document.querySelectorAll('video')).toHaveLength(1);
+    expect(document.querySelector('.live-player-footer video')).toBeNull();
+  });
+
+  it('keeps watched, unopened and connecting streams independent', () => {
+    const people = [
+      createParticipant({ id: 'maya', name: 'Maya', screenStream: liveScreen() }),
+      createParticipant({ id: 'noah', name: 'Noah', screenStream: liveScreen() }),
+      createParticipant({ id: 'ari', name: 'Ari', isBroadcasting: true }),
+    ];
+    render(<Watchable participants={people} initial="maya" />);
+    expect(screen.getAllByText('Not watching')).toHaveLength(2);
+    expect(document.querySelectorAll('video')).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Watch Noah' }));
+    expect(document.querySelectorAll('video')).toHaveLength(2);
+    fireEvent.click(screen.getByRole('button', { name: 'Stop watching Maya' }));
+    expect(screen.getByText('Live from Noah')).toBeInTheDocument();
+    expect(document.querySelectorAll('video')).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Watch Ari' }));
+    expect(screen.getByText('Connecting…')).toBeInTheDocument();
+    expect(document.querySelectorAll('video')).toHaveLength(1);
+  });
+
+  it('shows the next watched live when the focused broadcaster leaves', () => {
+    const maya = createParticipant({ id: 'maya', name: 'Maya', screenStream: liveScreen() });
+    const noah = createParticipant({ id: 'noah', name: 'Noah', screenStream: liveScreen() });
+    const view = render(
+      <Stage participants={[maya, noah]} joined watching={['maya', 'noah']} onWatch={() => undefined} />,
+    );
+    view.rerender(
+      <Stage participants={[noah]} joined watching={['maya', 'noah']} onWatch={() => undefined} />,
+    );
+    expect(screen.getByText('Live from Noah')).toBeInTheDocument();
   });
 
   it('gives screen audio a level of its own while it is being watched', () => {

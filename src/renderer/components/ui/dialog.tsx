@@ -18,10 +18,10 @@ export function DialogContent({
   const container = useOverlayContainer();
   return (
     <Primitive.Portal container={container}>
-      <Primitive.Overlay className="fixed inset-0 z-50 bg-black/70 backdrop-blur-[2px]" />
+      <Primitive.Overlay className="pulse-scrim fixed inset-0 z-50 bg-[var(--scrim)] backdrop-blur-[6px]" />
       <Primitive.Content
         className={cn(
-          'fixed left-1/2 top-1/2 z-50 flex max-h-[min(90vh,44rem)] w-[min(34rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 flex-col',
+          'pulse-dialog fixed left-1/2 top-1/2 z-50 flex max-h-[min(90vh,44rem)] w-[min(34rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 flex-col',
           'rounded-xl border border-border bg-card text-card-foreground shadow-2xl outline-none',
           className,
         )}

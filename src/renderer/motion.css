@@ -1,0 +1,509 @@
+/*
+ * Motion and the last word on surfaces.
+ *
+ * Inside the room things move on the compositor only (transform, opacity),
+ * because a game is often running behind it. Blur is kept for moments that
+ * happen once: opening a dialog, arriving, changing theme.
+ */
+
+/* ---- Theme: the new one washes over the old in a growing circle. ---- */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+::view-transition-new(root) {
+  animation: theme-reveal 720ms var(--ease-in-out);
+}
+@keyframes theme-reveal {
+  from {
+    clip-path: circle(0 at var(--reveal-x, 50%) var(--reveal-y, 50%));
+  }
+  to {
+    clip-path: circle(var(--reveal-r, 150%) at var(--reveal-x, 50%) var(--reveal-y, 50%));
+  }
+}
+
+/* ---- Arriving in the room. ---- */
+.app-shell {
+  animation: shell-in 900ms var(--ease-out) backwards;
+}
+.app-shell > * {
+  animation: shell-part-in 820ms var(--ease-out) backwards;
+}
+.app-shell > :nth-child(1) {
+  animation-delay: 60ms;
+}
+.app-shell > :nth-child(2) {
+  animation-delay: 140ms;
+}
+.app-shell > :nth-child(3) {
+  animation-delay: 220ms;
+}
+.app-shell > :nth-child(4) {
+  animation-delay: 300ms;
+}
+@keyframes shell-in {
+  from {
+    opacity: 0;
+    filter: blur(10px);
+  }
+  to {
+    opacity: 1;
+    filter: none;
+  }
+}
+@keyframes shell-part-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.992);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---- Overlays: scrim fades, panels rise out of focus. ---- */
+.pulse-scrim[data-state='open'] {
+  animation: scrim-in 320ms var(--ease-out);
+}
+.pulse-scrim[data-state='closed'] {
+  animation: scrim-out 200ms var(--ease-in) forwards;
+}
+.pulse-dialog {
+  border-radius: 1.25rem;
+  border-color: rgb(var(--ink) / 0.1);
+  background: var(--popover);
+  box-shadow: var(--shadow-float);
+}
+.pulse-dialog[data-state='open'] {
+  animation: dialog-in 460ms var(--ease-out);
+}
+.pulse-dialog[data-state='closed'] {
+  animation: dialog-out 180ms var(--ease-in) forwards;
+}
+@keyframes scrim-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes scrim-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.965);
+    filter: blur(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: blur(0);
+  }
+}
+@keyframes dialog-out {
+  to {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+}
+
+.pulse-pop {
+  border-color: rgb(var(--ink) / 0.1);
+  box-shadow: var(--shadow-float);
+  transform-origin: var(
+    --radix-popover-content-transform-origin,
+    var(
+      --radix-dropdown-menu-content-transform-origin,
+      var(--radix-select-content-transform-origin, var(--radix-hover-card-content-transform-origin, center))
+    )
+  );
+}
+.pulse-pop[data-state='open'],
+.pulse-pop:not([data-state]) {
+  animation: pop-in 260ms var(--ease-out);
+}
+.pulse-pop[data-state='closed'] {
+  animation: pop-out 130ms var(--ease-in) forwards;
+}
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateY(-4px);
+  }
+}
+@keyframes pop-out {
+  to {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+
+/* ---- Touch: whatever is pressed gives a little. ---- */
+.pulse-press:not(:disabled):active,
+.server-button:not(:disabled):active,
+.channel-row:not(:disabled):active,
+.call-dock button:not(:disabled):active,
+.profile-strip button:not(:disabled):active {
+  transform: scale(0.96);
+}
+.pulse-press,
+.channel-row,
+.call-dock button,
+.profile-strip button {
+  transition-property: color, background-color, border-color, box-shadow, opacity, transform;
+  transition-duration:
+    var(--motion-fast), var(--motion-fast), var(--motion-fast), var(--motion-fast), var(--motion-fast),
+    var(--motion-panel);
+  transition-timing-function:
+    var(--ease-out), var(--ease-out), var(--ease-out), var(--ease-out), var(--ease-out), var(--ease-spring);
+}
+
+/* ---- The rail: servers as quiet marks; the one you are in is lit. ---- */
+.server-rail {
+  background: var(--rail);
+  border-right-color: rgb(var(--ink) / 0.06) !important;
+  box-shadow: none;
+}
+.server-button {
+  overflow: visible;
+  transition:
+    transform var(--motion-panel) var(--ease-spring),
+    border-radius var(--motion-panel) var(--ease-out),
+    background-color var(--motion-fast) var(--ease-out),
+    color var(--motion-fast) var(--ease-out),
+    box-shadow var(--motion-panel) var(--ease-out);
+}
+.server-button:hover {
+  transform: translateY(-1px) scale(1.06);
+}
+.server-button.is-active {
+  box-shadow: var(--glow);
+}
+.server-selection {
+  position: absolute;
+  left: -12px;
+  top: 50%;
+  width: 4px;
+  height: 22px;
+  margin-top: -11px;
+  border-radius: 0 4px 4px 0;
+  background: var(--foreground);
+  box-shadow: 0 0 12px rgb(var(--ink) / 0.6);
+}
+
+/* ---- Channels: the selection slides from row to row. ---- */
+.channel-sidebar {
+  background: var(--sidebar);
+  border-color: rgb(var(--ink) / 0.06);
+}
+.channel-row {
+  isolation: isolate;
+}
+.channel-row.is-selected {
+  background: transparent;
+}
+.channel-selection {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: rgb(var(--ink) / 0.075);
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--ink) / 0.06),
+    inset 2px 0 0 var(--foreground);
+}
+.channel-row .channel-icon {
+  transition: transform var(--motion-panel) var(--ease-spring);
+}
+.channel-item:hover .channel-row .channel-icon,
+.channel-row:hover .channel-icon {
+  transform: scale(1.08);
+}
+
+/* ---- Room: a black stage, a hairline at its edge. ---- */
+.room-main {
+  background: var(--background);
+}
+.room-header {
+  background: transparent;
+}
+.stage {
+  border-color: rgb(var(--ink) / 0.07);
+  border-radius: 1.25rem;
+  box-shadow: inset 0 1px 0 rgb(var(--ink) / 0.04);
+}
+.stage-empty {
+  position: relative;
+  isolation: isolate;
+  background: var(--stage);
+}
+.stage-empty .stage-symbol {
+  position: relative;
+  background: var(--stage);
+  box-shadow: var(--glow);
+}
+.stage-empty .stage-symbol::before,
+.stage-empty .stage-symbol::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  border: 1px solid rgb(var(--ink) / 0.35);
+  animation: signal-ring 3.2s var(--ease-out) infinite;
+  pointer-events: none;
+}
+.stage-empty .stage-symbol::after {
+  animation-delay: 1.6s;
+}
+@keyframes signal-ring {
+  from {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(2.4);
+  }
+}
+.stage-empty h1 {
+  font-size: clamp(1.75rem, 2.6vw, 2.5rem);
+  font-weight: 620;
+  letter-spacing: -0.045em;
+}
+
+/* The voice room: black, with the old atmosphere only as a slow breath. */
+.stage-room {
+  background: var(--stage);
+  border-color: rgb(var(--ink) / 0.09);
+  box-shadow: inset 0 1px rgb(var(--ink) / 0.05);
+}
+/* The call has no backdrop: black is the room. */
+.stage-room::before,
+.stage-room::after {
+  display: none;
+}
+.participant-tile.is-featured .tile-face {
+  background: var(--lift-4);
+}
+.stage-room .call-dock {
+  border-color: rgb(var(--ink) / 0.1);
+  border-radius: 999px;
+  background: var(--lift-2);
+  box-shadow: var(--shadow-float);
+  animation: dock-in 700ms var(--ease-spring) 200ms backwards;
+}
+@keyframes dock-in {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.94);
+  }
+}
+.call-dock > button,
+.call-dock .dock-split > button {
+  background: var(--lift-4);
+  color: var(--text-1);
+}
+.call-dock > button:hover,
+.call-dock .dock-split > button:hover {
+  background: var(--lift-5);
+}
+.call-dock > button,
+.call-dock .dock-split > button:first-child {
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.06);
+}
+.call-dock .leave-button {
+  background: var(--text-1);
+  color: var(--lift-0);
+}
+.call-dock .leave-button:hover {
+  background: var(--destructive);
+  color: #fff;
+}
+.call-dock .is-sharing {
+  background: var(--success);
+  color: #04120a;
+}
+.tile-avatar:not([style*='background']) {
+  background: linear-gradient(140deg, rgb(var(--ink) / 0.07), transparent 62%), var(--lift-4);
+  color: var(--text-1);
+}
+.participant-tile.is-avatar .tile-face {
+  border-color: rgb(var(--ink) / 0.08);
+  background: var(--lift-4);
+  color: var(--text-1);
+}
+.call-dock > button:hover,
+.call-dock .dock-split > button:first-child:hover {
+  transform: translateY(-2px);
+}
+
+/* Someone speaking is the brightest thing in the room. */
+.participant-tile.is-speaking .tile-face,
+.roster-entry.is-speaking .roster-face {
+  transition: box-shadow var(--motion-panel) var(--ease-out);
+}
+.participant-tile.is-speaking:not(.is-avatar) {
+  box-shadow:
+    0 0 0 1px rgb(var(--ink) / 0.55),
+    0 0 32px rgb(var(--ink) / 0.14);
+  transition: box-shadow var(--motion-panel) var(--ease-out);
+}
+
+/* ---- Conversation: the newest message settles into place. ---- */
+.chat-message:last-child {
+  animation: message-in 420ms var(--ease-out);
+}
+@keyframes message-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+.chat-composer .composer-field {
+  transition:
+    box-shadow var(--motion-panel) var(--ease-out),
+    background-color var(--motion-panel) var(--ease-out);
+}
+.chat-composer .composer-field:focus-within {
+  box-shadow:
+    0 0 0 1px rgb(var(--ink) / 0.35),
+    0 0 0 4px rgb(var(--ink) / 0.05);
+}
+
+/* ---- Members arrive one after another. ---- */
+.member-entry {
+  animation: entry-in 520ms var(--ease-out) backwards;
+}
+.member-entry:nth-child(2) {
+  animation-delay: 30ms;
+}
+.member-entry:nth-child(3) {
+  animation-delay: 60ms;
+}
+.member-entry:nth-child(4) {
+  animation-delay: 90ms;
+}
+.member-entry:nth-child(5) {
+  animation-delay: 120ms;
+}
+.member-entry:nth-child(6) {
+  animation-delay: 150ms;
+}
+.member-entry:nth-child(n + 7) {
+  animation-delay: 180ms;
+}
+@keyframes entry-in {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+}
+
+/* ---- Notices rise from the dock. ---- */
+.room-notice {
+  border-radius: 999px;
+  box-shadow: var(--shadow-float);
+  animation: notice-in 480ms var(--ease-spring);
+}
+@keyframes notice-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.92);
+  }
+}
+
+/* ---- Scrollbars that only appear when wanted. ---- */
+::-webkit-scrollbar-thumb {
+  background-color: rgb(var(--ink) / 0.1);
+}
+:hover::-webkit-scrollbar-thumb {
+  background-color: rgb(var(--ink) / 0.2);
+}
+
+::selection {
+  background: rgb(var(--ink) / 0.9);
+  color: rgb(var(--ground));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+  ::view-transition-new(root) {
+    animation: none;
+  }
+}
+
+/* ---- Tooltips: an inverted pill that springs out of the side it names. ---- */
+.pulse-tooltip {
+  --tip-x: 0px;
+  --tip-y: 4px;
+  color: rgb(var(--ground));
+  background: var(--foreground);
+  box-shadow:
+    0 8px 24px -6px rgb(0 0 0 / 0.45),
+    0 0 0 1px rgb(var(--ink) / 0.06);
+  letter-spacing: -0.005em;
+  animation: tip-in 320ms var(--ease-spring) both !important;
+}
+.pulse-tooltip[data-side='bottom'] {
+  --tip-y: -4px;
+}
+.pulse-tooltip[data-side='left'] {
+  --tip-x: 4px;
+  --tip-y: 0px;
+}
+.pulse-tooltip[data-side='right'] {
+  --tip-x: -4px;
+  --tip-y: 0px;
+}
+.pulse-tooltip[data-state='closed'] {
+  animation: tip-out 110ms var(--ease-in) forwards !important;
+}
+.pulse-tooltip-arrow {
+  fill: var(--foreground);
+}
+.pulse-tooltip-keys {
+  display: inline-flex;
+  gap: 3px;
+  margin-right: -0.25rem;
+}
+.pulse-tooltip-keys kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.125rem;
+  height: 1.125rem;
+  padding: 0 0.3125rem;
+  border-radius: 0.3125rem;
+  font-family: var(--font-sans);
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: rgb(var(--ground) / 0.75);
+  background: rgb(var(--ground) / 0.1);
+  box-shadow: inset 0 -1px 0 rgb(var(--ground) / 0.18);
+}
+@keyframes tip-in {
+  from {
+    opacity: 0;
+    transform: translate(var(--tip-x), var(--tip-y)) scale(0.86);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes tip-out {
+  to {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+}

@@ -6,6 +6,11 @@
 @import './context-panel.css';
 @import './server-settings.css';
 @import './roles.css';
+@import './live-preview.css';
+@import './auth.css';
+@import './motion.css';
+@import './room.css';
+@import './dialogs.css';
 
 @theme {
   --font-sans: 'Schibsted Grotesk Variable', 'Segoe UI', system-ui, sans-serif;
@@ -21,6 +26,11 @@
   --radius-2xl: 1.5rem;
 }
 
+/*
+ * Noir: the room is true black, and light is what is alive. A voice, a live
+ * screen, the channel you are in: those glow. Everything else recedes.
+ * Paper is the same idea inverted, ink on white.
+ */
 :root {
   --space-1: 0.25rem;
   --space-2: 0.5rem;
@@ -28,76 +38,131 @@
   --space-4: 1rem;
   --space-5: 1.5rem;
   --space-6: 2rem;
-  --motion-fast: 150ms;
-  --motion-panel: 220ms;
-  --ease-room: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  /* One motion grammar. Exits are quicker than entrances; springs only on
+     things the hand touched. */
+  --motion-instant: 90ms;
+  --motion-fast: 160ms;
+  --motion-panel: 280ms;
+  --motion-scene: 620ms;
+  --ease-room: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: linear(
+    0, 0.009, 0.035 2.1%, 0.141 4.4%, 0.281 6.7%, 0.723 12.9%, 0.938 16.7%, 1.017 19.4%,
+    1.077 22.6%, 1.101 26.5%, 1.087 30.6%, 1.04 37.8%, 1.007 44.8%, 0.994 52.6%, 1 70%, 1
+  );
+
   --control-bar-height: 80px;
   --members-width: clamp(17rem, 22.24vw, 21.875rem);
   --room-header-height: 98px;
   --voice-card-height: clamp(300px, 40.5vh, 384px);
-  --radius-panel: 14px;
+  --radius-panel: 16px;
   --voice-foreground: #f5f5f5;
-  --shadow-panel: 0 16px 48px rgb(0 0 0 / 0.2);
-  /* The ladder, bottom to top. */
-  --rail: #0c0e0f;
-  --sidebar: #141718;
-  --background: #101213;
-  --card: #1e2224;
-  --popover: #282c2e;
-  --accent: #2b2f31;
 
-  --foreground: #f5f5f5;
-  --card-foreground: #f5f5f5;
-  --popover-foreground: #f5f5f5;
-  --primary: #f4f4f5;
-  --primary-foreground: #080809;
-  --secondary: #222628;
-  --secondary-foreground: #ededee;
-  --muted: #1b1f21;
-  --muted-foreground: #a0a4a7;
+  /* Channels for alpha: --ink is the colour of light on this ground,
+     --ground the colour of the ground itself. */
+  --ink: 255 255 255;
+  --ground: 0 0 0;
+
+  /* The ladder, bottom to top. Steps are small: on black, a hairline and
+     a few points of luminance separate more than a shadow can. */
+  --lift-0: #000000;
+  --lift-1: #070708;
+  --lift-2: #0c0c0e;
+  --lift-3: #121214;
+  --lift-4: #19191c;
+  --lift-5: #232327;
+  --lift-6: #3a3a40;
+  --text-1: #f7f7f8;
+  --text-2: #b6b6bd;
+  --text-3: #8a8a92;
+  --text-4: #5c5c63;
+
+  --rail: #000000;
+  --sidebar: #040405;
+  --background: #000000;
+  --card: #0b0b0d;
+  --popover: #101012;
+  --accent: #17171a;
+  --stage: #060607;
+
+  --foreground: var(--text-1);
+  --card-foreground: var(--text-1);
+  --popover-foreground: var(--text-1);
+  --primary: #fafafa;
+  --primary-foreground: #000000;
+  --secondary: #121214;
+  --secondary-foreground: #ececef;
+  --muted: #0d0d0f;
+  --muted-foreground: #8e8e96;
   --accent-foreground: #fafafa;
-  --destructive: #f05b67;
+  --destructive: #ff5c6c;
   --destructive-foreground: #ffffff;
-  --success: #45cf8a;
-  --warning: #f2b544;
-  /* Surfaces now separate themselves, so the dividers can step back. */
-  --border: rgba(255, 255, 255, 0.07);
-  --input: rgba(255, 255, 255, 0.13);
-  --ring: rgba(255, 255, 255, 0.72);
-  --sidebar-foreground: #f1f1f2;
-  /* The voice panel is lifted from the conversation by one surface. */
-  --stage: #171b1d;
-  --gloss: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --success: #3ee08f;
+  --warning: #f5b84a;
+  --border: rgb(255 255 255 / 0.075);
+  --input: rgb(255 255 255 / 0.12);
+  --ring: rgb(255 255 255 / 0.8);
+  --sidebar-foreground: #f1f1f3;
+
+  --gloss: inset 0 1px 0 rgb(255 255 255 / 0.06);
+  --shadow-panel: 0 24px 64px rgb(0 0 0 / 0.6);
+  --shadow-float: 0 1px 0 rgb(255 255 255 / 0.06) inset, 0 24px 80px -12px rgb(0 0 0 / 0.9),
+    0 0 0 1px rgb(255 255 255 / 0.08);
+  /* The glow of something live: a soft white bloom on black. */
+  --glow: 0 0 0 1px rgb(255 255 255 / 0.14), 0 0 24px rgb(255 255 255 / 0.12);
+  --scrim: rgb(0 0 0 / 0.72);
   color-scheme: dark;
 }
 
 .theme-light {
-  --background: #fafafa;
-  --foreground: #111111;
+  --ink: 0 0 0;
+  --ground: 255 255 255;
+
+  --lift-0: #ffffff;
+  --lift-1: #fbfbfb;
+  --lift-2: #f6f6f7;
+  --lift-3: #f0f0f1;
+  --lift-4: #e8e8ea;
+  --lift-5: #dcdce0;
+  --lift-6: #bdbdc3;
+  --text-1: #09090b;
+  --text-2: #3d3d44;
+  --text-3: #6a6a72;
+  --text-4: #9c9ca3;
+
+  --rail: #f4f4f5;
+  --sidebar: #fafafa;
+  --background: #ffffff;
   --card: #ffffff;
-  --card-foreground: #111111;
   --popover: #ffffff;
-  --popover-foreground: #111111;
-  --primary: #151515;
+  --accent: #eeeef0;
+  --stage: #f7f7f8;
+
+  --primary: #09090b;
   --primary-foreground: #ffffff;
-  --secondary: #efefef;
-  --secondary-foreground: #202020;
-  --muted: #f1f1f1;
-  --muted-foreground: #696969;
-  --accent: #e8e8e8;
-  --accent-foreground: #111111;
-  --destructive: #d94854;
-  --destructive-foreground: #ffffff;
-  --success: #238b5d;
+  --secondary: #f2f2f3;
+  --secondary-foreground: #1c1c20;
+  --muted: #f5f5f6;
+  --muted-foreground: #6a6a72;
+  --accent-foreground: #09090b;
+  --destructive: #e0384b;
+  --success: #149a5a;
   --warning: #b7791f;
-  --border: #dedede;
-  --input: #c9c9c9;
-  --ring: rgba(0, 0, 0, 0.58);
-  --sidebar: #f2f2f2;
-  --sidebar-foreground: #111111;
-  --rail: #eaeaea;
-  --stage: #e8e8e8;
-  --gloss: inset 0 1px 0 rgba(255, 255, 255, 0.78);
+  --border: rgb(0 0 0 / 0.08);
+  --input: rgb(0 0 0 / 0.14);
+  --ring: rgb(0 0 0 / 0.72);
+  --sidebar-foreground: #0d0d10;
+  --voice-foreground: #0d0d10;
+
+  --gloss: inset 0 1px 0 rgb(255 255 255 / 0.9);
+  --shadow-panel: 0 18px 48px rgb(0 0 0 / 0.08);
+  --shadow-float: 0 1px 2px rgb(0 0 0 / 0.04), 0 24px 64px -16px rgb(0 0 0 / 0.18),
+    0 0 0 1px rgb(0 0 0 / 0.07);
+  --glow: 0 0 0 1px rgb(0 0 0 / 0.12), 0 8px 24px rgb(0 0 0 / 0.08);
+  --scrim: rgb(250 250 250 / 0.7);
   color-scheme: light;
 }
 

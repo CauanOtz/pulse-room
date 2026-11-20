@@ -46,8 +46,30 @@ export function ConnectionDetails({ read }: { read(): Promise<ConnectionReport> 
   const loss = report?.sentLossPercent;
   const lossy = loss !== undefined && loss >= 1;
 
+  const ping = report?.lastPingMs;
+  const verdict =
+    ping === undefined
+      ? 'Listening for a reply'
+      : ping < 80
+        ? 'Excellent'
+        : ping < 150
+          ? 'Good'
+          : ping < 250
+            ? 'Noticeable delay'
+            : 'High delay';
+
   return (
     <div className="connection-details flex flex-col gap-3">
+      <div className="connection-hero" aria-hidden="true">
+        <span className="connection-ping font-mono tabular-nums">
+          {ping === undefined ? '··' : Math.round(ping)}
+          <small>ms</small>
+        </span>
+        <span className={cn('connection-verdict', ping !== undefined && ping >= 150 && 'is-slow')}>
+          <i />
+          {verdict}
+        </span>
+      </div>
       <PingChart samples={report?.samples ?? []} />
       <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1.5 text-xs">
         <dt className="text-muted-foreground">Average ping</dt>
@@ -74,10 +96,6 @@ export function ConnectionDetails({ read }: { read(): Promise<ConnectionReport> 
           </>
         )}
       </dl>
-      <p className="text-[11px] leading-relaxed text-muted-foreground">
-        Audio starts to feel late from about 250 ms. Loss above 10% makes your voice sound robotic to everyone
-        else. If both are low here and somebody still sounds choppy, the trouble is on their line.
-      </p>
     </div>
   );
 }
@@ -102,8 +120,8 @@ function PingChart({ samples }: { samples: readonly ConnectionSample[] }) {
 
   if (samples.length < 2) {
     return (
-      <div className="grid h-28 place-items-center rounded-lg border border-border bg-background/50 text-xs text-muted-foreground">
-        Measuring your connection…
+      <div className="connection-measuring grid h-28 place-items-center rounded-xl text-xs text-muted-foreground">
+        <span>Measuring your connection…</span>
       </div>
     );
   }
@@ -136,7 +154,7 @@ function PingChart({ samples }: { samples: readonly ConnectionSample[] }) {
   };
 
   return (
-    <div className="relative rounded-lg border border-border bg-background/50 px-2 pt-1.5">
+    <div className="connection-chart relative rounded-xl px-2 pt-1.5">
       <svg
         className="block w-full overflow-visible"
         viewBox={`0 0 ${width} ${height}`}
@@ -177,6 +195,8 @@ function PingChart({ samples }: { samples: readonly ConnectionSample[] }) {
         ))}
         <path d={area} fill="var(--foreground)" opacity={0.06} />
         <path
+          className="connection-line"
+          pathLength={1}
           d={line}
           fill="none"
           stroke="var(--foreground)"

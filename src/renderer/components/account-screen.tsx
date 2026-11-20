@@ -1,7 +1,40 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { AnimatePresence, motion, useAnimationControls, useReducedMotion } from 'motion/react';
+import { ArrowRight, LoaderCircle, Moon, Sun } from 'lucide-react';
 import logoUrl from '../../../assets/logo-ui.png';
 import type { AccountSession } from '../../shared/community';
 import type { CommunityClient } from '../infrastructure/community-client';
+import { FluxField } from './flux-field';
+import { BlurText } from './motion/blur-text';
+import { Magnetic } from './motion/magnetic';
+import { resolveTheme, readTheme, switchTheme } from './theme';
+
+const ease = [0.16, 1, 0.3, 1] as const;
+
+const headings = {
+  login: 'Welcome back',
+  register: 'Make yourself at home',
+  recover: 'Recover your account',
+};
+
+/** Fields that come and go with the mode open their own room in the form. */
+function Reveal({ show, children }: { show: boolean; children: ReactNode }) {
+  return (
+    <AnimatePresence initial={false}>
+      {show && (
+        <motion.div
+          className="auth-reveal"
+          initial={{ height: 0, opacity: 0, filter: 'blur(6px)' }}
+          animate={{ height: 'auto', opacity: 1, filter: 'blur(0px)' }}
+          exit={{ height: 0, opacity: 0, filter: 'blur(6px)' }}
+          transition={{ duration: 0.42, ease }}
+        >
+          {children}
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
 
 export function AccountScreen({
   api,
@@ -18,7 +51,20 @@ export function AccountScreen({
   const [newRecovery, setNewRecovery] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [leaving, setLeaving] = useState(false);
   const [inviteCode, setInviteCode] = useState('');
+  const [light, setLight] = useState(() => resolveTheme(readTheme()) === 'light');
+  const still = useReducedMotion();
+  const panel = useAnimationControls();
+  const mounted = useRef(true);
+  useEffect(() => {
+    // Set on every mount: development mounts effects twice, and a flag only
+    // ever cleared would leave the sign-in waiting forever.
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   // Whether new accounts can be made here: open, only with a code, or not at all.
   const [registration, setRegistration] = useState<'open' | 'invite' | 'closed'>('open');
   useEffect(() => {
@@ -34,6 +80,12 @@ export function AccountScreen({
     };
   }, [api, mode]);
   const closed = mode === 'register' && registration === 'closed';
+
+  const switchMode = (next: typeof mode) => {
+    setMode(next);
+    setError('');
+  };
+
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     setBusy(true);
@@ -56,185 +108,260 @@ export function AccountScreen({
           ...(mode === 'register' && registration === 'invite' ? { inviteCode } : {}),
         });
         setPassword('');
-        onAuthenticated(result);
+        // The way in is a moment: the panel dissolves into the field first.
+        if (!still) {
+          setLeaving(true);
+          await new Promise((resolve) => setTimeout(resolve, 560));
+        }
+        if (mounted.current) onAuthenticated(result);
       }
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : 'Unable to sign in.');
+      if (!still)
+        void panel.start({ x: [0, -9, 8, -6, 4, -2, 0], transition: { duration: 0.5, ease: 'easeOut' } });
     } finally {
-      setBusy(false);
+      if (mounted.current) setBusy(false);
     }
   };
+
+  const label = busy
+    ? 'Please wait…'
+    : mode === 'login'
+      ? 'Sign in'
+      : mode === 'register'
+        ? 'Create account'
+        : 'Reset password';
+
   return (
-    <main className="account-screen grid h-full grid-cols-1 overflow-auto lg:grid-cols-2">
-      <div className="account-story hidden flex-col justify-center bg-black p-[clamp(2.5rem,7vw,6rem)] lg:flex">
-        <img className="brand-logo h-auto w-44 object-contain" src={logoUrl} alt="Pulse Room" />
+    <main className="auth-screen" data-leaving={leaving || undefined}>
+      <FluxField className="auth-field" intensity={leaving ? 1.35 : 1} resolution={0.8} />
+      <div className="auth-veil" aria-hidden="true" />
+
+      <motion.header
+        className="auth-top"
+        initial={still ? false : { opacity: 0, y: -12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, delay: 0.1, ease }}
+      >
+        <span className="auth-brand">
+          <img src={logoUrl} alt="" />
+          <span>Pulse Room</span>
+        </span>
+        <button
+          type="button"
+          className="auth-theme"
+          aria-label={light ? 'Use the dark theme' : 'Use the light theme'}
+          onClick={(event) => {
+            const next = light ? 'dark' : 'light';
+            setLight(!light);
+            switchTheme(next, { x: event.clientX, y: event.clientY });
+          }}
+        >
+          <AnimatePresence mode="popLayout" initial={false}>
+            <motion.span
+              key={light ? 'moon' : 'sun'}
+              initial={{ opacity: 0, scale: 0.4, rotate: -90, filter: 'blur(4px)' }}
+              animate={{ opacity: 1, scale: 1, rotate: 0, filter: 'blur(0px)' }}
+              exit={{ opacity: 0, scale: 0.4, rotate: 90, filter: 'blur(4px)' }}
+              transition={{ duration: 0.45, ease }}
+              className="grid place-items-center"
+            >
+              {light ? <Moon className="size-4" /> : <Sun className="size-4" />}
+            </motion.span>
+          </AnimatePresence>
+        </button>
+      </motion.header>
+
+      <section className="auth-story" aria-label="Pulse Room">
         <h1>
-          Your people.
-          <br />
-          Your rooms.
+          <BlurText
+            label="Your people. Your rooms."
+            delay={0.25}
+            parts={['Your', 'people.', '\n', 'Your', <em key="rooms">rooms.</em>]}
+          />
         </h1>
-        <p>A place for the whole squad. And a quiet one just for two.</p>
-        <div className="account-room mt-6 flex items-center gap-3.5 text-xs text-muted-foreground">
-          <span>FR</span>
-          <div>
-            <strong>Friends</strong>
-            <small>Late games, good company</small>
-          </div>
-        </div>
-        <div className="account-room mt-6 flex items-center gap-3.5 text-xs text-muted-foreground">
-          <span>US</span>
-          <div>
-            <strong>Just us</strong>
-            <small>Only the people you invite</small>
-          </div>
-        </div>
-      </div>
-      <section className="account-form flex flex-col justify-center gap-4 p-[clamp(1.5rem,5vw,4rem)]">
-        <h2>
-          {mode === 'login'
-            ? 'Welcome back'
-            : mode === 'register'
-              ? 'Make yourself at home'
-              : 'Recover your account'}
-        </h2>
-        <p>
-          {mode === 'recover'
-            ? 'Use the recovery code you saved when creating your account.'
-            : 'Your servers are private. Only invited members can enter.'}
-        </p>
-        {newRecovery ? (
-          <>
-            <p>Password changed. Save this replacement recovery code; the old code no longer works.</p>
-            <textarea aria-label="New recovery code" readOnly value={newRecovery} />
-            <button
-              className="primary-action inline-flex h-9 items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-              onClick={() => {
-                setNewRecovery('');
-                setMode('login');
-              }}
-            >
-              I saved it — sign in
-            </button>
-          </>
-        ) : (
-          <form onSubmit={(e) => void submit(e)}>
-            <label>
-              Username
-              <input
-                autoFocus
-                autoComplete="username"
-                required
-                pattern="[a-zA-Z0-9_]{3,32}"
-                maxLength={32}
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-              />
-            </label>
-            {mode === 'register' && (
-              <label>
-                Display name
-                <input
-                  required
-                  maxLength={40}
-                  autoComplete="nickname"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                />
-              </label>
-            )}
-            {mode === 'register' && registration === 'invite' && (
-              <label>
-                Invite code
-                <input
-                  required
-                  autoComplete="off"
-                  maxLength={64}
-                  value={inviteCode}
-                  onChange={(e) => setInviteCode(e.target.value)}
-                />
-              </label>
-            )}
-            {closed && (
-              <p
-                role="status"
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-xs text-muted-foreground"
-              >
-                Sign-ups are closed right now. Ask whoever runs this Pulse Room for an account.
-              </p>
-            )}
-            {mode === 'recover' && (
-              <label>
-                Recovery code
-                <input
-                  required
-                  autoComplete="off"
-                  value={recoveryCode}
-                  onChange={(e) => setRecoveryCode(e.target.value)}
-                />
-              </label>
-            )}
-            <label>
-              {mode === 'recover' ? 'New password' : 'Password'}
-              <input
-                type="password"
-                required
-                minLength={mode === 'login' ? 1 : 12}
-                maxLength={128}
-                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </label>
-            {mode !== 'login' && (
-              <small className="text-[11px] text-muted-foreground">
-                Use at least 12 characters. A memorable passphrase works well.
-              </small>
-            )}
-            {error && (
-              <p
-                role="alert"
-                className="form-error rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive"
-              >
-                {error}
-              </p>
-            )}
-            <button
-              className="primary-action mt-1 inline-flex h-9 items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
-              disabled={busy || closed}
-            >
-              {busy
-                ? 'Please wait…'
-                : mode === 'login'
-                  ? 'Sign in'
-                  : mode === 'register'
-                    ? 'Create account'
-                    : 'Reset password'}
-            </button>
-          </form>
-        )}
-        {!newRecovery && (
-          <div className="account-links flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-            <button
-              disabled={busy}
-              onClick={() => {
-                setMode(mode === 'register' ? 'login' : 'register');
-                setError('');
-              }}
-            >
-              {mode === 'register' ? 'Already have an account? Sign in' : 'Create an account'}
-            </button>
-            <button
-              disabled={busy}
-              onClick={() => {
-                setMode(mode === 'recover' ? 'login' : 'recover');
-                setError('');
-              }}
-            >
-              {mode === 'recover' ? 'Back to sign in' : 'Forgot password?'}
-            </button>
-          </div>
-        )}
+        <motion.p
+          initial={still ? false : { opacity: 0, y: 10, filter: 'blur(8px)' }}
+          animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+          transition={{ duration: 0.9, delay: 0.75, ease }}
+        >
+          Voice that stays out of the way, screens in full 1080p with their sound, and servers only your
+          people can enter.
+        </motion.p>
       </section>
+
+      <motion.section
+        className="auth-panel"
+        initial={still ? false : { opacity: 0, y: 28, scale: 0.97, filter: 'blur(12px)' }}
+        animate={
+          leaving
+            ? { opacity: 0, y: -8, scale: 1.04, filter: 'blur(16px)' }
+            : { opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }
+        }
+        transition={{ duration: leaving ? 0.55 : 1, delay: leaving ? 0 : 0.35, ease }}
+      >
+        <motion.div className="auth-card" animate={panel}>
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={newRecovery ? 'saved' : mode}
+              className="auth-heading"
+              initial={{ opacity: 0, y: 8, filter: 'blur(8px)' }}
+              animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+              exit={{ opacity: 0, y: -6, filter: 'blur(8px)' }}
+              transition={{ duration: 0.32, ease }}
+            >
+              <h2>{headings[mode]}</h2>
+              <p>
+                {mode === 'recover'
+                  ? 'Use the recovery code you saved when creating your account.'
+                  : 'Your servers are private. Only invited members can enter.'}
+              </p>
+            </motion.div>
+          </AnimatePresence>
+
+          {newRecovery ? (
+            <motion.div
+              className="auth-form"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, ease }}
+            >
+              <p className="auth-note">
+                Password changed. Save this replacement recovery code; the old code no longer works.
+              </p>
+              <textarea aria-label="New recovery code" readOnly value={newRecovery} />
+              <button
+                className="auth-submit"
+                onClick={() => {
+                  setNewRecovery('');
+                  setMode('login');
+                }}
+              >
+                <span className="auth-submit-label">I saved it — sign in</span>
+                <ArrowRight className="auth-submit-arrow" aria-hidden="true" />
+              </button>
+            </motion.div>
+          ) : (
+            <form className="auth-form" onSubmit={(e) => void submit(e)}>
+              <label className="auth-input">
+                <span>Username</span>
+                <input
+                  autoFocus
+                  autoComplete="username"
+                  required
+                  pattern="[a-zA-Z0-9_]{3,32}"
+                  maxLength={32}
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                />
+              </label>
+              <Reveal show={mode === 'register'}>
+                <label className="auth-input">
+                  <span>Display name</span>
+                  <input
+                    required
+                    maxLength={40}
+                    autoComplete="nickname"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                  />
+                </label>
+              </Reveal>
+              <Reveal show={mode === 'register' && registration === 'invite'}>
+                <label className="auth-input">
+                  <span>Invite code</span>
+                  <input
+                    required
+                    autoComplete="off"
+                    maxLength={64}
+                    value={inviteCode}
+                    onChange={(e) => setInviteCode(e.target.value)}
+                  />
+                </label>
+              </Reveal>
+              <Reveal show={closed}>
+                <p role="status" className="auth-note">
+                  Sign-ups are closed right now. Ask whoever runs this Pulse Room for an account.
+                </p>
+              </Reveal>
+              <Reveal show={mode === 'recover'}>
+                <label className="auth-input">
+                  <span>Recovery code</span>
+                  <input
+                    required
+                    autoComplete="off"
+                    value={recoveryCode}
+                    onChange={(e) => setRecoveryCode(e.target.value)}
+                  />
+                </label>
+              </Reveal>
+              <label className="auth-input">
+                <span>{mode === 'recover' ? 'New password' : 'Password'}</span>
+                <input
+                  type="password"
+                  required
+                  minLength={mode === 'login' ? 1 : 12}
+                  maxLength={128}
+                  autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </label>
+              <Reveal show={mode !== 'login'}>
+                <small className="auth-hint">
+                  Use at least 12 characters. A memorable passphrase works well.
+                </small>
+              </Reveal>
+              <Reveal show={Boolean(error)}>
+                <p role="alert" className="auth-error">
+                  {error}
+                </p>
+              </Reveal>
+              <Magnetic strength={0.12} className="mt-1">
+                <button className="auth-submit" disabled={busy || closed} data-busy={busy || undefined}>
+                  <AnimatePresence mode="popLayout" initial={false}>
+                    <motion.span
+                      key={label}
+                      className="auth-submit-label"
+                      initial={{ opacity: 0, y: 10, filter: 'blur(4px)' }}
+                      animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                      exit={{ opacity: 0, y: -10, filter: 'blur(4px)' }}
+                      transition={{ duration: 0.28, ease }}
+                    >
+                      {label}
+                    </motion.span>
+                  </AnimatePresence>
+                  {busy ? (
+                    <LoaderCircle className="auth-submit-arrow animate-spin" aria-hidden="true" />
+                  ) : (
+                    <ArrowRight className="auth-submit-arrow" aria-hidden="true" />
+                  )}
+                </button>
+              </Magnetic>
+            </form>
+          )}
+          {!newRecovery && (
+            <div className="auth-links">
+              <button disabled={busy} onClick={() => switchMode(mode === 'register' ? 'login' : 'register')}>
+                {mode === 'register' ? 'Already have an account? Sign in' : 'Create an account'}
+              </button>
+              <button disabled={busy} onClick={() => switchMode(mode === 'recover' ? 'login' : 'recover')}>
+                {mode === 'recover' ? 'Back to sign in' : 'Forgot password?'}
+              </button>
+            </div>
+          )}
+        </motion.div>
+      </motion.section>
+
+      <motion.footer
+        className="auth-foot"
+        initial={still ? false : { opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 1.2, delay: 1.1 }}
+      >
+        <span>Move the pointer to bend the field</span>
+        <span className="font-mono">v{__APP_VERSION__}</span>
+      </motion.footer>
     </main>
   );
 }

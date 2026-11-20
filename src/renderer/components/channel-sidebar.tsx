@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react';
+import { motion } from 'motion/react';
 import {
   ChevronDown,
   ChevronRight,
@@ -154,6 +155,7 @@ export function ChannelSidebar(props: ChannelSidebarProps) {
         <section className="channel-group mb-5 flex flex-col gap-0.5">
           <GroupHeading
             label="Text channels"
+            count={looseText?.length ?? 2}
             createLabel="Create text channel"
             onCreate={props.textChannels && props.onCreateChannel && (() => props.onCreateChannel?.('text'))}
           />
@@ -193,6 +195,7 @@ export function ChannelSidebar(props: ChannelSidebarProps) {
         <section className="channel-group mb-4 flex flex-col gap-0.5">
           <GroupHeading
             label="Voice channels"
+            count={looseVoice.length}
             createLabel="Create voice channel"
             onCreate={props.onCreateChannel && (() => props.onCreateChannel?.('voice'))}
           />
@@ -271,16 +274,24 @@ export function ChannelSidebar(props: ChannelSidebarProps) {
  */
 function GroupHeading({
   label,
+  count,
   createLabel,
   onCreate,
 }: {
   label: string;
+  count?: number;
   createLabel: string;
   onCreate?: false | undefined | (() => void);
 }) {
   return (
     <div className="channel-heading flex h-7 items-center justify-between gap-2 pl-2 pr-1">
       <h2 className="min-w-0 truncate text-[11px] font-semibold text-muted-foreground">{label}</h2>
+      <span className="channel-rule" aria-hidden="true" />
+      {count !== undefined && (
+        <span className="channel-count font-mono" aria-hidden="true">
+          {String(count).padStart(2, '0')}
+        </span>
+      )}
       {onCreate && (
         <Tooltip label={createLabel}>
           <button
@@ -406,6 +417,14 @@ function ChannelRow({
         onPointerEnter={onIntent || undefined}
         onFocus={onIntent || undefined}
       >
+        {selected && (
+          <motion.span
+            layoutId="channel-selection"
+            className="channel-selection"
+            aria-hidden="true"
+            transition={{ type: 'spring', stiffness: 520, damping: 42, mass: 0.8 }}
+          />
+        )}
         <span className="channel-icon" aria-hidden="true">
           {icon}
         </span>
@@ -414,6 +433,7 @@ function ChannelRow({
           {detail && <span className="channel-detail block truncate">{detail}</span>}
         </span>
         {isPrivate && <LockKeyhole aria-label="Private" className="size-3.5 shrink-0" />}
+        {!onEdit && <ChevronRight className="channel-go" aria-hidden="true" />}
       </button>
       {onEdit && (
         <Tooltip label="Edit channel">
