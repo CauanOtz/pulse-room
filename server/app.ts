@@ -301,6 +301,8 @@ export async function createServer(
   });
   server.delete('/api/servers/:serverId', async (request) => {
     await communities.deleteServer(actor(request).id, id(request, 'serverId'));
+    // Whoever was talking in it leaves now, not at the next periodic check.
+    enforce();
     return { ok: true };
   });
   server.post('/api/servers/:serverId/transfer', async (request) => {

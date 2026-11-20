@@ -126,6 +126,7 @@ function workspace(current: CommunityDetail, onSelectServer = vi.fn()): Workspac
       { id: 'friends', name: 'Friends', role: 'owner' },
       { id: 'couple', name: 'Just us', role: 'owner' },
     ],
+    selectedServerId: current.server.id,
     onSelectServer,
     onAddServer: vi.fn(),
     onManage: vi.fn(),

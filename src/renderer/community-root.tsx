@@ -41,6 +41,8 @@ export interface WorkspaceBindings {
   user: Account;
   detail: CommunityDetail;
   servers: Community[];
+  /** The server asked for, which is ahead of `detail` while it loads. */
+  selectedServerId: string;
   onSelectServer(id: string): void;
   onAddServer(): void;
   onManage(): void;
@@ -64,6 +66,20 @@ export function CommunityRoot({ apiUrl }: { apiUrl: string }) {
   const [detail, setDetail] = useState<CommunityDetail>();
   const selectedServer = useRef(serverId);
   selectedServer.current = serverId;
+  const knownServers = useRef(servers);
+  knownServers.current = servers;
+  // When the open server is gone (deleted, or you were removed from it) the
+  // next one is opened in its place. The room stays mounted meanwhile, so a
+  // call running in another server is not ended, and there is no empty
+  // screen while the list is read again.
+  const leaveServer = (goneId: string) => {
+    const rest = knownServers.current.filter((server) => server.id !== goneId);
+    const next = rest[0]?.id ?? '';
+    setServers(rest);
+    setServerId((current) => (current === goneId || !current ? next : current));
+    if (!next) setDetail(undefined);
+    setDialog(undefined);
+  };
   const [dialog, setDialog] = useState<'add' | 'server' | 'channel' | 'category' | 'account'>();
   const [editingChannel, setEditingChannel] = useState<CommunityChannel>();
   const [newChannelType, setNewChannelType] = useState<'text' | 'voice'>('voice');
@@ -123,8 +139,9 @@ export function CommunityRoot({ apiUrl }: { apiUrl: string }) {
       const next = await api.request<CommunityDetail>(`/api/servers/${serverId}`);
       if (requestedId === selectedServer.current) setDetail(next);
     } else {
-      setDetail(undefined);
-      setServerId(result.servers[0]?.id ?? '');
+      const next = result.servers[0]?.id ?? '';
+      setServerId(next);
+      if (!next) setDetail(undefined);
     }
   };
   // The list of servers and the room you are in are two different questions, so
@@ -144,9 +161,10 @@ export function CommunityRoot({ apiUrl }: { apiUrl: string }) {
         );
         if (abort.signal.aborted) return;
         setServers(result.servers);
-        setServerId((current) =>
-          current && result.servers.some((s) => s.id === current) ? current : (result.servers[0]?.id ?? ''),
-        );
+        // Only a first choice is made here. A server that disappears is noticed
+        // by the read of that server, and a reply sent before you chose
+        // another one must not take you back.
+        setServerId((current) => current || (result.servers[0]?.id ?? ''));
         setError('');
       } catch (e) {
         if (!abort.signal.aborted) setError(e instanceof Error ? e.message : 'Could not load your servers.');
@@ -184,11 +202,7 @@ export function CommunityRoot({ apiUrl }: { apiUrl: string }) {
         if (abort.signal.aborted) return;
         setError(e instanceof Error ? e.message : 'Could not open that server.');
         // Membership can be taken away while the room is open.
-        if (e instanceof ApiError && [403, 404].includes(e.status)) {
-          setDetail(undefined);
-          setServerId('');
-          setDialog(undefined);
-        }
+        if (e instanceof ApiError && [403, 404].includes(e.status)) leaveServer(serverId);
       } finally {
         if (!abort.signal.aborted) timer = setTimeout(() => void read(), 5000);
       }
@@ -270,6 +284,7 @@ export function CommunityRoot({ apiUrl }: { apiUrl: string }) {
             user,
             detail,
             servers,
+            selectedServerId: serverId,
             onSelectServer: selectServer,
             onAddServer: () => setDialog('add'),
             onManage: () => setDialog('server'),
@@ -381,9 +396,14 @@ export function CommunityRoot({ apiUrl }: { apiUrl: string }) {
           api={api}
           onClose={() => setDialog(undefined)}
           onCreated={(id) => {
-            setDetail(undefined);
+            // Like any other switch, the room in view stays until the new
+            // server has loaded, so a call is not ended by creating one.
             setServerId(id);
             setDialog(undefined);
+            void api
+              .request<{ servers: Community[] }>('/api/servers')
+              .then((result) => setServers(result.servers))
+              .catch(() => undefined);
           }}
         />
       )}
@@ -394,12 +414,7 @@ export function CommunityRoot({ apiUrl }: { apiUrl: string }) {
           detail={detail}
           onClose={() => setDialog(undefined)}
           onChanged={refresh}
-          onRemoved={() => {
-            setDetail(undefined);
-            setServerId('');
-            setDialog(undefined);
-            void refresh();
-          }}
+          onRemoved={() => leaveServer(detail.server.id)}
         />
       )}
       {dialog === 'channel' && detail && (

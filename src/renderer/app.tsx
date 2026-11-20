@@ -540,7 +540,13 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
       <VideoLevelFilter />
       <ServerRail
         servers={workspace?.servers}
-        activeId={inDirects ? undefined : workspace?.detail.server.id}
+        // The click is answered at once; the room follows when it has loaded.
+        activeId={inDirects ? undefined : workspace?.selectedServerId || workspace?.detail.server.id}
+        loadingId={
+          workspace && workspace.selectedServerId && workspace.selectedServerId !== workspace.detail.server.id
+            ? workspace.selectedServerId
+            : undefined
+        }
         onSelect={
           workspace &&
           ((id) => {

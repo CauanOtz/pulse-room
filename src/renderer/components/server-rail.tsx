@@ -22,6 +22,7 @@ const demoServers: RailItem[] = [
 export function ServerRail({
   servers,
   activeId,
+  loadingId,
   onSelect,
   onAdd,
   onAccount,
@@ -32,6 +33,8 @@ export function ServerRail({
 }: {
   servers?: Community[];
   activeId?: string;
+  /** A server already chosen whose room is still on its way. */
+  loadingId?: string;
   onSelect?(id: string): void;
   onAdd?(): void;
   onAccount?(): void;
@@ -104,12 +107,14 @@ export function ServerRail({
             'hover:rounded-[10px] hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             server.active &&
               'is-active rounded-[10px] bg-accent text-foreground ring-1 ring-inset ring-[rgb(var(--ink)/0.1)]',
+            server.id === loadingId && 'is-loading',
           )}
           key={server.id}
           type="button"
           aria-label={server.label}
           title={server.label}
           aria-current={server.active}
+          aria-busy={server.id === loadingId || undefined}
           onClick={() => onSelect?.(server.id)}
         >
           {server.active && (
