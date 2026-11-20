@@ -1,4 +1,4 @@
-import { Compass, Plus, UserRound } from 'lucide-react';
+import { Compass, MessageCircle, Plus, UserRound } from 'lucide-react';
 import { motion } from 'motion/react';
 import appIconUrl from '../../../assets/app-icon.png';
 import type { Community } from '../../shared/community';
@@ -26,6 +26,9 @@ export function ServerRail({
   onAdd,
   onAccount,
   showAccount = false,
+  directsUnread = 0,
+  directsActive = false,
+  onDirects,
 }: {
   servers?: Community[];
   activeId?: string;
@@ -33,6 +36,11 @@ export function ServerRail({
   onAdd?(): void;
   onAccount?(): void;
   showAccount?: boolean;
+  /** Messages waiting in direct conversations. */
+  directsUnread?: number;
+  directsActive?: boolean;
+  /** Absent where there are no direct messages to open. */
+  onDirects?(): void;
 }) {
   const items: RailItem[] =
     servers?.map((s) => ({
@@ -53,6 +61,41 @@ export function ServerRail({
       >
         <img aria-hidden="true" className="size-full object-contain" src={appIconUrl} />
       </div>
+      {onDirects && (
+        <button
+          className={cn(
+            'server-button direct-button grid size-9.5 shrink-0 place-items-center',
+            directsActive && 'is-active',
+          )}
+          type="button"
+          aria-label={directsUnread ? `Direct messages, ${directsUnread} unread` : 'Direct messages'}
+          title="Direct messages"
+          aria-current={directsActive || undefined}
+          onClick={onDirects}
+        >
+          {directsActive && (
+            <motion.span
+              layoutId="server-selection"
+              className="server-selection"
+              aria-hidden="true"
+              transition={{ type: 'spring', stiffness: 480, damping: 36 }}
+            />
+          )}
+          <MessageCircle size={17} aria-hidden="true" />
+          {directsUnread > 0 && (
+            <motion.b
+              key={directsUnread}
+              className="direct-badge"
+              initial={{ scale: 0.3 }}
+              animate={{ scale: 1 }}
+              transition={{ type: 'spring', stiffness: 600, damping: 20 }}
+              aria-hidden="true"
+            >
+              {directsUnread > 9 ? '9+' : directsUnread}
+            </motion.b>
+          )}
+        </button>
+      )}
       <div className="rail-rule my-1 h-px w-7 bg-border" />
       {items.map((server) => (
         <button

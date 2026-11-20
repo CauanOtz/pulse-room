@@ -13,6 +13,7 @@
 @import './dialogs.css';
 @import './panel.css';
 @import './attachments.css';
+@import './directs.css';
 
 @theme {
   --font-sans: 'Schibsted Grotesk Variable', 'Segoe UI', system-ui, sans-serif;

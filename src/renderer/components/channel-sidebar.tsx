@@ -13,6 +13,7 @@ import {
   Radio,
   Tv,
   Settings,
+  UserPlus,
   Volume2,
   VolumeX,
 } from 'lucide-react';
@@ -41,6 +42,8 @@ interface ChannelSidebarProps {
   selectedTextId?: string;
   onSelectText?(id: string): void;
   onManage?(): void;
+  /** Absent for anyone who may not invite people. */
+  onInvite?(): void;
   connectionState: ConnectionState;
   channels: VoiceChannel[];
   activeChannelId: string;
@@ -150,6 +153,13 @@ export function ChannelSidebar(props: ChannelSidebarProps) {
           <ChevronDown size={14} />
         </i>
       </button>
+      {props.onInvite && (
+        <Tooltip label="Invite people">
+          <button className="server-invite" type="button" aria-label="Invite people" onClick={props.onInvite}>
+            <UserPlus size={15} />
+          </button>
+        </Tooltip>
+      )}
 
       <div className="channel-scroll flex-1 overflow-y-auto px-2 py-3">
         <section className="channel-group mb-5 flex flex-col gap-0.5">

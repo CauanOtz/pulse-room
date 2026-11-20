@@ -267,3 +267,47 @@ export interface AccountSession {
   recoveryCode?: string;
 }
 export const canManage = (role?: MemberRole): boolean => role === 'owner' || role === 'admin';
+
+/** The other person in a one-to-one conversation. */
+export interface DirectPeer {
+  id: string;
+  username: string;
+  displayName: string;
+  avatarId?: string | null;
+}
+
+export interface DirectConversation {
+  id: string;
+  peer: DirectPeer;
+  /** The newest message, for the list; absent until somebody writes. */
+  lastMessage?: { content: string; authorId: string; createdAt: string; invite: boolean };
+  /** Messages from the peer since this account last read the conversation. */
+  unread: number;
+  updatedAt: string;
+}
+
+export type DirectInviteStatus = 'pending' | 'accepted' | 'declined' | 'revoked' | 'expired';
+
+/** An invitation to a server, carried by a direct message. */
+export interface DirectInvite {
+  id: string;
+  status: DirectInviteStatus;
+  serverId: string;
+  serverName: string;
+  serverIconId?: string | null;
+  memberCount: number;
+  inviterId: string;
+  inviteeId: string;
+  expiresAt: string;
+}
+
+export interface DirectMessage {
+  id: string;
+  conversationId: string;
+  authorId: string;
+  content: string;
+  createdAt: string;
+  kind: 'text' | 'invite';
+  /** Absent on an invite message whose server has since been deleted. */
+  invite?: DirectInvite;
+}

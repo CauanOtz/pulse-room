@@ -35,6 +35,33 @@ import { profileColumns, profileJoins, toAccount, type ProfileRow } from './prof
 import { digest, HttpError, opaqueToken } from './security.js';
 import { tagDefinitions } from './tag-service.js';
 
+/**
+ * Lets somebody into a server, whichever invitation brought them: banned
+ * people stay out and a full server stays full. Must run inside a transaction
+ * that already holds the server's row lock. Resolves to whether a membership
+ * was made, which is false for somebody who was already in.
+ */
+export async function admitMember(db: Database, serverId: string, userId: string): Promise<boolean> {
+  const banned = await db.query('SELECT 1 FROM bans WHERE server_id=$1 AND account_id=$2', [serverId, userId]);
+  if (banned.rows.length) throw new HttpError(403, 'You are banned from this server.');
+  const existing = await db.query('SELECT 1 FROM memberships WHERE server_id=$1 AND account_id=$2', [
+    serverId,
+    userId,
+  ]);
+  if (existing.rows.length) return false;
+  const {
+    rows: [count],
+  } = await db.query<{ count: string }>('SELECT count(*) FROM memberships WHERE server_id=$1', [serverId]);
+  if (Number(count.count) >= 100) throw new HttpError(409, 'This server has reached its 100-member limit.');
+  await db.query(
+    `INSERT INTO memberships(server_id,account_id,role,welcome_seen_at)
+    SELECT $1,$2,'member',CASE WHEN description<>'' OR welcome_message<>'' OR banner_id IS NOT NULL
+      OR welcome_banner_id IS NOT NULL THEN NULL ELSE now() END FROM communities WHERE id=$1`,
+    [serverId, userId],
+  );
+  return true;
+}
+
 /** A channel as the new clients write it: where it lives, not who may do what. */
 export interface ChannelInput {
   name: string;
@@ -919,31 +946,8 @@ export class CommunityService {
         [digest(code)],
       );
       if (!invite) throw new HttpError(404, 'Invite is invalid or expired.');
-      const banned = await db.query('SELECT 1 FROM bans WHERE server_id=$1 AND account_id=$2', [
-        invite.serverId,
-        userId,
-      ]);
-      if (banned.rows.length) throw new HttpError(403, 'You are banned from this server.');
-      const existing = await db.query('SELECT 1 FROM memberships WHERE server_id=$1 AND account_id=$2', [
-        invite.serverId,
-        userId,
-      ]);
-      if (!existing.rows.length) {
-        const {
-          rows: [count],
-        } = await db.query<{ count: string }>('SELECT count(*) FROM memberships WHERE server_id=$1', [
-          invite.serverId,
-        ]);
-        if (Number(count.count) >= 100)
-          throw new HttpError(409, 'This server has reached its 100-member limit.');
-        await db.query(
-          `INSERT INTO memberships(server_id,account_id,role,welcome_seen_at)
-          SELECT $1,$2,'member',CASE WHEN description<>'' OR welcome_message<>'' OR banner_id IS NOT NULL
-            OR welcome_banner_id IS NOT NULL THEN NULL ELSE now() END FROM communities WHERE id=$1`,
-          [invite.serverId, userId],
-        );
+      if (await admitMember(db, invite.serverId, userId))
         await db.query('UPDATE invitations SET uses=uses+1 WHERE id=$1', [invite.id]);
-      }
       return { serverId: invite.serverId };
     });
   }

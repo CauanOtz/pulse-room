@@ -277,6 +277,47 @@ export async function migrate(database: Database): Promise<void> {
       CREATE INDEX IF NOT EXISTS role_image_uploads_age_idx ON role_image_uploads(created_at);
       INSERT INTO schema_migrations(version) VALUES(11) ON CONFLICT DO NOTHING;
     `);
+    // Direct messages between two accounts, and invitations to a server that
+    // travel as one of those messages instead of as a code to paste.
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS direct_conversations (
+        id uuid PRIMARY KEY,
+        first_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        second_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        opened_by uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        first_read_at timestamptz NOT NULL DEFAULT '-infinity',
+        second_read_at timestamptz NOT NULL DEFAULT '-infinity',
+        last_message_at timestamptz NOT NULL DEFAULT now(),
+        created_at timestamptz NOT NULL DEFAULT now(),
+        CHECK (first_id < second_id),
+        UNIQUE (first_id, second_id)
+      );
+      CREATE INDEX IF NOT EXISTS direct_conversations_second_idx ON direct_conversations(second_id);
+      CREATE TABLE IF NOT EXISTS direct_invites (
+        id uuid PRIMARY KEY,
+        server_id uuid NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
+        inviter_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        invitee_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','accepted','declined','revoked')),
+        expires_at timestamptz NOT NULL,
+        responded_at timestamptz,
+        created_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS direct_invites_pending_idx
+        ON direct_invites(server_id, invitee_id) WHERE status = 'pending';
+      CREATE TABLE IF NOT EXISTS direct_messages (
+        id uuid PRIMARY KEY,
+        conversation_id uuid NOT NULL REFERENCES direct_conversations(id) ON DELETE CASCADE,
+        author_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        kind text NOT NULL DEFAULT 'text' CHECK (kind IN ('text','invite')),
+        content text NOT NULL DEFAULT '' CHECK (char_length(content) <= 2000),
+        invite_id uuid REFERENCES direct_invites(id) ON DELETE SET NULL,
+        created_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS direct_messages_conversation_idx
+        ON direct_messages(conversation_id, created_at DESC, id DESC);
+      INSERT INTO schema_migrations(version) VALUES(12) ON CONFLICT DO NOTHING;
+    `);
   });
 }
 

@@ -16,6 +16,7 @@ import { RoleService } from './role-service.js';
 import { registrationMode, screenShareCeiling } from './platform-settings.js';
 import { clientVersion } from './client-version.js';
 import { ChatService } from './chat-service.js';
+import { DirectService } from './direct-service.js';
 import { attachmentLimit, attachmentsPerMessage, reactionEmojis } from '../src/shared/chat.js';
 import { TagService, type TagInput } from './tag-service.js';
 import {
@@ -63,7 +64,11 @@ const roleInput = z
     permissions: bits(allPermissions),
     hoist: z.boolean(),
     description: z.string().max(200).optional(),
-    iconId: z.string().regex(/^[0-9a-f]{64}$/).nullable().optional(),
+    iconId: z
+      .string()
+      .regex(/^[0-9a-f]{64}$/)
+      .nullable()
+      .optional(),
   })
   .strict();
 const password = z.string().min(12).max(128);
@@ -116,6 +121,7 @@ export async function createServer(
   const voice = new VoiceAccessService(db, communities, configuration, voiceClient);
   const roles = new RoleService(db);
   const tags = new TagService(db);
+  const directs = new DirectService(db);
   const server = Fastify({
     bodyLimit: 16_384,
     logger: database
@@ -320,8 +326,11 @@ export async function createServer(
       actor(request).id,
       id(request, 'serverId'),
       id(request, 'roleId'),
-      roleInput.partial().extend({ expectedRevision: z.number().int().positive().optional() })
-        .refine((value) => Object.keys(value).some((key) => key !== 'expectedRevision')).parse(request.body),
+      roleInput
+        .partial()
+        .extend({ expectedRevision: z.number().int().positive().optional() })
+        .refine((value) => Object.keys(value).some((key) => key !== 'expectedRevision'))
+        .parse(request.body),
     );
     enforce();
     return { ok: true };
@@ -349,9 +358,20 @@ export async function createServer(
     return { ok: true };
   });
   server.patch('/api/servers/:serverId/roles/:roleId/members', async (request) => {
-    const { addUserIds, removeUserIds } = z.object({ addUserIds: z.array(z.uuid()).max(100).default([]),
-      removeUserIds: z.array(z.uuid()).max(100).default([]) }).strict().parse(request.body);
-    await roles.changeRoleMembers(actor(request).id, id(request, 'serverId'), id(request, 'roleId'), addUserIds, removeUserIds);
+    const { addUserIds, removeUserIds } = z
+      .object({
+        addUserIds: z.array(z.uuid()).max(100).default([]),
+        removeUserIds: z.array(z.uuid()).max(100).default([]),
+      })
+      .strict()
+      .parse(request.body);
+    await roles.changeRoleMembers(
+      actor(request).id,
+      id(request, 'serverId'),
+      id(request, 'roleId'),
+      addUserIds,
+      removeUserIds,
+    );
     enforce();
     return { ok: true };
   });
@@ -496,6 +516,71 @@ export async function createServer(
       .parse(request.body);
     return communities.invite(actor(request).id, id(request, 'serverId'), body.maxUses, body.hours);
   });
+  // An invitation that arrives as a direct message instead of a code.
+  server.post(
+    '/api/servers/:serverId/invites/direct',
+    { config: { rateLimit: { max: 30, timeWindow: '10 minutes' } } },
+    async (request) => {
+      const body = z
+        .object({ username, note: z.string().max(500).optional() })
+        .strict()
+        .parse(request.body);
+      return directs.inviteToServer(
+        actor(request).id,
+        id(request, 'serverId'),
+        body.username,
+        body.note ?? '',
+      );
+    },
+  );
+  server.post('/api/direct-invites/:inviteId/accept', async (request) =>
+    directs.respond(actor(request).id, id(request, 'inviteId'), true),
+  );
+  server.post('/api/direct-invites/:inviteId/decline', async (request) =>
+    directs.respond(actor(request).id, id(request, 'inviteId'), false),
+  );
+  server.post('/api/direct-invites/:inviteId/revoke', async (request) => {
+    await directs.revoke(actor(request).id, id(request, 'inviteId'));
+    return { ok: true };
+  });
+
+  // ------------------------------------------------------ direct messages
+  server.get('/api/directs', async (request) => ({ conversations: await directs.list(actor(request).id) }));
+  server.post(
+    '/api/directs',
+    { config: { rateLimit: { max: 30, timeWindow: '10 minutes' } } },
+    async (request) => ({
+      conversation: await directs.open(
+        actor(request).id,
+        z.object({ username }).strict().parse(request.body).username,
+      ),
+    }),
+  );
+  server.get('/api/directs/:conversationId/messages', async (request) => {
+    const { before } = z.object({ before: z.uuid().optional() }).parse(request.query);
+    return {
+      messages: await directs.messages(actor(request).id, id(request, 'conversationId'), before),
+    };
+  });
+  server.post(
+    '/api/directs/:conversationId/messages',
+    { config: { rateLimit: { max: 60, timeWindow: '1 minute' } } },
+    async (request) => ({
+      message: await directs.send(
+        actor(request).id,
+        id(request, 'conversationId'),
+        z
+          .object({ content: z.string().max(2000) })
+          .strict()
+          .parse(request.body).content,
+      ),
+    }),
+  );
+  server.post('/api/directs/:conversationId/read', async (request) => {
+    await directs.read(actor(request).id, id(request, 'conversationId'));
+    return { ok: true };
+  });
+
   server.delete('/api/servers/:serverId/invites/:inviteId', async (request) => {
     await communities.revokeInvite(actor(request).id, id(request, 'serverId'), id(request, 'inviteId'));
     return { ok: true };
@@ -606,7 +691,12 @@ export async function createServer(
     return request.body;
   };
   server.post('/api/servers/:serverId/roles/:roleId/icon', uploadLimit, async (request) => ({
-    imageId: await roles.stageIcon(actor(request).id, id(request, 'serverId'), id(request, 'roleId'), uploaded(request)),
+    imageId: await roles.stageIcon(
+      actor(request).id,
+      id(request, 'serverId'),
+      id(request, 'roleId'),
+      uploaded(request),
+    ),
   }));
   server.post('/api/servers/:serverId/appearance-images', uploadLimit, async (request) => {
     const { kind } = z

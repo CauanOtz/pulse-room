@@ -21,6 +21,20 @@ import { ServerRail } from './components/server-rail';
 import { ApiError, CommunityClient } from './infrastructure/community-client';
 import { ImageCache } from './infrastructure/image-cache';
 import { ImagesProvider } from './components/avatar';
+import { DirectPane, DirectSidebar } from './components/directs/direct-messages';
+import { useDirects, type DirectsState } from './infrastructure/use-directs';
+
+/** Direct messages, owned by the root so the list keeps polling anywhere. */
+export interface DirectsBindings extends DirectsState {
+  open: boolean;
+  selectedId?: string;
+  setOpen(open: boolean): void;
+  select(id?: string): void;
+  /** Servers this account is in, so an invitation card knows it was used. */
+  joinedServerIds: ReadonlySet<string>;
+  /** Opens a server just joined from an invitation. */
+  onJoined(serverId: string): void;
+}
 
 export interface WorkspaceBindings {
   api: CommunityClient;
@@ -36,6 +50,7 @@ export interface WorkspaceBindings {
   onEditCategory(categoryId: string): void;
   onAccount(): void;
   onProfileChanged(): Promise<void>;
+  directs?: DirectsBindings;
 }
 export function CommunityRoot({ apiUrl }: { apiUrl: string }) {
   const api = useMemo(() => new CommunityClient(apiUrl.replace(/\/$/, '')), [apiUrl]);
@@ -184,6 +199,32 @@ export function CommunityRoot({ apiUrl }: { apiUrl: string }) {
       clearTimeout(timer);
     };
   }, [api, user, serverId]);
+
+  const directState = useDirects(api, Boolean(user));
+  const [directsOpen, setDirectsOpen] = useState(false);
+  const [directId, setDirectId] = useState<string>();
+  const joinedServerIds = useMemo(() => new Set(servers.map((server) => server.id)), [servers]);
+  const directs: DirectsBindings = {
+    ...directState,
+    open: directsOpen,
+    selectedId: directId,
+    setOpen: setDirectsOpen,
+    select: (id) => {
+      setDirectId(id);
+      setDirectsOpen(true);
+    },
+    joinedServerIds,
+    onJoined: (id) =>
+      void (async () => {
+        // The list is read again first, so the server is there to be opened.
+        const result = await api.request<{ servers: Community[] }>('/api/servers').catch(() => undefined);
+        if (result) setServers(result.servers);
+        setDirectsOpen(false);
+        setServerId(id);
+        void directState.refresh();
+      })(),
+  };
+  const selectedDirect = directState.conversations.find((conversation) => conversation.id === directId);
   // A profile is also read through the open server, where the tag worn there
   // and the picture beside every message come from, so both are read again.
   const refreshProfile = async () => {
@@ -252,19 +293,48 @@ export function CommunityRoot({ apiUrl }: { apiUrl: string }) {
             },
             onAccount: () => setDialog('account'),
             onProfileChanged: refreshProfile,
+            directs,
           }}
         />
       ) : (
         <div className="community-empty grid h-full w-full grid-cols-[72px_minmax(0,1fr)] bg-background text-foreground">
           <ServerRail
             servers={servers}
-            activeId={serverId}
-            onSelect={selectServer}
+            activeId={directsOpen ? undefined : serverId}
+            onSelect={(id) => {
+              setDirectsOpen(false);
+              selectServer(id);
+            }}
             onAdd={() => setDialog('add')}
             onAccount={() => setDialog('account')}
             showAccount
+            directsUnread={directState.unread}
+            directsActive={directsOpen}
+            onDirects={directState.supported ? () => setDirectsOpen(!directsOpen) : undefined}
           />
-          {serverId ? (
+          {directsOpen ? (
+            <div className="direct-standalone grid min-w-0 grid-cols-[17.5rem_minmax(0,1fr)]">
+              <DirectSidebar
+                api={api}
+                userId={user.id}
+                conversations={directState.conversations}
+                selectedId={directId}
+                onSelect={setDirectId}
+                onOpened={(conversation) => {
+                  setDirectId(conversation.id);
+                  void directState.refresh();
+                }}
+              />
+              <DirectPane
+                api={api}
+                user={user}
+                conversation={selectedDirect}
+                joinedServerIds={joinedServerIds}
+                onChanged={() => void directState.refresh()}
+                onJoined={directs.onJoined}
+              />
+            </div>
+          ) : serverId ? (
             // Opening a room is a moment, not a place: it says so and nothing else.
             <main className="flex min-w-0 flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
               <LoaderCircle className="size-5 animate-spin" aria-hidden="true" />

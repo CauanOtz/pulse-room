@@ -14,6 +14,8 @@ import { RoomAudio } from './components/room-audio';
 import { MediaOutput } from './components/media-output';
 import { ServerRail } from './components/server-rail';
 import { SettingsDialog } from './components/settings-dialog';
+import { DirectPane, DirectSidebar } from './components/directs/direct-messages';
+import { InvitePeopleDialog } from './components/directs/invite-people-dialog';
 import { ShortcutsDialog, useShortcuts } from './components/keyboard-shortcuts';
 import { SourcePicker } from './components/source-picker';
 import { Stage } from './components/stage';
@@ -507,6 +509,10 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
   };
 
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const directs = workspace?.directs;
+  const inDirects = Boolean(workspace && directs?.open);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const canInvite = Boolean(access?.can(Permission.CreateInvites));
   useShortcuts({
     mute: () => joined && canSpeak && void run(() => controller.toggleMicrophone()),
     deafen: () => joined && void run(() => controller.toggleDeafen()),
@@ -528,59 +534,102 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
     <div
       className={cn(
         'app-shell grid h-full w-full grid-rows-[minmax(0,1fr)_auto] bg-background text-foreground',
-        workspace && membersOpen && 'has-members',
+        workspace && membersOpen && !inDirects && 'has-members',
       )}
     >
       <VideoLevelFilter />
       <ServerRail
         servers={workspace?.servers}
-        activeId={workspace?.detail.server.id}
-        onSelect={workspace?.onSelectServer}
+        activeId={inDirects ? undefined : workspace?.detail.server.id}
+        onSelect={
+          workspace &&
+          ((id) => {
+            directs?.setOpen(false);
+            workspace.onSelectServer(id);
+          })
+        }
+        directsUnread={directs?.unread}
+        directsActive={inDirects}
+        onDirects={directs?.supported ? () => directs.setOpen(!directs.open) : undefined}
         onAdd={workspace?.onAddServer}
         onAccount={workspace?.onAccount}
       />
-      <ChannelSidebar
-        connectionState={snapshot.connectionState}
-        channels={channels}
-        serverName={workspace?.detail.server.name}
-        textChannels={workspace?.detail.channels.filter((c) => c.type === 'text')}
-        categories={workspace?.detail.categories}
-        selectedTextId={textChannel?.id}
-        onSelectText={setViewId}
-        onManage={workspace?.onManage}
-        activeChannelId={settings.roomId}
-        connectedChannelName={activeCall?.channelName}
-        connectedServerName={activeCall?.serverName}
-        participants={visibleParticipants}
-        avatars={avatars}
-        tags={activeCall?.tags ?? tags}
-        joined={joined}
-        busy={busy}
-        screenSharing={snapshot.screenSharing}
-        occupancy={occupancy}
-        onLeave={handleLeave}
-        onReturnToCall={handleReturnToCall}
-        onShare={handleShareRequest}
-        onSelectChannel={handleChannelSelect}
-        onPrepareChannel={prepareChannel}
-        readConnection={readConnection}
-        onOpenParticipant={(entry, position) => setOpenParticipant({ id: entry.id, position })}
-        onOpenProfile={(id, position) => setOpenProfile({ id, position })}
-        watching={snapshot.watching}
-        onWatch={(participantId, watching) => controller.gateway.watchScreen(participantId, watching)}
-        onPreview={(participantId) => controller.gateway.previewScreen(participantId)}
-        onCreateChannel={shapesChannels ? workspace?.onCreateChannel : undefined}
-        onCreateCategory={shapesChannels ? workspace?.onCreateCategory : undefined}
-        onEditCategory={shapesChannels ? workspace?.onEditCategory : undefined}
-        onEditChannel={
-          shapesChannels && workspace
-            ? (channelId) => {
-                const channel = workspace.detail.channels.find((each) => each.id === channelId);
-                if (channel) workspace.onEditChannel(channel);
-              }
-            : undefined
-        }
-      />
+      {inDirects && workspace && directs ? (
+        <DirectSidebar
+          api={workspace.api}
+          userId={workspace.user.id}
+          conversations={directs.conversations}
+          selectedId={directs.selectedId}
+          onSelect={(id) => directs.select(id)}
+          onOpened={(conversation) => {
+            directs.select(conversation.id);
+            void directs.refresh();
+          }}
+          footer={
+            joined && (
+              <button
+                type="button"
+                className="direct-call-return"
+                onClick={() => {
+                  directs.setOpen(false);
+                  handleReturnToCall();
+                }}
+              >
+                <span className="direct-call-dot" aria-hidden="true" />
+                <span>
+                  <strong>In a call</strong>
+                  <small>{activeChannelName ?? 'Voice'}</small>
+                </span>
+                <span className="direct-call-go">Return</span>
+              </button>
+            )
+          }
+        />
+      ) : (
+        <ChannelSidebar
+          onInvite={canInvite ? () => setInviteOpen(true) : undefined}
+          connectionState={snapshot.connectionState}
+          channels={channels}
+          serverName={workspace?.detail.server.name}
+          textChannels={workspace?.detail.channels.filter((c) => c.type === 'text')}
+          categories={workspace?.detail.categories}
+          selectedTextId={textChannel?.id}
+          onSelectText={setViewId}
+          onManage={workspace?.onManage}
+          activeChannelId={settings.roomId}
+          connectedChannelName={activeCall?.channelName}
+          connectedServerName={activeCall?.serverName}
+          participants={visibleParticipants}
+          avatars={avatars}
+          tags={activeCall?.tags ?? tags}
+          joined={joined}
+          busy={busy}
+          screenSharing={snapshot.screenSharing}
+          occupancy={occupancy}
+          onLeave={handleLeave}
+          onReturnToCall={handleReturnToCall}
+          onShare={handleShareRequest}
+          onSelectChannel={handleChannelSelect}
+          onPrepareChannel={prepareChannel}
+          readConnection={readConnection}
+          onOpenParticipant={(entry, position) => setOpenParticipant({ id: entry.id, position })}
+          onOpenProfile={(id, position) => setOpenProfile({ id, position })}
+          watching={snapshot.watching}
+          onWatch={(participantId, watching) => controller.gateway.watchScreen(participantId, watching)}
+          onPreview={(participantId) => controller.gateway.previewScreen(participantId)}
+          onCreateChannel={shapesChannels ? workspace?.onCreateChannel : undefined}
+          onCreateCategory={shapesChannels ? workspace?.onCreateCategory : undefined}
+          onEditCategory={shapesChannels ? workspace?.onEditCategory : undefined}
+          onEditChannel={
+            shapesChannels && workspace
+              ? (channelId) => {
+                  const channel = workspace.detail.channels.find((each) => each.id === channelId);
+                  if (channel) workspace.onEditChannel(channel);
+                }
+              : undefined
+          }
+        />
+      )}
 
       <ProfileBar
         displayName={settings.displayName}
@@ -601,169 +650,183 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
         onOpenSettings={() => setSettingsOpen(true)}
       />
 
-      <main className="room-main col-start-3 row-span-2 row-start-1 flex min-w-0 flex-col bg-background">
-        <header className="room-header flex h-24 flex-none items-center gap-4 px-8 text-sm">
-          <div className="room-title flex min-w-0 flex-1 items-center gap-2.5">
-            {textChannel ? (
-              <Hash aria-hidden="true" className="size-4.5 shrink-0 text-muted-foreground" />
-            ) : (
-              <Volume2 aria-hidden="true" className="size-4.5 shrink-0 text-muted-foreground" />
-            )}
-            {/* Where you are, and then the one thing about this place that is
+      {inDirects && workspace && directs ? (
+        <DirectPane
+          className="room-main col-start-3 row-span-2 row-start-1"
+          api={workspace.api}
+          user={workspace.user}
+          conversation={directs.conversations.find((conversation) => conversation.id === directs.selectedId)}
+          joinedServerIds={directs.joinedServerIds}
+          onChanged={() => void directs.refresh()}
+          onJoined={directs.onJoined}
+        />
+      ) : (
+        <main className="room-main col-start-3 row-span-2 row-start-1 flex min-w-0 flex-col bg-background">
+          <header className="room-header flex h-24 flex-none items-center gap-4 px-8 text-sm">
+            <div className="room-title flex min-w-0 flex-1 items-center gap-2.5">
+              {textChannel ? (
+                <Hash aria-hidden="true" className="size-4.5 shrink-0 text-muted-foreground" />
+              ) : (
+                <Volume2 aria-hidden="true" className="size-4.5 shrink-0 text-muted-foreground" />
+              )}
+              {/* Where you are, and then the one thing about this place that is
                 worth knowing before you speak in it. */}
-            <span className="flex min-w-0 flex-col leading-tight">
-              <strong className="truncate text-[26px] font-semibold tracking-[-0.035em]">
-                {textChannel?.name ?? (joined ? activeChannelName : 'Your space') ?? 'Choose a channel'}
-              </strong>
-              <span className="room-description mt-1 truncate text-xs text-muted-foreground">
-                {channelReach}
+              <span className="flex min-w-0 flex-col leading-tight">
+                <strong className="truncate text-[26px] font-semibold tracking-[-0.035em]">
+                  {textChannel?.name ?? (joined ? activeChannelName : 'Your space') ?? 'Choose a channel'}
+                </strong>
+                <span className="room-description mt-1 truncate text-xs text-muted-foreground">
+                  {channelReach}
+                </span>
               </span>
-            </span>
-          </div>
-          {joined && (
-            <button
-              className="call-presence flex shrink-0 items-center gap-2 rounded-full bg-secondary px-3.5 py-2 text-xs text-foreground"
-              type="button"
-              onClick={handleReturnToCall}
-              aria-label="Open current call"
-            >
-              <AudioLines className="size-3.5" aria-hidden="true" />
-              <span>In voice</span>
-              <span className="call-mini-faces" aria-hidden="true">
-                {visibleParticipants.slice(0, 3).map((person) => (
-                  <Avatar
-                    key={person.id}
-                    name={person.name}
-                    initials={person.initials}
-                    imageId={(activeCall?.avatars ?? avatars).get(accountOf(person.id))}
-                  />
-                ))}
-              </span>
-              <span className="call-presence-count">
-                {visibleParticipants.length > 3
-                  ? `+${visibleParticipants.length - 3}`
-                  : visibleParticipants.length}
-              </span>
-            </button>
-          )}
-          {workspace && (
-            <Tooltip label={membersOpen ? 'Hide members' : 'Show members'} shortcut={keysOf('members')}>
+            </div>
+            {joined && (
               <button
-                className={cn(
-                  'member-toggle grid size-10 shrink-0 place-items-center rounded-full transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                  membersOpen ? 'text-foreground' : 'text-muted-foreground',
-                )}
+                className="call-presence flex shrink-0 items-center gap-2 rounded-full bg-secondary px-3.5 py-2 text-xs text-foreground"
                 type="button"
-                aria-pressed={membersOpen}
-                aria-label={membersOpen ? 'Hide members' : 'Show members'}
-                onClick={() => setMembersOpen((open) => !open)}
+                onClick={handleReturnToCall}
+                aria-label="Open current call"
               >
-                <Users aria-hidden="true" className="size-4" />
-              </button>
-            </Tooltip>
-          )}
-        </header>
-
-        <div className="room-content relative flex min-h-0 flex-1 overflow-hidden">
-          <div className="conversation-column flex min-h-0 min-w-0 flex-1 flex-col">
-            {(!textChannel || (joined && activeCall?.serverId === workspace?.detail.server.id)) && (
-              <div
-                className={cn(
-                  'voice-surface min-h-0 px-7 pb-3',
-                  textChannel ? 'voice-surface-compact' : 'flex flex-1',
-                )}
-              >
-                <Stage
-                  avatars={activeCall?.avatars ?? avatars}
-                  participants={visibleParticipants}
-                  joined={joined}
-                  speakerDeviceId={settings.speakerDeviceId}
-                  expandLevels={settings.expandScreenLevels}
-                  watching={snapshot.watching}
-                  onWatch={(participantId, watching) =>
-                    controller.gateway.watchScreen(participantId, watching)
-                  }
-                  onOptions={(participant, position) => setOpenParticipant({ id: participant.id, position })}
-                  screenVolumes={screenVolumes}
-                  onScreenVolume={(participantId, volume) =>
-                    setScreenVolumes((volumes) => ({ ...volumes, [participantId]: volume }))
-                  }
-                >
-                  {joined && (
-                    <CallControls
-                      microphoneEnabled={snapshot.microphoneEnabled}
-                      deafened={snapshot.deafened}
-                      screenSharing={snapshot.screenSharing}
-                      quality={settings.screenSharePreset}
-                      ceiling={snapshot.screenShareCeiling}
-                      busy={busy}
-                      onToggleMicrophone={() => canSpeak && void run(() => controller.toggleMicrophone())}
-                      onToggleDeafen={() => void run(() => controller.toggleDeafen())}
-                      onShare={handleShareRequest}
-                      onSelectQuality={(preset) => {
-                        setSettings((current) => ({ ...current, screenSharePreset: preset }));
-                        void run(() => controller.setScreenQuality(preset));
-                      }}
-                      onOpenSettings={() => setSettingsOpen(true)}
-                      onLeave={handleLeave}
+                <AudioLines className="size-3.5" aria-hidden="true" />
+                <span>In voice</span>
+                <span className="call-mini-faces" aria-hidden="true">
+                  {visibleParticipants.slice(0, 3).map((person) => (
+                    <Avatar
+                      key={person.id}
+                      name={person.name}
+                      initials={person.initials}
+                      imageId={(activeCall?.avatars ?? avatars).get(accountOf(person.id))}
                     />
-                  )}
-                </Stage>
-              </div>
+                  ))}
+                </span>
+                <span className="call-presence-count">
+                  {visibleParticipants.length > 3
+                    ? `+${visibleParticipants.length - 3}`
+                    : visibleParticipants.length}
+                </span>
+              </button>
             )}
-            {textChannel && workspace && (
-              <TextChat
-                key={textChannel.id}
-                api={workspace.api}
-                user={workspace.user}
-                channel={textChannel}
-                canSend={channelAllows(textChannel, Permission.SendMessages, manager)}
-                sendHint={timedOut ? 'You are in a timeout and cannot write yet.' : undefined}
-                canManageMessages={channelAllows(textChannel, Permission.ManageMessages, manager)}
-                avatars={avatars}
-                tags={tags}
-                onOpenProfile={(id, position) => setOpenProfile({ id, position })}
-                onChanged={() => setResourcesRevision((value) => value + 1)}
+            {workspace && (
+              <Tooltip label={membersOpen ? 'Hide members' : 'Show members'} shortcut={keysOf('members')}>
+                <button
+                  className={cn(
+                    'member-toggle grid size-10 shrink-0 place-items-center rounded-full transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                    membersOpen ? 'text-foreground' : 'text-muted-foreground',
+                  )}
+                  type="button"
+                  aria-pressed={membersOpen}
+                  aria-label={membersOpen ? 'Hide members' : 'Show members'}
+                  onClick={() => setMembersOpen((open) => !open)}
+                >
+                  <Users aria-hidden="true" className="size-4" />
+                </button>
+              </Tooltip>
+            )}
+          </header>
+
+          <div className="room-content relative flex min-h-0 flex-1 overflow-hidden">
+            <div className="conversation-column flex min-h-0 min-w-0 flex-1 flex-col">
+              {(!textChannel || (joined && activeCall?.serverId === workspace?.detail.server.id)) && (
+                <div
+                  className={cn(
+                    'voice-surface min-h-0 px-7 pb-3',
+                    textChannel ? 'voice-surface-compact' : 'flex flex-1',
+                  )}
+                >
+                  <Stage
+                    avatars={activeCall?.avatars ?? avatars}
+                    participants={visibleParticipants}
+                    joined={joined}
+                    speakerDeviceId={settings.speakerDeviceId}
+                    expandLevels={settings.expandScreenLevels}
+                    watching={snapshot.watching}
+                    onWatch={(participantId, watching) =>
+                      controller.gateway.watchScreen(participantId, watching)
+                    }
+                    onOptions={(participant, position) =>
+                      setOpenParticipant({ id: participant.id, position })
+                    }
+                    screenVolumes={screenVolumes}
+                    onScreenVolume={(participantId, volume) =>
+                      setScreenVolumes((volumes) => ({ ...volumes, [participantId]: volume }))
+                    }
+                  >
+                    {joined && (
+                      <CallControls
+                        microphoneEnabled={snapshot.microphoneEnabled}
+                        deafened={snapshot.deafened}
+                        screenSharing={snapshot.screenSharing}
+                        quality={settings.screenSharePreset}
+                        ceiling={snapshot.screenShareCeiling}
+                        busy={busy}
+                        onToggleMicrophone={() => canSpeak && void run(() => controller.toggleMicrophone())}
+                        onToggleDeafen={() => void run(() => controller.toggleDeafen())}
+                        onShare={handleShareRequest}
+                        onSelectQuality={(preset) => {
+                          setSettings((current) => ({ ...current, screenSharePreset: preset }));
+                          void run(() => controller.setScreenQuality(preset));
+                        }}
+                        onOpenSettings={() => setSettingsOpen(true)}
+                        onLeave={handleLeave}
+                      />
+                    )}
+                  </Stage>
+                </div>
+              )}
+              {textChannel && workspace && (
+                <TextChat
+                  key={textChannel.id}
+                  api={workspace.api}
+                  user={workspace.user}
+                  channel={textChannel}
+                  canSend={channelAllows(textChannel, Permission.SendMessages, manager)}
+                  sendHint={timedOut ? 'You are in a timeout and cannot write yet.' : undefined}
+                  canManageMessages={channelAllows(textChannel, Permission.ManageMessages, manager)}
+                  avatars={avatars}
+                  tags={tags}
+                  onOpenProfile={(id, position) => setOpenProfile({ id, position })}
+                  onChanged={() => setResourcesRevision((value) => value + 1)}
+                />
+              )}
+              {joined && !canSpeak && (
+                <p className="permission-note mx-4 mb-2 rounded-lg border border-border bg-card px-3 py-2 text-xs text-muted-foreground">
+                  {timedOut
+                    ? 'You are in a timeout: you can listen, but not speak.'
+                    : me?.muted
+                      ? 'You are muted in this server.'
+                      : 'You can listen in this channel. Speaking is restricted by its permissions.'}
+                </p>
+              )}
+              {joined && !canShare && (
+                <p className="permission-note mx-4 mb-2 rounded-lg border border-border bg-card px-3 py-2 text-xs text-muted-foreground">
+                  Screen sharing is restricted in this channel.
+                </p>
+              )}
+              {snapshot.error && (
+                <div
+                  className="error-banner mx-4 mb-2 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive"
+                  role="alert"
+                >
+                  {snapshot.error}
+                </div>
+              )}
+            </div>
+            {joined && textChannel && activeCall?.serverId !== workspace?.detail.server.id && (
+              <CallMiniPlayer
+                participant={visibleParticipants.find(
+                  (participant) => participant.isBroadcasting && snapshot.watching.includes(participant.id),
+                )}
+                speakerDeviceId={settings.speakerDeviceId}
+                expandLevels={settings.expandScreenLevels}
+                withMembers={membersOpen}
+                onReturn={handleReturnToCall}
               />
             )}
-            {joined && !canSpeak && (
-              <p className="permission-note mx-4 mb-2 rounded-lg border border-border bg-card px-3 py-2 text-xs text-muted-foreground">
-                {timedOut
-                  ? 'You are in a timeout: you can listen, but not speak.'
-                  : me?.muted
-                    ? 'You are muted in this server.'
-                    : 'You can listen in this channel. Speaking is restricted by its permissions.'}
-              </p>
-            )}
-            {joined && !canShare && (
-              <p className="permission-note mx-4 mb-2 rounded-lg border border-border bg-card px-3 py-2 text-xs text-muted-foreground">
-                Screen sharing is restricted in this channel.
-              </p>
-            )}
-            {snapshot.error && (
-              <div
-                className="error-banner mx-4 mb-2 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive"
-                role="alert"
-              >
-                {snapshot.error}
-              </div>
-            )}
           </div>
-          {joined && textChannel && activeCall?.serverId !== workspace?.detail.server.id && (
-            <CallMiniPlayer
-              participant={visibleParticipants.find(
-                (participant) => participant.isBroadcasting && snapshot.watching.includes(participant.id),
-              )}
-              speakerDeviceId={settings.speakerDeviceId}
-              expandLevels={settings.expandScreenLevels}
-              withMembers={membersOpen}
-              onReturn={handleReturnToCall}
-            />
-          )}
-        </div>
-      </main>
+        </main>
+      )}
 
-      {workspace && membersOpen && (
+      {workspace && membersOpen && !inDirects && (
         <MemberSidebar
           key={workspace.detail.server.id}
           api={workspace.api}
@@ -889,6 +952,26 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
       )}
 
       {shortcutsOpen && <ShortcutsDialog onClose={() => setShortcutsOpen(false)} />}
+      {inviteOpen && workspace && (
+        <InvitePeopleDialog
+          api={workspace.api}
+          serverId={workspace.detail.server.id}
+          serverName={workspace.detail.server.name}
+          memberIds={new Set(workspace.detail.members.map((member) => member.id))}
+          conversations={directs?.conversations ?? []}
+          onOpenConversation={(conversationId) => {
+            setInviteOpen(false);
+            directs?.select(conversationId);
+            void directs?.refresh();
+          }}
+          onUseCodes={() => {
+            setInviteOpen(false);
+            workspace.onManage();
+          }}
+          onSent={() => void directs?.refresh()}
+          onClose={() => setInviteOpen(false)}
+        />
+      )}
       <SourcePicker
         open={sourcePickerOpen}
         onClose={() => setSourcePickerOpen(false)}
