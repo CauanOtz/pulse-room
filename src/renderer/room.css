@@ -1314,3 +1314,44 @@
   border-radius: 0;
   box-shadow: none;
 }
+
+/* The stream list folds into the edge; the picture takes the room it leaves. */
+.stage-live.has-stream-navigation .live-player-body {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+.live-rail {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.live-rail > .live-stream-navigation {
+  width: 15.5rem;
+  height: 100%;
+}
+@container live-player (max-width: 620px) {
+  .stage-live.has-stream-navigation .live-player-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .live-rail {
+    width: auto !important;
+  }
+  .live-rail > .live-stream-navigation {
+    width: auto;
+  }
+  .stage-live.is-rail-closed .live-rail {
+    display: none;
+  }
+}
+.stage-live .live-stream-navigation header strong {
+  font-size: 0.8125rem;
+  font-weight: 620;
+  letter-spacing: -0.01em;
+}
+.stage-live .live-stream-navigation header span {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  color: var(--text-4);
+}
+.stage-live .live-stream-navigation p {
+  color: var(--text-4);
+}

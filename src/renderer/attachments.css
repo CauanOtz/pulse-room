@@ -1,0 +1,194 @@
+/*
+ * Files in the conversation. A picture is the whole card, its name printed
+ * over the bottom edge; a file is a slim slip with its type in a well. Both
+ * lift under the pointer and offer the download where the hand already is.
+ */
+
+.message-attachments .chat-attachment:not(.is-compact) {
+  position: relative;
+  isolation: isolate;
+  border: 0;
+  border-radius: 1.125rem;
+  background: var(--lift-2);
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--ink) / 0.09),
+    0 1px 0 rgb(var(--ink) / 0.03);
+  animation: attachment-in 520ms var(--ease-out) backwards;
+  transition:
+    transform var(--motion-panel) var(--ease-spring),
+    box-shadow var(--motion-panel) var(--ease-out);
+}
+@keyframes attachment-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.985);
+  }
+}
+.message-attachments .chat-attachment:not(.is-compact):hover {
+  transform: translateY(-2px);
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--ink) / 0.2),
+    0 24px 48px -24px rgb(0 0 0 / 0.8);
+}
+
+/* ---- pictures ---- */
+
+.message-attachments .chat-attachment:has(> .attachment-image) .attachment-image {
+  max-height: 320px;
+  background:
+    repeating-linear-gradient(135deg, rgb(var(--ink) / 0.02) 0 1px, transparent 1px 9px), var(--lift-1);
+  cursor: zoom-in;
+}
+.message-attachments .chat-attachment:has(> .attachment-image) .attachment-image > img {
+  max-height: 320px;
+  object-fit: cover;
+  transition:
+    transform 900ms var(--ease-out),
+    filter var(--motion-panel) var(--ease-out);
+}
+.message-attachments .chat-attachment:has(> .attachment-image):hover .attachment-image > img {
+  transform: scale(1.025);
+}
+.message-attachments .chat-attachment:has(> .attachment-image) .attachment-image > svg {
+  color: var(--text-4);
+  animation: empty-float 2.4s var(--ease-in-out) infinite;
+}
+/* The caption sits on the picture rather than under it. */
+.message-attachments .chat-attachment:has(> .attachment-image) > .attachment-caption {
+  position: absolute;
+  inset: auto 0 0;
+  z-index: 1;
+  padding: 2.25rem 0.75rem 0.625rem 0.875rem;
+  background: linear-gradient(0deg, rgb(0 0 0 / 0.78), rgb(0 0 0 / 0.35) 55%, transparent);
+  pointer-events: none;
+}
+.message-attachments .chat-attachment:has(> .attachment-image) > .attachment-caption strong {
+  color: #fff;
+}
+.message-attachments .chat-attachment:has(> .attachment-image) > .attachment-caption small {
+  color: rgb(255 255 255 / 0.65);
+}
+.message-attachments .chat-attachment:has(> .attachment-image) .attachment-download {
+  pointer-events: auto;
+  color: #000;
+  background: #fff;
+  opacity: 0;
+  transform: translateY(6px) scale(0.85);
+}
+.message-attachments .chat-attachment:has(> .attachment-image):hover .attachment-download,
+.message-attachments .chat-attachment:has(> .attachment-image) .attachment-download:focus-visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* ---- the caption, shared ---- */
+
+.message-attachments .attachment-caption strong {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+.message-attachments .attachment-caption small {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  letter-spacing: 0.02em;
+}
+.message-attachments .attachment-caption > span {
+  gap: 0.25rem;
+}
+.message-attachments .attachment-download {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.1);
+  transition:
+    opacity var(--motion-fast) var(--ease-out),
+    transform var(--motion-panel) var(--ease-spring),
+    background-color var(--motion-fast) var(--ease-out),
+    color var(--motion-fast) var(--ease-out);
+}
+.message-attachments .attachment-download:hover {
+  color: var(--primary-foreground);
+  background: var(--primary);
+}
+.message-attachments .attachment-download:hover svg {
+  animation: download-nudge 700ms var(--ease-spring);
+}
+@keyframes download-nudge {
+  40% {
+    transform: translateY(2px);
+  }
+}
+
+/* ---- files, audio and video before they play ---- */
+
+.message-attachments .chat-attachment:has(> .attachment-file-icon):not(.is-compact) {
+  min-height: 0;
+  padding: 0.625rem 0.5rem 0.625rem 0.625rem;
+  flex-wrap: nowrap;
+}
+.message-attachments .chat-attachment:has(> .attachment-file-icon):not(.is-compact) > .attachment-file-icon {
+  width: 2.75rem;
+  height: 2.75rem;
+  margin: 0;
+  border: 0;
+  border-radius: 0.875rem;
+  color: var(--text-2);
+  background: rgb(var(--ink) / 0.04);
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.1);
+  transition:
+    transform var(--motion-panel) var(--ease-spring),
+    color var(--motion-fast) var(--ease-out),
+    background-color var(--motion-fast) var(--ease-out);
+}
+.message-attachments
+  .chat-attachment:has(> .attachment-file-icon):not(.is-compact):hover
+  > .attachment-file-icon {
+  color: var(--primary-foreground);
+  background: var(--primary);
+  transform: rotate(-6deg) scale(1.04);
+}
+.message-attachments .chat-attachment:has(> .attachment-file-icon):not(.is-compact) > .attachment-caption {
+  padding: 0 0 0 0.75rem;
+}
+.message-attachments .attachment-play {
+  border-color: var(--lift-2);
+}
+
+/* A player once asked for: the video sits in a black frame. */
+.message-attachments .attachment-player {
+  padding: 0.375rem;
+}
+.message-attachments .attachment-player video {
+  border-radius: 0.875rem;
+  background: #000;
+}
+
+/* ---- the lightbox ---- */
+
+.media-preview-dialog {
+  background: #000 !important;
+}
+.media-preview-dialog > header {
+  min-height: 3.5rem !important;
+}
+.media-preview-dialog img,
+.media-preview-dialog video {
+  border-radius: 0.75rem;
+}
+.media-preview-dialog footer button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  height: 2.25rem;
+  padding: 0 1rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--primary-foreground);
+  background: var(--primary);
+  transition: transform var(--motion-panel) var(--ease-spring);
+}
+.media-preview-dialog footer button:hover {
+  transform: translateY(-1px);
+}

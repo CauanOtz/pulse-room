@@ -1,4 +1,13 @@
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from 'react';
+import { motion } from 'motion/react';
 import {
   Activity,
   AudioLines,
@@ -42,6 +51,9 @@ interface SettingsDialogProps {
 
 type SettingsSection = 'input' | 'processing' | 'screen' | 'connection' | 'application';
 
+/** Which tab is open; every section asks before drawing itself. */
+const OpenSection = createContext<SettingsSection>('input');
+
 const navigation: Array<{ id: SettingsSection; label: string; icon: typeof Mic2 }> = [
   { id: 'input', label: 'Input & output', icon: Mic2 },
   { id: 'processing', label: 'Voice processing', icon: AudioLines },
@@ -60,27 +72,11 @@ export function SettingsDialog(props: SettingsDialogProps) {
   if (!props.open) return null;
 
   const updateCopy = getUpdateCopy(props.updateStatus, props.version);
-  const goToSection = (id: SettingsSection) => {
-    setActiveSection(id);
-    bodyRef.current?.querySelector<HTMLElement>(`#voice-settings-${id}`)?.scrollIntoView({
-      behavior: 'smooth',
-      block: 'start',
-    });
-  };
-
-  const updateActiveSection = () => {
-    const body = bodyRef.current;
-    if (!body) return;
-    if (body.scrollTop + body.clientHeight >= body.scrollHeight - 4) {
-      setActiveSection('application');
-      return;
-    }
-    const marker = body.getBoundingClientRect().top + 80;
-    const visible = navigation.reduce<SettingsSection>((current, item) => {
-      const section = body.querySelector<HTMLElement>(`#voice-settings-${item.id}`);
-      return section && section.getBoundingClientRect().top <= marker ? item.id : current;
-    }, 'input');
-    setActiveSection(visible);
+  const moveTab = (step: number) => {
+    const index = navigation.findIndex((item) => item.id === activeSection);
+    const next = navigation[(index + step + navigation.length) % navigation.length]!;
+    setActiveSection(next.id);
+    document.getElementById(`settings-tab-${next.id}`)?.focus();
   };
 
   return createPortal(
@@ -121,306 +117,318 @@ export function SettingsDialog(props: SettingsDialogProps) {
           </button>
         </header>
 
-        <div className="audio-settings-workspace grid min-h-0 flex-1 grid-cols-[11.5rem_minmax(0,1fr)] max-[720px]:grid-cols-1">
-          <aside className="settings-nav flex min-h-0 flex-col border-r border-border bg-background/55 px-3 py-4 max-[720px]:hidden">
-            <p className="px-2 pb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-              Audio settings
-            </p>
-            <nav className="space-y-0.5" aria-label="Voice settings sections">
-              {navigation.map(({ id, label, icon: Icon }) => (
-                <button
-                  key={id}
-                  className={cn(
-                    'flex h-9 w-full items-center gap-2.5 rounded-md px-2.5 text-left text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                    activeSection === id
-                      ? 'bg-accent text-foreground'
-                      : 'text-muted-foreground hover:bg-accent/70 hover:text-foreground',
-                  )}
-                  type="button"
-                  aria-current={activeSection === id ? 'location' : undefined}
-                  onClick={() => goToSection(id)}
-                >
-                  <Icon className="size-[15px] shrink-0" strokeWidth={1.9} />
-                  {label}
-                </button>
-              ))}
-            </nav>
-            <div className="mt-auto border-t border-border px-2 pt-3">
-              <p className="text-[11px] leading-4 text-muted-foreground">
-                Changes take effect when you save. Device choices apply to your next connection.
-              </p>
-            </div>
-          </aside>
-
-          <div
-            ref={bodyRef}
-            className="settings-body min-h-0 overflow-y-auto scroll-smooth"
-            onScroll={updateActiveSection}
-          >
-            <div className="mx-auto flex w-full max-w-[43rem] flex-col gap-8 px-7 py-6 max-[720px]:px-5">
-              <SettingsGroup
-                id="input"
-                icon={<Headphones className="size-4" />}
-                title="Input & output"
-                description="Choose what you speak through and where the room plays."
+        <nav
+          className="settings-tabs"
+          role="tablist"
+          aria-label="Voice settings sections"
+          onKeyDown={(event) => {
+            if (event.key === 'ArrowRight') moveTab(1);
+            if (event.key === 'ArrowLeft') moveTab(-1);
+          }}
+        >
+          {navigation.map(({ id, label, icon: Icon }) => {
+            const selected = activeSection === id;
+            return (
+              <button
+                key={id}
+                id={`settings-tab-${id}`}
+                className={cn('settings-tab', selected && 'is-selected')}
+                type="button"
+                role="tab"
+                aria-label={label}
+                aria-selected={selected}
+                aria-controls={`voice-settings-${id}`}
+                tabIndex={selected ? 0 : -1}
+                onClick={() => {
+                  setActiveSection(id);
+                  bodyRef.current?.scrollTo({ top: 0 });
+                }}
               >
-                {!props.managedAccount && (
+                {selected && (
+                  <motion.span
+                    layoutId="settings-tab-thumb"
+                    className="settings-tab-thumb"
+                    transition={{ type: 'spring', stiffness: 500, damping: 40 }}
+                  />
+                )}
+                <Icon className="relative size-[15px] shrink-0" strokeWidth={1.9} />
+                <span className="relative">{label}</span>
+              </button>
+            );
+          })}
+        </nav>
+
+        <OpenSection.Provider value={activeSection}>
+          <div className="audio-settings-workspace flex min-h-0 flex-1">
+            <div ref={bodyRef} className="settings-body min-h-0 flex-1 overflow-y-auto">
+              <div className="mx-auto flex w-full max-w-[43rem] flex-col gap-8 px-7 py-6 max-[720px]:px-5">
+                <SettingsGroup
+                  id="input"
+                  icon={<Headphones className="size-4" />}
+                  title="Input & output"
+                  description="Choose what you speak through and where the room plays."
+                >
+                  {!props.managedAccount && (
+                    <div className="grid grid-cols-2 gap-3 max-[620px]:grid-cols-1">
+                      <TextField
+                        label="Display name"
+                        value={settings.displayName}
+                        onChange={(displayName) => setSettings({ ...settings, displayName })}
+                      />
+                      <TextField
+                        label="Room name"
+                        value={settings.roomId}
+                        onChange={(roomId) => setSettings({ ...settings, roomId })}
+                      />
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 gap-3 max-[620px]:grid-cols-1">
-                    <TextField
-                      label="Display name"
-                      value={settings.displayName}
-                      onChange={(displayName) => setSettings({ ...settings, displayName })}
+                    <DeviceField
+                      label="Microphone"
+                      value={settings.microphoneDeviceId}
+                      devices={props.devices.microphones}
+                      onChange={(microphoneDeviceId) => setSettings({ ...settings, microphoneDeviceId })}
                     />
-                    <TextField
-                      label="Room name"
-                      value={settings.roomId}
-                      onChange={(roomId) => setSettings({ ...settings, roomId })}
+                    <DeviceField
+                      label="Speakers"
+                      value={settings.speakerDeviceId}
+                      devices={props.devices.speakers}
+                      onChange={(speakerDeviceId) => setSettings({ ...settings, speakerDeviceId })}
                     />
                   </div>
-                )}
-                <div className="grid grid-cols-2 gap-3 max-[620px]:grid-cols-1">
-                  <DeviceField
-                    label="Microphone"
-                    value={settings.microphoneDeviceId}
-                    devices={props.devices.microphones}
-                    onChange={(microphoneDeviceId) => setSettings({ ...settings, microphoneDeviceId })}
-                  />
-                  <DeviceField
-                    label="Speakers"
-                    value={settings.speakerDeviceId}
-                    devices={props.devices.speakers}
-                    onChange={(speakerDeviceId) => setSettings({ ...settings, speakerDeviceId })}
-                  />
-                </div>
-                <div className="overflow-hidden rounded-lg border border-border bg-background/45">
+                  <div className="overflow-hidden rounded-lg border border-border bg-background/45">
+                    <div
+                      className="mic-status flex items-center gap-3 border-b border-border px-4 py-3 text-xs"
+                      role="status"
+                    >
+                      <span
+                        className={cn(
+                          'size-2 shrink-0 rounded-full shadow-[0_0_0_4px]',
+                          props.microphoneLive
+                            ? 'is-live bg-success shadow-success/15'
+                            : 'is-off bg-destructive shadow-destructive/15',
+                        )}
+                      />
+                      <span className="font-medium text-foreground">
+                        {props.microphoneLive
+                          ? 'Your microphone is live in the room.'
+                          : (props.microphoneProblem ?? 'Your microphone is not publishing.')}
+                      </span>
+                    </div>
+                    <div className="px-4 py-4">
+                      <MicrophoneMeter
+                        deviceId={settings.microphoneDeviceId}
+                        gateThresholdDb={noiseGateThresholdDb(settings.noiseGate)}
+                      />
+                    </div>
+                  </div>
+                </SettingsGroup>
+
+                <SettingsGroup
+                  id="processing"
+                  icon={<AudioLines className="size-4" />}
+                  title="Voice processing"
+                  description="Keep speech clear without flattening the way your voice sounds."
+                >
+                  <div className="overflow-hidden rounded-lg border border-border bg-background/45">
+                    <RangeControl
+                      label="Microphone gain"
+                      value={settings.microphoneGain}
+                      min={0}
+                      max={150}
+                      suffix="%"
+                      description="A limiter protects the signal when gain goes above 100%."
+                      onChange={(microphoneGain) => setSettings({ ...settings, microphoneGain })}
+                    />
+                    <RangeControl
+                      label="Noise gate"
+                      value={settings.noiseGate}
+                      min={0}
+                      max={100}
+                      suffix="%"
+                      description="Silences fans and keyboards between words. Lower it if your voice gets clipped."
+                      onChange={(noiseGate) => setSettings({ ...settings, noiseGate })}
+                    />
+                  </div>
+                  <div className="toggle-block overflow-hidden rounded-lg border border-border bg-background/45">
+                    <Toggle
+                      label="Noise suppression"
+                      detail="Filters steady background noise through the browser audio engine."
+                      checked={settings.noiseSuppression}
+                      onChange={(noiseSuppression) => setSettings({ ...settings, noiseSuppression })}
+                    />
+                    <Toggle
+                      label="Voice isolation"
+                      detail="A small neural network (RNNoise) removes keyboards, fans and voices in the room, the way Krisp does. It replaces the browser filter while it is on."
+                      checked={settings.voiceIsolation}
+                      onChange={(voiceIsolation) => setSettings({ ...settings, voiceIsolation })}
+                    />
+                    <Toggle
+                      label="Echo cancellation"
+                      detail="Prevents speaker audio from returning through your microphone. Turn it off on headphones for lower delay."
+                      checked={settings.echoCancellation}
+                      onChange={(echoCancellation) => setSettings({ ...settings, echoCancellation })}
+                    />
+                    <Toggle
+                      label="Automatic gain"
+                      detail="Keeps quiet and loud speech at a stable level."
+                      checked={settings.autoGainControl}
+                      onChange={(autoGainControl) => setSettings({ ...settings, autoGainControl })}
+                    />
+                    <Toggle
+                      label="Room sounds"
+                      detail="Plays short cues for arrivals, muting, and screens going live."
+                      checked={settings.roomSounds}
+                      onChange={(roomSounds) => setSettings({ ...settings, roomSounds })}
+                    />
+                  </div>
+                </SettingsGroup>
+
+                <SettingsGroup
+                  id="screen"
+                  icon={<MonitorUp className="size-4" />}
+                  title="Screen share"
+                  description="Balance detail, motion, and bandwidth for everyone watching."
+                >
                   <div
-                    className="mic-status flex items-center gap-3 border-b border-border px-4 py-3 text-xs"
-                    role="status"
+                    className="grid grid-cols-3 gap-2 max-[620px]:grid-cols-1"
+                    role="radiogroup"
+                    aria-label="Screen quality"
                   >
-                    <span
-                      className={cn(
-                        'size-2 shrink-0 rounded-full shadow-[0_0_0_4px]',
-                        props.microphoneLive
-                          ? 'is-live bg-success shadow-success/15'
-                          : 'is-off bg-destructive shadow-destructive/15',
-                      )}
+                    <QualityOption
+                      id="efficient"
+                      label="Efficient"
+                      detail="720p · 30 fps"
+                      meta="Up to 2.5 Mbps"
+                      selected={settings.screenSharePreset === 'efficient'}
+                      onSelect={() => setSettings({ ...settings, screenSharePreset: 'efficient' })}
                     />
-                    <span className="font-medium text-foreground">
-                      {props.microphoneLive
-                        ? 'Your microphone is live in the room.'
-                        : (props.microphoneProblem ?? 'Your microphone is not publishing.')}
-                    </span>
-                  </div>
-                  <div className="px-4 py-4">
-                    <MicrophoneMeter
-                      deviceId={settings.microphoneDeviceId}
-                      gateThresholdDb={noiseGateThresholdDb(settings.noiseGate)}
+                    <QualityOption
+                      id="balanced"
+                      label="Balanced"
+                      detail="1080p · 30 fps"
+                      meta="Up to 4.5 Mbps"
+                      selected={settings.screenSharePreset === 'balanced'}
+                      onSelect={() => setSettings({ ...settings, screenSharePreset: 'balanced' })}
+                    />
+                    <QualityOption
+                      id="motion"
+                      label="Motion"
+                      detail="1080p · 60 fps"
+                      meta="Up to 7 Mbps"
+                      selected={settings.screenSharePreset === 'motion'}
+                      onSelect={() => setSettings({ ...settings, screenSharePreset: 'motion' })}
                     />
                   </div>
-                </div>
-              </SettingsGroup>
-
-              <SettingsGroup
-                id="processing"
-                icon={<AudioLines className="size-4" />}
-                title="Voice processing"
-                description="Keep speech clear without flattening the way your voice sounds."
-              >
-                <div className="overflow-hidden rounded-lg border border-border bg-background/45">
-                  <RangeControl
-                    label="Microphone gain"
-                    value={settings.microphoneGain}
-                    min={0}
-                    max={150}
-                    suffix="%"
-                    description="A limiter protects the signal when gain goes above 100%."
-                    onChange={(microphoneGain) => setSettings({ ...settings, microphoneGain })}
-                  />
-                  <RangeControl
-                    label="Noise gate"
-                    value={settings.noiseGate}
-                    min={0}
-                    max={100}
-                    suffix="%"
-                    description="Silences fans and keyboards between words. Lower it if your voice gets clipped."
-                    onChange={(noiseGate) => setSettings({ ...settings, noiseGate })}
-                  />
-                </div>
-                <div className="toggle-block overflow-hidden rounded-lg border border-border bg-background/45">
-                  <Toggle
-                    label="Noise suppression"
-                    detail="Filters steady background noise through the browser audio engine."
-                    checked={settings.noiseSuppression}
-                    onChange={(noiseSuppression) => setSettings({ ...settings, noiseSuppression })}
-                  />
-                  <Toggle
-                    label="Voice isolation"
-                    detail="A small neural network (RNNoise) removes keyboards, fans and voices in the room, the way Krisp does. It replaces the browser filter while it is on."
-                    checked={settings.voiceIsolation}
-                    onChange={(voiceIsolation) => setSettings({ ...settings, voiceIsolation })}
-                  />
-                  <Toggle
-                    label="Echo cancellation"
-                    detail="Prevents speaker audio from returning through your microphone. Turn it off on headphones for lower delay."
-                    checked={settings.echoCancellation}
-                    onChange={(echoCancellation) => setSettings({ ...settings, echoCancellation })}
-                  />
-                  <Toggle
-                    label="Automatic gain"
-                    detail="Keeps quiet and loud speech at a stable level."
-                    checked={settings.autoGainControl}
-                    onChange={(autoGainControl) => setSettings({ ...settings, autoGainControl })}
-                  />
-                  <Toggle
-                    label="Room sounds"
-                    detail="Plays short cues for arrivals, muting, and screens going live."
-                    checked={settings.roomSounds}
-                    onChange={(roomSounds) => setSettings({ ...settings, roomSounds })}
-                  />
-                </div>
-              </SettingsGroup>
-
-              <SettingsGroup
-                id="screen"
-                icon={<MonitorUp className="size-4" />}
-                title="Screen share"
-                description="Balance detail, motion, and bandwidth for everyone watching."
-              >
-                <div
-                  className="grid grid-cols-3 gap-2 max-[620px]:grid-cols-1"
-                  role="radiogroup"
-                  aria-label="Screen quality"
-                >
-                  <QualityOption
-                    id="efficient"
-                    label="Efficient"
-                    detail="720p · 30 fps"
-                    meta="Up to 2.5 Mbps"
-                    selected={settings.screenSharePreset === 'efficient'}
-                    onSelect={() => setSettings({ ...settings, screenSharePreset: 'efficient' })}
-                  />
-                  <QualityOption
-                    id="balanced"
-                    label="Balanced"
-                    detail="1080p · 30 fps"
-                    meta="Up to 4.5 Mbps"
-                    selected={settings.screenSharePreset === 'balanced'}
-                    onSelect={() => setSettings({ ...settings, screenSharePreset: 'balanced' })}
-                  />
-                  <QualityOption
-                    id="motion"
-                    label="Motion"
-                    detail="1080p · 60 fps"
-                    meta="Up to 7 Mbps"
-                    selected={settings.screenSharePreset === 'motion'}
-                    onSelect={() => setSettings({ ...settings, screenSharePreset: 'motion' })}
-                  />
-                </div>
-                <div className="overflow-hidden rounded-lg border border-border bg-background/45">
-                  <Toggle
-                    label="Expand screen levels"
-                    detail="Restores true black when a shared screen looks washed out."
-                    checked={settings.expandScreenLevels}
-                    onChange={(expandScreenLevels) => setSettings({ ...settings, expandScreenLevels })}
-                  />
-                </div>
-              </SettingsGroup>
-
-              <SettingsGroup
-                id="connection"
-                icon={<Activity className="size-4" />}
-                title="Connection"
-                description="Choose how aggressively Pulse Room trades stability for lower delay."
-              >
-                <div
-                  className="grid grid-cols-3 gap-2 max-[620px]:grid-cols-1"
-                  role="radiogroup"
-                  aria-label="Voice delay"
-                >
-                  <QualityOption
-                    id="lowest"
-                    group="delay"
-                    label="Lowest delay"
-                    detail="~69 ms here"
-                    meta="Best on a cable"
-                    selected={settings.voiceDelay === 'lowest'}
-                    onSelect={() => setSettings({ ...settings, voiceDelay: 'lowest' })}
-                  />
-                  <QualityOption
-                    id="balanced"
-                    group="delay"
-                    label="Balanced"
-                    detail="~110 ms here"
-                    meta="Survives a hiccup"
-                    selected={settings.voiceDelay === 'balanced'}
-                    onSelect={() => setSettings({ ...settings, voiceDelay: 'balanced' })}
-                  />
-                  <QualityOption
-                    id="smooth"
-                    group="delay"
-                    label="Smoothest"
-                    detail="~230 ms here"
-                    meta="For unstable lines"
-                    selected={settings.voiceDelay === 'smooth'}
-                    onSelect={() => setSettings({ ...settings, voiceDelay: 'smooth' })}
-                  />
-                </div>
-                <p className="text-[11px] leading-4 text-muted-foreground">
-                  Lower delay leaves less room for a computer or connection that briefly stalls. Changes
-                  apply on the next call.
-                </p>
-                {props.readHealth && (
-                  <div className="settings-health">
-                    <CallHealth read={props.readHealth} />
+                  <div className="overflow-hidden rounded-lg border border-border bg-background/45">
+                    <Toggle
+                      label="Expand screen levels"
+                      detail="Restores true black when a shared screen looks washed out."
+                      checked={settings.expandScreenLevels}
+                      onChange={(expandScreenLevels) => setSettings({ ...settings, expandScreenLevels })}
+                    />
                   </div>
-                )}
-              </SettingsGroup>
+                </SettingsGroup>
 
-              <SettingsGroup
-                id="application"
-                icon={<Settings2 className="size-4" />}
-                title="Application"
-                description="Keep Pulse Room current."
-              >
-                <div className="update-row flex flex-wrap items-center justify-between gap-4 rounded-lg border border-border bg-background/45 px-4 py-3.5">
-                  <div className="flex min-w-0 flex-col gap-0.5">
-                    <strong className="text-[13px] font-semibold text-foreground">
-                      Application updates
-                    </strong>
-                    <span className="text-[11px] text-muted-foreground">{updateCopy}</span>
+                <SettingsGroup
+                  id="connection"
+                  icon={<Activity className="size-4" />}
+                  title="Connection"
+                  description="Choose how aggressively Pulse Room trades stability for lower delay."
+                >
+                  <div
+                    className="grid grid-cols-3 gap-2 max-[620px]:grid-cols-1"
+                    role="radiogroup"
+                    aria-label="Voice delay"
+                  >
+                    <QualityOption
+                      id="lowest"
+                      group="delay"
+                      label="Lowest delay"
+                      detail="~69 ms here"
+                      meta="Best on a cable"
+                      selected={settings.voiceDelay === 'lowest'}
+                      onSelect={() => setSettings({ ...settings, voiceDelay: 'lowest' })}
+                    />
+                    <QualityOption
+                      id="balanced"
+                      group="delay"
+                      label="Balanced"
+                      detail="~110 ms here"
+                      meta="Survives a hiccup"
+                      selected={settings.voiceDelay === 'balanced'}
+                      onSelect={() => setSettings({ ...settings, voiceDelay: 'balanced' })}
+                    />
+                    <QualityOption
+                      id="smooth"
+                      group="delay"
+                      label="Smoothest"
+                      detail="~230 ms here"
+                      meta="For unstable lines"
+                      selected={settings.voiceDelay === 'smooth'}
+                      onSelect={() => setSettings({ ...settings, voiceDelay: 'smooth' })}
+                    />
                   </div>
-                  {props.updateStatus.state === 'downloaded' ? (
-                    <button
-                      className="inline-flex h-8 shrink-0 items-center justify-center rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-                      type="button"
-                      onClick={props.onInstallUpdate}
-                    >
-                      Restart and update
-                    </button>
-                  ) : (
-                    <button
-                      className="inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-md border border-border px-3 text-xs font-medium text-foreground transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-50"
-                      type="button"
-                      onClick={props.onCheckUpdates}
-                      disabled={
-                        props.updateStatus.state === 'checking' ||
-                        props.updateStatus.state === 'downloading'
-                      }
-                    >
-                      <RefreshCw
-                        size={14}
-                        className={props.updateStatus.state === 'checking' ? 'animate-spin' : ''}
-                      />{' '}
-                      Check now
-                    </button>
+                  <p className="text-[11px] leading-4 text-muted-foreground">
+                    Lower delay leaves less room for a computer or connection that briefly stalls. Changes
+                    apply on the next call.
+                  </p>
+                  {props.readHealth && (
+                    <div className="settings-health">
+                      <CallHealth read={props.readHealth} />
+                    </div>
                   )}
-                </div>
-              </SettingsGroup>
+                </SettingsGroup>
+
+                <SettingsGroup
+                  id="application"
+                  icon={<Settings2 className="size-4" />}
+                  title="Application"
+                  description="Keep Pulse Room current."
+                >
+                  <div className="update-row flex flex-wrap items-center justify-between gap-4 rounded-lg border border-border bg-background/45 px-4 py-3.5">
+                    <div className="flex min-w-0 flex-col gap-0.5">
+                      <strong className="text-[13px] font-semibold text-foreground">
+                        Application updates
+                      </strong>
+                      <span className="text-[11px] text-muted-foreground">{updateCopy}</span>
+                    </div>
+                    {props.updateStatus.state === 'downloaded' ? (
+                      <button
+                        className="inline-flex h-8 shrink-0 items-center justify-center rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                        type="button"
+                        onClick={props.onInstallUpdate}
+                      >
+                        Restart and update
+                      </button>
+                    ) : (
+                      <button
+                        className="inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-md border border-border px-3 text-xs font-medium text-foreground transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-50"
+                        type="button"
+                        onClick={props.onCheckUpdates}
+                        disabled={
+                          props.updateStatus.state === 'checking' ||
+                          props.updateStatus.state === 'downloading'
+                        }
+                      >
+                        <RefreshCw
+                          size={14}
+                          className={props.updateStatus.state === 'checking' ? 'animate-spin' : ''}
+                        />{' '}
+                        Check now
+                      </button>
+                    )}
+                  </div>
+                </SettingsGroup>
+              </div>
             </div>
           </div>
-        </div>
+        </OpenSection.Provider>
 
-        <footer className="flex h-[4.25rem] flex-none items-center justify-end gap-2 border-t border-border bg-background/35 px-6">
+        <footer className="settings-footer flex h-[4.25rem] flex-none items-center justify-end gap-2 border-t border-border px-6">
+          <p className="settings-footnote mr-auto">
+            Changes take effect when you save. Device choices apply to your next connection.
+          </p>
           <button
             className="secondary-button inline-flex h-9 items-center justify-center rounded-md px-4 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             type="button"
@@ -456,8 +464,17 @@ function SettingsGroup({
   description: string;
   children: ReactNode;
 }) {
+  if (useContext(OpenSection) !== id) return null;
   return (
-    <section id={`voice-settings-${id}`} className="settings-section scroll-mt-6">
+    <motion.section
+      id={`voice-settings-${id}`}
+      role="tabpanel"
+      aria-labelledby={`settings-tab-${id}`}
+      className="settings-section"
+      initial={{ opacity: 0, y: 10, filter: 'blur(6px)' }}
+      animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+      transition={{ duration: 0.38, ease: [0.16, 1, 0.3, 1] }}
+    >
       <header className="mb-4 flex items-start gap-3">
         <span
           className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-md bg-secondary text-secondary-foreground"
@@ -470,8 +487,8 @@ function SettingsGroup({
           <p className="mt-0.5 text-xs leading-5 text-muted-foreground">{description}</p>
         </div>
       </header>
-      <div className="space-y-3 pl-10 max-[620px]:pl-0">{children}</div>
-    </section>
+      <div className="space-y-3">{children}</div>
+    </motion.section>
   );
 }
 

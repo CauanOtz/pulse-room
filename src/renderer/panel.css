@@ -1,0 +1,246 @@
+/*
+ * The members panel: black, with a pill track for its tabs, rows that lift
+ * under the pointer and a shared-files shelf drawn as a quiet well.
+ */
+
+.member-sidebar {
+  padding: 0 1rem 1rem;
+  background: var(--sidebar);
+  border-left: 1px solid rgb(var(--ink) / 0.06);
+}
+
+/* Tabs on a track; the open one carries a lit pill that slides. */
+.member-sidebar .sidebar-tab-heading {
+  height: auto;
+  margin: 1.125rem 0 1rem;
+  padding: 0.25rem;
+  border: 0;
+  border-radius: 999px;
+  background: rgb(var(--ink) / 0.03);
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.08);
+}
+.member-sidebar .sidebar-tab-heading [role='tab'] {
+  justify-self: stretch;
+  height: 2rem;
+  padding: 0 0.625rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 550;
+  isolation: isolate;
+}
+.member-sidebar .sidebar-tab-heading [role='tab']::after {
+  display: none;
+}
+.member-sidebar .sidebar-tab-heading [aria-selected='true'] {
+  color: var(--primary-foreground);
+}
+.member-tab-thumb {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--primary);
+  box-shadow: 0 4px 16px -4px rgb(var(--ink) / 0.4);
+}
+.member-sidebar .sidebar-tab-heading [role='tab'] > span {
+  display: inline-grid;
+  place-items: center;
+  height: 1.125rem;
+  min-width: 1.125rem;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  color: inherit;
+  background: rgb(var(--ink) / 0.08);
+}
+.member-sidebar .sidebar-tab-heading [aria-selected='true'] > span {
+  background: rgb(var(--ground) / 0.14);
+}
+.member-sidebar .member-heading:not(.sidebar-tab-heading) {
+  border-color: rgb(var(--ink) / 0.06);
+}
+
+/* Group labels read as an index: label, rule, count. */
+.member-sidebar .sidebar-member-group h2 {
+  padding: 0 0.25rem 0.5rem;
+  font-size: 0.6875rem;
+  font-weight: 550;
+  color: var(--text-3);
+}
+.member-sidebar .sidebar-member-group h2::after {
+  background: linear-gradient(90deg, rgb(var(--ink) / 0.1), rgb(var(--ink) / 0.02));
+}
+
+/* A member row: a soft wash slides in, the face lifts, the menu appears. */
+.member-sidebar .member-entry {
+  min-height: 3.5rem;
+  padding: 0.25rem 0.375rem 0.25rem 0.25rem;
+  border-radius: 0.875rem;
+  isolation: isolate;
+}
+.member-sidebar .member-entry::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: rgb(var(--ink) / 0.045);
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.06);
+  opacity: 0;
+  transform: scaleX(0.94);
+  transform-origin: left;
+  transition:
+    opacity var(--motion-fast) var(--ease-out),
+    transform var(--motion-panel) var(--ease-out);
+}
+.member-sidebar .member-entry:hover {
+  background: transparent;
+}
+.member-sidebar .member-entry:hover::before {
+  opacity: 1;
+  transform: none;
+}
+.member-sidebar .member-identity {
+  gap: 0.75rem;
+}
+.member-sidebar .member-identity .avatar {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.875rem;
+  background: var(--lift-4);
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.1);
+  transition:
+    transform var(--motion-panel) var(--ease-spring),
+    box-shadow var(--motion-panel) var(--ease-out);
+}
+.member-sidebar .member-entry:hover .member-identity .avatar {
+  transform: scale(1.05) rotate(-2deg);
+}
+.member-sidebar .member-presence {
+  right: -2px;
+  bottom: -2px;
+  width: 0.75rem;
+  height: 0.75rem;
+  border: 2.5px solid var(--sidebar);
+  box-shadow: 0 0 8px color-mix(in oklab, var(--success) 70%, transparent);
+}
+.member-sidebar .member-presence.is-muted {
+  box-shadow: none;
+}
+.member-sidebar .member-name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.member-sidebar .member-activity {
+  font-size: 0.6875rem;
+  color: var(--text-4);
+}
+/* Speaking: the face takes the bright edge used everywhere else. */
+.member-sidebar .member-entry:has(.member-row-state svg) .avatar {
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--ink) / 0.2),
+    0 0 0 2px var(--sidebar),
+    0 0 0 3.5px var(--foreground),
+    0 0 16px rgb(var(--ink) / 0.3);
+}
+.member-sidebar .member-entry:has(.member-row-state svg) .member-activity {
+  color: var(--foreground);
+}
+.member-sidebar .member-row-state svg {
+  animation: heading-pulse 1.4s var(--ease-in-out) infinite;
+}
+.member-sidebar .member-more {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  opacity: 0.4;
+  transition:
+    opacity var(--motion-fast) var(--ease-out),
+    background-color var(--motion-fast) var(--ease-out),
+    transform var(--motion-panel) var(--ease-spring);
+}
+.member-sidebar .member-entry:hover .member-more,
+.member-sidebar .member-more[data-state='open'] {
+  opacity: 1;
+}
+.member-sidebar .member-more:hover {
+  transform: rotate(90deg);
+}
+
+/* The shelf of shared files under the people. */
+.member-sidebar .sidebar-shared {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border: 0;
+  border-radius: 1.125rem;
+  background: rgb(var(--ink) / 0.02);
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.07);
+}
+.member-sidebar .resources-heading {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+.member-sidebar .resources-heading button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  height: 1.625rem;
+  padding: 0 0.625rem;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  color: var(--text-2);
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.1);
+  transition:
+    color var(--motion-fast) var(--ease-out),
+    box-shadow var(--motion-fast) var(--ease-out);
+}
+.member-sidebar .resources-heading button:hover {
+  color: var(--foreground);
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.28);
+}
+.member-sidebar .resources-empty {
+  display: grid;
+  justify-items: center;
+  gap: 0.375rem;
+  padding: 1.5rem 1rem;
+  border-radius: 0.875rem;
+  text-align: center;
+  background: repeating-linear-gradient(135deg, rgb(var(--ink) / 0.025) 0 1px, transparent 1px 9px);
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.06);
+}
+.member-sidebar .resources-empty svg {
+  color: var(--text-3);
+  animation: empty-float 3.2s var(--ease-in-out) infinite;
+}
+@keyframes empty-float {
+  50% {
+    transform: translateY(-3px);
+  }
+}
+.member-sidebar .resources-empty strong {
+  font-size: 0.75rem;
+  color: var(--foreground);
+}
+.member-sidebar .resources-empty p {
+  font-size: 0.6875rem;
+  color: var(--text-4);
+}
+.member-sidebar .is-compact .attachment-image,
+.member-sidebar .is-compact .attachment-file-icon {
+  border-radius: 0.75rem;
+  background: var(--lift-3);
+  color: var(--text-2);
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.08);
+}
+.member-sidebar .shared-link {
+  border-radius: 0.75rem;
+  transition:
+    background-color var(--motion-fast) var(--ease-out),
+    transform var(--motion-panel) var(--ease-spring);
+}
+.member-sidebar .shared-link:hover {
+  background: rgb(var(--ink) / 0.04);
+  transform: translateX(2px);
+}

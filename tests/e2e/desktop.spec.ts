@@ -36,11 +36,14 @@ test('launches the secured desktop shell and completes the join flow', async () 
     // size of its own, so this is the shape of a rule somebody could take
     // away without noticing.
     expect(
-      await window.locator('.tile-avatar').first().evaluate((element) => {
-        // A portrait on the contact sheet: four wide by five tall.
-        const box = element.getBoundingClientRect();
-        return box.width > 0 && Math.abs(box.height / box.width - 1.25) <= 0.02;
-      }),
+      await window
+        .locator('.tile-avatar')
+        .first()
+        .evaluate((element) => {
+          // A portrait on the contact sheet: four wide by five tall.
+          const box = element.getBoundingClientRect();
+          return box.width > 0 && Math.abs(box.height / box.width - 1.25) <= 0.02;
+        }),
     ).toBe(true);
     await expect(
       window.locator('.voice-panel').getByRole('button', { name: 'Share full screen' }),
@@ -122,9 +125,13 @@ test('launches the secured desktop shell and completes the join flow', async () 
     await window.screenshot({ path: 'test-results/pulse-room-device-select.png' });
     await window.keyboard.press('Escape');
 
+    // One section per tab: each control is reached through the tab it lives in.
+    await window.getByRole('tab', { name: 'Voice processing' }).click();
     await window.getByLabel('Microphone gain').fill('120');
     await window.getByRole('slider', { name: 'Noise gate' }).fill('70');
+    await window.getByRole('tab', { name: 'Screen share' }).click();
     await window.getByRole('switch', { name: /Expand screen levels/ }).click();
+    await window.getByRole('tab', { name: 'Application' }).click();
     await window.getByRole('button', { name: 'Check now' }).click();
     await expect(window.getByText(`Pulse Room ${version} is current.`)).toBeVisible();
     await window.screenshot({ path: 'test-results/pulse-room-settings-quality.png' });
@@ -159,12 +166,20 @@ test('launches the secured desktop shell and completes the join flow', async () 
     await window.getByRole('button', { name: 'Enter full screen' }).click();
     await expect(window.getByRole('button', { name: 'Exit full screen' })).toBeVisible();
     await window.locator('.stage-live').hover();
-    await window.locator('.call-dock').getByRole('button', { name: 'Open audio settings', exact: true }).click();
-    const fullscreenSettings = window.locator('.stage:fullscreen').getByRole('dialog', { name: 'Voice and video' });
+    await window
+      .locator('.call-dock')
+      .getByRole('button', { name: 'Open audio settings', exact: true })
+      .click();
+    const fullscreenSettings = window
+      .locator('.stage:fullscreen')
+      .getByRole('dialog', { name: 'Voice and video' });
     await fullscreenSettings.getByRole('button', { name: 'Close', exact: true }).click();
     await window.locator('.stage-live').hover();
     await window.locator('.call-dock').getByRole('button', { name: 'Stream options' }).click();
-    await window.locator('.stage:fullscreen').getByRole('menuitemradio', { name: /1080p . 30 fps/ }).click();
+    await window
+      .locator('.stage:fullscreen')
+      .getByRole('menuitemradio', { name: /1080p . 30 fps/ })
+      .click();
     await window.locator('.stage-live').hover();
     await window.getByRole('button', { name: 'Exit full screen' }).click();
     await expect(window.getByRole('button', { name: 'Enter full screen' })).toBeVisible();

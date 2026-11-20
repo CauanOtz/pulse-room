@@ -9,8 +9,11 @@
 /* ------------------------------------------------------------- the sheet */
 
 .pulse-scrim {
-  background:
-    radial-gradient(120% 80% at 50% 0%, rgb(var(--ground) / 0.55), rgb(var(--ground) / 0.82)) !important;
+  background: radial-gradient(
+    120% 80% at 50% 0%,
+    rgb(var(--ground) / 0.55),
+    rgb(var(--ground) / 0.82)
+  ) !important;
 }
 .pulse-dialog {
   overflow: hidden;
@@ -671,8 +674,7 @@
   overflow: hidden;
   border-radius: 1rem;
   background:
-    repeating-linear-gradient(135deg, rgb(var(--ink) / 0.02) 0 1px, transparent 1px 9px),
-    var(--lift-1);
+    repeating-linear-gradient(135deg, rgb(var(--ink) / 0.02) 0 1px, transparent 1px 9px), var(--lift-1);
   box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.1);
   transition:
     transform var(--motion-panel) var(--ease-spring),
@@ -800,4 +802,277 @@
 }
 .source-hint kbd + kbd {
   margin-left: 0;
+}
+
+/* ------------------------------------------------- voice & video settings */
+
+.dialog-backdrop {
+  background: radial-gradient(
+    120% 80% at 50% 0%,
+    rgb(var(--ground) / 0.55),
+    rgb(var(--ground) / 0.85)
+  ) !important;
+  backdrop-filter: blur(6px) !important;
+  animation: scrim-in 320ms var(--ease-out);
+}
+.settings-dialog,
+.pulse-dialog {
+  background: var(--lift-1) !important;
+}
+.settings-dialog {
+  border: 0 !important;
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--ink) / 0.1),
+    inset 0 1px 0 rgb(var(--ink) / 0.08),
+    0 40px 120px -24px rgb(0 0 0 / 0.8) !important;
+  animation: dialog-in 480ms var(--ease-out);
+}
+.settings-dialog > header {
+  height: 4.75rem;
+  border-bottom: 0 !important;
+}
+.settings-dialog > header > span {
+  background: transparent !important;
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.12);
+  border-radius: 0.875rem !important;
+}
+.settings-dialog > header h2 {
+  font-size: 1.25rem !important;
+  letter-spacing: -0.035em !important;
+}
+.settings-dialog > header > button[aria-label='Close'] {
+  width: 2.125rem;
+  height: 2.125rem;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.1);
+  transition:
+    transform var(--motion-panel) var(--ease-spring),
+    color var(--motion-fast) var(--ease-out),
+    box-shadow var(--motion-fast) var(--ease-out);
+}
+.settings-dialog > header > button[aria-label='Close']:hover {
+  transform: rotate(90deg);
+  background: rgb(var(--ink) / 0.06);
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.24);
+}
+
+/* Tabs: pills on a hairline track, the open one lit and sliding. */
+.settings-tabs {
+  display: flex;
+  flex: none;
+  gap: 0.25rem;
+  margin: 0 1.5rem;
+  padding: 0.3125rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-radius: 999px;
+  background: rgb(var(--ink) / 0.03);
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.08);
+}
+.settings-tab {
+  position: relative;
+  display: inline-flex;
+  flex: 1 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  height: 2.25rem;
+  padding: 0 0.875rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 550;
+  white-space: nowrap;
+  color: var(--text-3);
+  transition: color var(--motion-fast) var(--ease-out);
+}
+.settings-tab:hover {
+  color: var(--foreground);
+}
+.settings-tab:hover svg {
+  transform: scale(1.12) rotate(-6deg);
+}
+.settings-tab svg {
+  transition: transform var(--motion-panel) var(--ease-spring);
+}
+.settings-tab.is-selected {
+  color: var(--primary-foreground);
+}
+.settings-tab:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+.settings-tab-thumb {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--primary);
+  box-shadow: 0 6px 20px -6px rgb(var(--ink) / 0.45);
+}
+
+.settings-dialog .settings-body > div {
+  max-width: 46rem;
+  padding-top: 1.75rem;
+}
+.settings-dialog .settings-section > header > span {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.75rem;
+  background: transparent !important;
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.12);
+}
+.settings-dialog .settings-section > header h3 {
+  font-size: 1rem;
+  font-weight: 620;
+  letter-spacing: -0.025em;
+}
+/* The grey blocks become hairline wells on black. */
+.settings-dialog .settings-section [class*='bg-background/45'],
+.settings-dialog .settings-section .update-row {
+  border: 0 !important;
+  border-radius: 1rem !important;
+  background: rgb(var(--ink) / 0.02) !important;
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.08);
+}
+.settings-dialog .range-row,
+.settings-dialog .toggle-row,
+.settings-dialog .mic-status {
+  border-color: rgb(var(--ink) / 0.06) !important;
+}
+.settings-dialog .toggle-row:hover {
+  background: rgb(var(--ink) / 0.03) !important;
+}
+.settings-dialog .range-row output {
+  border-radius: 999px;
+  background: transparent;
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.12);
+}
+.settings-dialog button[role='combobox'] {
+  height: 2.75rem;
+  border: 0;
+  border-radius: 0.875rem;
+  background: rgb(var(--ink) / 0.04);
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.1);
+  transition: box-shadow var(--motion-fast) var(--ease-out);
+}
+.settings-dialog button[role='combobox']:hover,
+.settings-dialog button[role='combobox'][data-state='open'] {
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.3);
+}
+/* Choice cards (quality, codec) lift and light when chosen. */
+.settings-dialog [role='radiogroup'] > * {
+  border-radius: 1rem !important;
+  transition:
+    transform var(--motion-panel) var(--ease-spring),
+    box-shadow var(--motion-fast) var(--ease-out),
+    background-color var(--motion-fast) var(--ease-out);
+}
+.settings-dialog [role='radiogroup'] > *:hover {
+  transform: translateY(-2px);
+}
+.settings-footer {
+  border-color: rgb(var(--ink) / 0.07) !important;
+}
+.settings-footnote {
+  max-width: 24rem;
+  font-size: 0.6875rem;
+  line-height: 1.5;
+  color: var(--text-4);
+}
+.settings-footer .primary-button,
+.settings-footer .secondary-button {
+  height: 2.5rem;
+  border-radius: 999px !important;
+  transition:
+    transform var(--motion-panel) var(--ease-spring),
+    background-color var(--motion-fast) var(--ease-out),
+    color var(--motion-fast) var(--ease-out);
+}
+.settings-footer .primary-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+.settings-footer .primary-button:active:not(:disabled),
+.settings-footer .secondary-button:active {
+  transform: scale(0.96);
+}
+@media (max-width: 720px) {
+  .settings-tab span {
+    display: none;
+  }
+  .settings-footnote {
+    display: none;
+  }
+}
+
+/* ------------------------------------------- full-screen settings (server) */
+
+.settings-screen.server-settings-screen,
+.settings-screen {
+  background: var(--background) !important;
+}
+.settings-screen .settings-rail,
+.server-settings-screen .settings-rail {
+  background: var(--sidebar) !important;
+  border-color: rgb(var(--ink) / 0.06) !important;
+}
+.settings-screen .settings-identity > span {
+  border-radius: 0.875rem;
+  background: transparent;
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.12);
+}
+/* The rail reads as vertical tabs: a lit pill marks the open one. */
+.settings-screen .settings-nav-button {
+  border: 0 !important;
+  border-radius: 0.75rem;
+  transition:
+    color var(--motion-fast) var(--ease-out),
+    background-color var(--motion-fast) var(--ease-out),
+    transform var(--motion-panel) var(--ease-spring);
+}
+.settings-screen .settings-nav-button:hover:not([aria-pressed='true']) {
+  background: rgb(var(--ink) / 0.04);
+  transform: translateX(3px);
+}
+.settings-screen .settings-nav-button[aria-pressed='true'],
+.server-settings-screen .settings-nav-button[aria-pressed='true'] {
+  color: var(--primary-foreground) !important;
+  background: var(--primary) !important;
+  box-shadow: 0 8px 24px -10px rgb(var(--ink) / 0.5);
+}
+.settings-screen .settings-nav-button[aria-pressed='true'] svg,
+.settings-screen .settings-nav-button[aria-pressed='true'] span {
+  color: inherit !important;
+}
+.settings-screen .settings-close button {
+  border-radius: 999px;
+  transition:
+    transform var(--motion-panel) var(--ease-spring),
+    box-shadow var(--motion-fast) var(--ease-out);
+}
+.settings-screen .settings-close button:hover {
+  transform: rotate(90deg);
+}
+/* Cards become hairline wells on black. */
+.server-settings-card {
+  border: 0 !important;
+  border-radius: 1.25rem !important;
+  background: rgb(var(--ink) / 0.02) !important;
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.08) !important;
+  animation: sheet-part-in 520ms var(--ease-out) backwards;
+}
+.server-settings-card + .server-settings-card {
+  animation-delay: 70ms;
+}
+.server-identity-editor .counted-input :is(input, textarea) {
+  border: 0 !important;
+  border-radius: 0.8125rem !important;
+  background: rgb(var(--ink) / 0.04) !important;
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.1) !important;
+}
+.server-identity-editor .counted-input :is(input, textarea):focus {
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--ink) / 0.5),
+    0 0 0 4px rgb(var(--ink) / 0.07) !important;
+}
+.settings-screen [role='tablist'] [role='tab'][aria-selected='true'] {
+  color: var(--foreground);
 }

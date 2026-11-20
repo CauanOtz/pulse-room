@@ -11,6 +11,8 @@
 @import './motion.css';
 @import './room.css';
 @import './dialogs.css';
+@import './panel.css';
+@import './attachments.css';
 
 @theme {
   --font-sans: 'Schibsted Grotesk Variable', 'Segoe UI', system-ui, sans-serif;

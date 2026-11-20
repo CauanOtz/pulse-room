@@ -4,6 +4,8 @@ import {
   ExternalLink,
   Headphones,
   LayoutGrid,
+  PanelRightClose,
+  PanelRightOpen,
   Maximize2,
   Minimize2,
   MonitorUp,
@@ -13,6 +15,7 @@ import {
   SquareStack,
   Volume2,
 } from 'lucide-react';
+import { motion } from 'motion/react';
 import type { Participant } from '../domain/conference';
 import { MediaOutput } from './media-output';
 import { LiveStreamNavigation, LiveVoicePeers } from './live-stream-navigation';
@@ -83,6 +86,24 @@ export function Stage({
     (broadcast) => watched.includes(broadcast.id) && broadcast.screenStream?.getVideoTracks().length,
   );
   const [sideBySide, setSideBySide] = useState(false);
+  // The list of other screens folds away, so a live can fill the room
+  // without being popped out into a window of its own.
+  const [railOpen, setRailOpen] = useState(() => {
+    try {
+      return window.localStorage.getItem('pulse-room:stream-rail') !== 'closed';
+    } catch {
+      return true;
+    }
+  });
+  const toggleRail = () =>
+    setRailOpen((open) => {
+      try {
+        window.localStorage.setItem('pulse-room:stream-rail', open ? 'closed' : 'open');
+      } catch {
+        // Kept for this session only.
+      }
+      return !open;
+    });
   const mosaic = sideBySide && received.length > 1;
 
   // Screens popped out into windows follow the person: a new stream replaces
@@ -263,6 +284,7 @@ export function Stage({
       className={cn(
         'stage stage-live live-workspace relative size-full overflow-hidden rounded-xl border border-border bg-stage shadow-[var(--gloss)]',
         broadcasts.length > 1 && !mosaic && 'has-stream-navigation',
+        !railOpen && 'is-rail-closed',
         mosaic && 'is-mosaic',
         !controlsVisible && 'is-idle cursor-none',
       )}
@@ -309,6 +331,19 @@ export function Stage({
             </label>
           )}
           <span className="live-tools-rule" aria-hidden="true" />
+          {broadcasts.length > 1 && !mosaic && (
+            <Tooltip label={railOpen ? 'Hide the stream list' : 'Show the stream list'} side="bottom">
+              <button
+                className="live-action is-icon"
+                type="button"
+                aria-label={railOpen ? 'Hide the stream list' : 'Show the stream list'}
+                aria-pressed={!railOpen}
+                onClick={toggleRail}
+              >
+                {railOpen ? <PanelRightClose size={16} /> : <PanelRightOpen size={16} />}
+              </button>
+            </Tooltip>
+          )}
           {received.length > 1 && (
             <Tooltip label={mosaic ? 'One at a time' : 'Side by side'} side="bottom">
               <button
@@ -433,15 +468,24 @@ export function Stage({
           </div>
         )}
         {broadcasts.length > 1 && !mosaic && (
-          <LiveStreamNavigation
-            participants={broadcasts}
-            watching={watched}
-            activeId={active.id}
-            avatars={avatars}
-            onSelect={focus}
-            onStop={(id) => onWatch(id, false)}
-            onOptions={onOptions}
-          />
+          <motion.div
+            className="live-rail"
+            initial={false}
+            animate={{ width: railOpen ? 'auto' : 0, opacity: railOpen ? 1 : 0 }}
+            transition={{ duration: 0.42, ease: [0.16, 1, 0.3, 1] }}
+            aria-hidden={!railOpen || undefined}
+            inert={!railOpen || undefined}
+          >
+            <LiveStreamNavigation
+              participants={broadcasts}
+              watching={watched}
+              activeId={active.id}
+              avatars={avatars}
+              onSelect={focus}
+              onStop={(id) => onWatch(id, false)}
+              onOptions={onOptions}
+            />
+          </motion.div>
         )}
       </div>
 
