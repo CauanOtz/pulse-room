@@ -22,6 +22,7 @@ import { LiveStreamNavigation, LiveVoicePeers } from './live-stream-navigation';
 import { cn } from './ui/utils';
 import { ParticipantTiles } from './participant-tiles';
 import { Tooltip } from './ui/tooltip';
+import { useSteadySpeaker } from './steady-speaker';
 import { VoiceWaveform } from './voice-waveform';
 import {
   openLiveWindow,
@@ -130,14 +131,10 @@ export function Stage({
   }, []);
 
   const stageRef = useRef<HTMLElement>(null);
-  const speaker = participants.find((participant) => participant.isSpeaking && !participant.isMuted);
-  const [lastSpeakerId, setLastSpeakerId] = useState<string>();
-  useEffect(() => {
-    if (speaker) setLastSpeakerId(speaker.id);
-  }, [speaker?.id]);
+  const { speaker, last: lastSpeaker } = useSteadySpeaker(participants);
   const featured =
     speaker ??
-    participants.find((person) => person.id === lastSpeakerId) ??
+    lastSpeaker ??
     participants.find((person) => person.isLocal) ??
     participants[0];
   const [fullScreen, setFullScreen] = useState(false);
@@ -255,7 +252,7 @@ export function Stage({
           layout="spotlight"
           featuredId={featured?.id}
           information={
-            <header className="voice-room-heading">
+            <header className={cn('voice-room-heading', speaker && 'is-speaking')}>
               <p>{speaker ? 'Speaking' : featured ? 'In the room' : 'Joining voice'}</p>
               <h2 title={featured?.name}>{featured?.name ?? 'Connecting…'}</h2>
               <span className="voice-room-caption">

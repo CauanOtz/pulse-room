@@ -169,20 +169,29 @@ describe('Stage', () => {
   });
 
   it('features the real speaker and keeps their place through pauses', () => {
-    const people = [
-      createParticipant({ id: 'you', name: 'You', isLocal: true }),
-      createParticipant({ id: 'maya', name: 'Maya', isSpeaking: true }),
-    ];
-    const view = render(<Watchable participants={people} />);
-    expect(document.querySelector('.is-featured')).toHaveTextContent('Maya');
-    view.rerender(<Watchable participants={people.map((person) => ({ ...person, isSpeaking: false }))} />);
-    expect(document.querySelector('.is-featured')).toHaveTextContent('Maya');
-    expect(document.querySelector('.is-featured')).not.toHaveClass('is-speaking');
-    view.rerender(
-      <Watchable participants={people.map((person) => ({ ...person, isSpeaking: person.isLocal }))} />,
-    );
-    expect(document.querySelector('.is-featured')).toHaveTextContent('You');
-    expect(document.querySelectorAll('.participant-tile')).toHaveLength(2);
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance', 'Date'] });
+    try {
+      const people = [
+        createParticipant({ id: 'you', name: 'You', isLocal: true }),
+        createParticipant({ id: 'maya', name: 'Maya', isSpeaking: true }),
+      ];
+      const view = render(<Watchable participants={people} />);
+      expect(document.querySelector('.is-featured')).toHaveTextContent('Maya');
+      view.rerender(<Watchable participants={people.map((person) => ({ ...person, isSpeaking: false }))} />);
+      expect(document.querySelector('.is-featured')).toHaveTextContent('Maya');
+      expect(document.querySelector('.is-featured')).not.toHaveClass('is-speaking');
+      view.rerender(
+        <Watchable participants={people.map((person) => ({ ...person, isSpeaking: person.isLocal }))} />,
+      );
+      // Somebody else talking takes the spotlight once Maya has had a moment on it,
+      // so people trading words do not make the room flicker between them.
+      expect(document.querySelector('.is-featured')).toHaveTextContent('Maya');
+      act(() => void vi.advanceTimersByTime(700));
+      expect(document.querySelector('.is-featured')).toHaveTextContent('You');
+      expect(document.querySelectorAll('.participant-tile')).toHaveLength(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('does not mark a muted participant as speaking when an older report says they are', () => {

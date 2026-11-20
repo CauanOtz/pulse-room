@@ -66,10 +66,10 @@
   height: 1.5rem;
   margin: 0;
 }
-.contact-sheet:has(.is-speaking) .voice-room-heading > p {
+.contact-sheet .voice-room-heading.is-speaking > p {
   color: var(--foreground);
 }
-.contact-sheet:has(.is-speaking) .voice-room-heading > p::before {
+.contact-sheet .voice-room-heading.is-speaking > p::before {
   background: var(--foreground);
   box-shadow: 0 0 10px rgb(var(--ink) / 0.7);
   animation: heading-pulse 1.4s var(--ease-in-out) infinite;
