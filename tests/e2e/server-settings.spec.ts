@@ -295,7 +295,10 @@ test('server identity, appearance and onboarding persist through the real APIs',
       await guestWindow.getByLabel('Password', { exact: true }).fill('Testing server settings!');
       await guestWindow.getByRole('button', { name: 'Sign in', exact: true }).click();
       const welcome = guestWindow.getByRole('dialog', { name: 'Welcome to Our little studio', exact: true });
-      await expect(welcome).toContainText('Feel free to introduce yourself!');
+      // Everything a sign-in costs comes before it: the password check, the
+      // server list, the server, its channel and its banner. That takes about
+      // a second and a half here and several times longer on a CI runner.
+      await expect(welcome).toContainText('Feel free to introduce yourself!', { timeout: 15_000 });
       await guestWindow.screenshot({ path: path.join(artifacts, 'server-welcome-new-member.png') });
       await welcome.getByRole('button', { name: 'Enter server', exact: true }).click();
       await expect(welcome).toHaveCount(0);
