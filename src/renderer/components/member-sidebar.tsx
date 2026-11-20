@@ -1,4 +1,3 @@
-import { motion } from 'motion/react';
 import { useId, useMemo, useState } from 'react';
 import { AudioLines, Crown, Headphones, MicOff, MoreHorizontal, Shield, UserRound } from 'lucide-react';
 import type { CommunityChannel, CommunityMember, Role } from '../../shared/community';
@@ -60,6 +59,12 @@ export function MemberSidebar({
     >
       {api ? (
         <header className="member-heading sidebar-tab-heading" role="tablist" aria-label="Room details">
+          {/* One pill for the track, slid under whichever tab is open. */}
+          <i
+            className="member-tab-thumb"
+            aria-hidden="true"
+            style={{ ['--tab' as string]: tabs.indexOf(tab) } as React.CSSProperties}
+          />
           {tabs.map((name) => (
             <button
               type="button"
@@ -88,14 +93,6 @@ export function MemberSidebar({
                 document.getElementById(`${id}-${tabs[next]}-tab`)?.focus();
               }}
             >
-              {tab === name && (
-                <motion.i
-                  layoutId="member-tab-thumb"
-                  className="member-tab-thumb"
-                  aria-hidden="true"
-                  transition={{ type: 'spring', stiffness: 520, damping: 40 }}
-                />
-              )}
               {name === 'members' ? (
                 <>
                   Members <span>{members.length}</span>

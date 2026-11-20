@@ -94,7 +94,11 @@ export function ProfileBar(props: ProfileBarProps) {
           </PopoverTrigger>
         </StatusTooltip>
         {/* The card runs to the popover's edges so the banner can. */}
-        <PopoverContent side="top" className="profile-card-popover overflow-hidden p-0" style={themedCard(person.theme)}>
+        <PopoverContent
+          side="top"
+          className="profile-card-popover overflow-hidden p-0"
+          style={themedCard(person.theme)}
+        >
           <ProfileCard user={person} onOpenAccount={openAccount} />
         </PopoverContent>
       </Popover>
@@ -109,10 +113,10 @@ export function ProfileBar(props: ProfileBarProps) {
             aria-label={props.microphoneEnabled ? 'Mute microphone' : 'Unmute microphone'}
             onClick={props.onToggleMicrophone}
           >
-          {props.joined && !props.microphoneEnabled ? (
-            <MicOff className="size-4 text-destructive" />
-          ) : (
-            <Mic className="size-4" />
+            {props.joined && !props.microphoneEnabled ? (
+              <MicOff className="size-4 text-destructive" />
+            ) : (
+              <Mic className="size-4" />
             )}
           </Button>
         </Tooltip>

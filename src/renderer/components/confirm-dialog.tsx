@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Dialog, DialogBody, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
 
@@ -19,10 +20,13 @@ export interface Confirmation {
 export function ConfirmDialog({
   confirmation,
   busy,
+  preview,
   onCancel,
   onConfirm,
 }: {
   confirmation: Confirmation;
+  /** What is about to go, shown so nobody deletes the wrong thing. */
+  preview?: ReactNode;
   busy?: boolean;
   onCancel(): void;
   onConfirm(): void;
@@ -30,14 +34,15 @@ export function ConfirmDialog({
   return (
     <Dialog open onOpenChange={(open) => !open && onCancel()}>
       <DialogContent
-        className="w-[min(26rem,calc(100vw-2rem))]"
+        className={`confirm-dialog w-[min(28rem,calc(100vw-2rem))] ${confirmation.tone === 'danger' ? 'is-danger' : ''}`}
         aria-label={confirmation.title}
         onOpenAutoFocus={(event) => event.preventDefault()}
       >
         <DialogHeader>
           <DialogTitle className="text-base font-semibold">{confirmation.title}</DialogTitle>
         </DialogHeader>
-        <DialogBody className="space-y-0 py-4">
+        <DialogBody className="confirm-body space-y-0 py-4">
+          {preview}
           <p className="text-sm leading-relaxed text-muted-foreground">{confirmation.description}</p>
         </DialogBody>
         <footer className="flex justify-end gap-2 border-t border-border px-5 py-4">

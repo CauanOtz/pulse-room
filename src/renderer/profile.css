@@ -1,0 +1,815 @@
+/*
+ * Profiles. The whole one rises out of focus over a dimmed room: the banner
+ * settles from a slow zoom, the face springs up through its edge, and the
+ * rest follows a beat later. Somebody's colours are light on black — a glow
+ * behind their banner and a ring round their face — never a tinted slab.
+ */
+
+.profile-scrim {
+  backdrop-filter: blur(10px) saturate(0.8) !important;
+}
+
+.profile-sheet {
+  --profile-primary: rgb(var(--ink) / 0.4);
+  --profile-accent: rgb(var(--ink) / 0.2);
+  border: 0 !important;
+  border-radius: 1.75rem !important;
+  background:
+    radial-gradient(
+      90% 55% at 15% 0%,
+      color-mix(in oklab, var(--profile-primary) 22%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      70% 45% at 95% 8%,
+      color-mix(in oklab, var(--profile-accent) 16%, transparent),
+      transparent 70%
+    ),
+    var(--lift-1) !important;
+  color: var(--foreground);
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--ink) / 0.1),
+    inset 0 1px 0 rgb(var(--ink) / 0.08),
+    0 50px 140px -30px rgb(0 0 0 / 0.85),
+    0 0 90px -40px var(--profile-primary) !important;
+}
+.profile-sheet[data-themed='true'] {
+  box-shadow:
+    inset 0 0 0 1px color-mix(in oklab, var(--profile-primary) 40%, transparent),
+    inset 0 1px 0 rgb(var(--ink) / 0.1),
+    0 50px 140px -30px rgb(0 0 0 / 0.85),
+    0 0 120px -30px color-mix(in oklab, var(--profile-primary) 70%, transparent) !important;
+}
+.theme-light .profile-sheet {
+  box-shadow:
+    inset 0 0 0 1px rgb(0 0 0 / 0.08),
+    0 40px 100px -30px rgb(0 0 0 / 0.3) !important;
+}
+.profile-sheet[data-state='open'] {
+  animation: profile-in 620ms var(--ease-out) !important;
+}
+.profile-sheet[data-state='closed'] {
+  animation: profile-out 200ms var(--ease-in) forwards !important;
+}
+@keyframes profile-in {
+  from {
+    opacity: 0;
+    transform: translateY(22px) scale(0.94);
+    filter: blur(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+@keyframes profile-out {
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+    filter: blur(6px);
+  }
+}
+
+/* ---- banner ---- */
+
+.profile-sheet-banner {
+  position: relative;
+  flex: none;
+  height: 12.5rem;
+  overflow: hidden;
+}
+.profile-sheet-banner .profile-banner {
+  animation: profile-banner-in 1.4s var(--ease-out) both;
+}
+@keyframes profile-banner-in {
+  from {
+    transform: scale(1.14);
+    filter: saturate(0.6) brightness(0.7);
+  }
+}
+/* The banner melts into the card instead of ending on a line. */
+.profile-sheet-banner {
+  mask-image: linear-gradient(180deg, #000 45%, transparent);
+}
+.profile-sheet-close {
+  position: absolute;
+  z-index: 2;
+  top: 0.875rem;
+  right: 0.875rem;
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 999px;
+  color: #fff;
+  background: rgb(0 0 0 / 0.45);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.16);
+  backdrop-filter: blur(10px);
+  transition:
+    transform var(--motion-panel) var(--ease-spring),
+    background-color var(--motion-fast) var(--ease-out);
+}
+.profile-sheet-close:hover {
+  transform: rotate(90deg);
+  background: rgb(0 0 0 / 0.7);
+}
+.profile-sheet-close:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+/* ---- the face and what can be done ---- */
+
+.profile-sheet-identity {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: -4.5rem;
+  padding: 0 1.75rem;
+}
+.profile-sheet-face {
+  position: relative;
+  display: block;
+  animation: profile-face-in 760ms var(--ease-spring) 120ms backwards;
+}
+@keyframes profile-face-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.7);
+  }
+}
+.profile-sheet-avatar {
+  display: grid;
+  place-items: center;
+  width: 7.75rem;
+  height: 7.75rem;
+  overflow: hidden;
+  border-radius: 2.25rem;
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 2.75rem;
+  background: var(--lift-4);
+  box-shadow:
+    0 0 0 6px var(--lift-1),
+    0 0 0 7.5px color-mix(in oklab, var(--profile-primary) 70%, transparent),
+    0 24px 50px -16px rgb(0 0 0 / 0.9);
+  transition: transform var(--motion-panel) var(--ease-spring);
+}
+.profile-sheet-face:hover .profile-sheet-avatar {
+  transform: rotate(-3deg) scale(1.03);
+}
+.profile-sheet-badge {
+  position: absolute;
+  right: -0.25rem;
+  bottom: -0.25rem;
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  color: #04120a;
+  background: var(--success);
+  box-shadow:
+    0 0 0 4px var(--lift-1),
+    0 0 18px color-mix(in oklab, var(--success) 70%, transparent);
+}
+.profile-sheet-actions {
+  display: flex;
+  gap: 0.5rem;
+  padding-bottom: 0.5rem;
+  animation: sheet-part-in 520ms var(--ease-out) 220ms backwards;
+}
+.profile-action {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 2.5rem;
+  padding: 0 1.125rem;
+  overflow: hidden;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 620;
+  color: var(--foreground);
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.14);
+  transition:
+    transform var(--motion-panel) var(--ease-spring),
+    box-shadow var(--motion-fast) var(--ease-out);
+}
+.profile-action.is-primary {
+  color: var(--primary-foreground);
+  background: var(--primary);
+  box-shadow: 0 10px 30px -10px rgb(var(--ink) / 0.5);
+}
+.profile-action::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 35%, rgb(var(--ground) / 0.25) 50%, transparent 65%);
+  transform: translateX(-110%);
+  transition: transform 0.8s var(--ease-out);
+}
+.profile-action:hover {
+  transform: translateY(-1px);
+}
+.profile-action:hover::after {
+  transform: translateX(110%);
+}
+.profile-action:active {
+  transform: scale(0.96);
+}
+
+/* ---- the name ---- */
+
+.profile-sheet-name {
+  padding: 1rem 1.75rem 0;
+  animation: sheet-part-in 560ms var(--ease-out) 180ms backwards;
+}
+.profile-sheet-name h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-width: 0;
+  font-size: 2rem;
+  font-weight: 680;
+  line-height: 1.1;
+  letter-spacing: -0.045em;
+}
+.profile-sheet-name > p {
+  margin-top: 0.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-3);
+}
+.profile-sheet-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-top: 0.875rem;
+}
+.profile-sheet-chips:empty {
+  display: none;
+}
+.profile-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  height: 1.625rem;
+  padding: 0 0.625rem;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 550;
+  color: var(--text-2);
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.12);
+}
+.profile-chip.is-owner {
+  color: var(--warning);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--warning) 35%, transparent);
+}
+.profile-chip.is-live {
+  color: var(--success);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--success) 35%, transparent);
+}
+.profile-chip.is-live svg {
+  animation: heading-pulse 1.6s var(--ease-in-out) infinite;
+}
+.profile-chip.is-danger {
+  color: var(--destructive);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--destructive) 35%, transparent);
+}
+
+/* ---- the body ---- */
+
+.profile-sheet-body {
+  display: grid;
+  gap: 0.875rem;
+  padding: 1.25rem 1.75rem 1.75rem;
+}
+.profile-sheet-body.has-side {
+  grid-template-columns: minmax(0, 1fr) 14.5rem;
+  align-items: start;
+}
+@media (max-width: 720px) {
+  .profile-sheet-body.has-side {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.profile-sheet-main {
+  display: grid;
+  gap: 0.875rem;
+  min-width: 0;
+}
+.profile-sheet-main > *,
+.profile-sheet-side {
+  animation: sheet-part-in 560ms var(--ease-out) backwards;
+}
+.profile-sheet-main > :nth-child(1) {
+  animation-delay: 240ms;
+}
+.profile-sheet-main > :nth-child(2) {
+  animation-delay: 300ms;
+}
+.profile-sheet-main > :nth-child(3) {
+  animation-delay: 360ms;
+}
+.profile-sheet-main > :nth-child(n + 4) {
+  animation-delay: 420ms;
+}
+.profile-sheet-side {
+  animation-delay: 320ms;
+}
+
+.profile-block {
+  padding: 1rem 1.125rem 1.125rem;
+  border-radius: 1.25rem;
+  background: rgb(var(--ink) / 0.025);
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.08);
+}
+.profile-block > header {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  margin-bottom: 0.75rem;
+}
+.profile-block > header h3 {
+  flex: none;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-3);
+}
+.profile-block > header > span {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, rgb(var(--ink) / 0.1), transparent);
+}
+.profile-block-count {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  color: var(--text-4);
+}
+.profile-bio {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.875rem;
+  line-height: 1.65;
+  color: rgb(var(--ink) / 0.86);
+}
+.profile-roles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.profile-roles .profile-role {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  height: 1.75rem;
+  padding: 0 0.75rem 0 0.5rem;
+  border: 0;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 550;
+  color: var(--text-1);
+  background: rgb(var(--ink) / 0.04);
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.1);
+  transition: transform var(--motion-panel) var(--ease-spring);
+}
+.profile-roles .profile-role:hover {
+  transform: translateY(-1px);
+}
+.profile-dates {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+}
+.profile-dates > div {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+.profile-dates > div > span:last-child {
+  min-width: 0;
+}
+.profile-date-mark {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 2.375rem;
+  height: 2.375rem;
+  border-radius: 0.875rem;
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: var(--text-2);
+  background: rgb(var(--ink) / 0.04);
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.1);
+  overflow: hidden;
+}
+.profile-dates dt {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.6875rem;
+  color: var(--text-4);
+}
+.profile-dates dd {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.875rem;
+  font-weight: 550;
+}
+.profile-volume {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.profile-volume-mute {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.75rem;
+  color: var(--text-2);
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.12);
+  transition:
+    color var(--motion-fast) var(--ease-out),
+    transform var(--motion-panel) var(--ease-spring);
+}
+.profile-volume-mute:hover {
+  color: var(--foreground);
+  transform: scale(1.06);
+}
+.profile-volume-mute.is-muted {
+  color: var(--destructive);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--destructive) 45%, transparent);
+}
+.profile-volume input[type='range'] {
+  flex: 1;
+  min-width: 0;
+  height: 1rem;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+.profile-volume input[type='range']::-webkit-slider-runnable-track {
+  height: 0.25rem;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--foreground) 0 var(--range-progress, 50%),
+    rgb(var(--ink) / 0.12) var(--range-progress, 50%) 100%
+  );
+}
+.profile-volume input[type='range']::-webkit-slider-thumb {
+  width: 0.875rem;
+  height: 0.875rem;
+  margin-top: -0.3125rem;
+  appearance: none;
+  border-radius: 999px;
+  background: var(--foreground);
+  box-shadow: 0 0 0 4px rgb(var(--ink) / 0.08);
+  transition: transform var(--motion-fast) var(--ease-out);
+}
+.profile-volume input[type='range']:hover::-webkit-slider-thumb {
+  transform: scale(1.2);
+}
+.profile-volume-value {
+  width: 2.75rem;
+  text-align: right;
+  font-size: 0.6875rem;
+  color: var(--text-3);
+}
+
+/* Moderation, as its own quiet card beside the profile. */
+.profile-sheet-side {
+  padding: 0.75rem;
+  border-radius: 1.25rem;
+  background: rgb(var(--ink) / 0.02);
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.08);
+}
+.profile-sheet-side button {
+  border-radius: 0.75rem !important;
+  transition:
+    background-color var(--motion-fast) var(--ease-out),
+    transform var(--motion-panel) var(--ease-spring) !important;
+}
+.profile-sheet-side button:hover:not(:disabled) {
+  background: rgb(var(--ink) / 0.05) !important;
+  transform: translateX(2px);
+}
+
+/* Servers in common: rows that lean in and point where they go. */
+.profile-servers {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.profile-server {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.375rem 0.5rem;
+  border-radius: 0.875rem;
+  text-align: left;
+  font-size: 0.8125rem;
+  font-weight: 550;
+  transition:
+    background-color var(--motion-fast) var(--ease-out),
+    transform var(--motion-panel) var(--ease-spring);
+}
+.profile-server:hover {
+  background: rgb(var(--ink) / 0.05);
+  transform: translateX(2px);
+}
+.profile-server-icon {
+  width: 2.25rem;
+  height: 2.25rem;
+  flex: none;
+  border-radius: 0.75rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  background: var(--lift-4);
+}
+.profile-server > span:not(.avatar) {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.profile-server-go {
+  color: var(--text-3);
+  opacity: 0;
+  transform: translate(-4px, 4px);
+  transition:
+    opacity var(--motion-fast) var(--ease-out),
+    transform var(--motion-panel) var(--ease-spring);
+}
+.profile-server:hover .profile-server-go {
+  opacity: 1;
+  transform: none;
+}
+.profile-muted {
+  font-size: 0.8125rem;
+  color: var(--text-3);
+}
+.profile-error {
+  font-size: 0.8125rem;
+  color: var(--destructive);
+}
+.profile-loading {
+  display: grid;
+  gap: 0.625rem;
+  padding: 1rem;
+  border-radius: 1.25rem;
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.06);
+}
+.profile-loading span {
+  height: 0.75rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgb(var(--ink) / 0.04), rgb(var(--ink) / 0.1), rgb(var(--ink) / 0.04));
+  background-size: 200% 100%;
+  animation: shimmer 1.3s linear infinite;
+}
+.profile-loading span:nth-child(2) {
+  width: 80%;
+}
+.profile-loading span:nth-child(3) {
+  width: 55%;
+}
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+/* ------------------------------------------------- the small card's face */
+
+.profile-popover {
+  border-radius: 1.25rem !important;
+  box-shadow: var(--shadow-float) !important;
+  animation: pop-in 280ms var(--ease-out);
+}
+.profile-popover:not([data-themed='true']) {
+  background: var(--lift-1) !important;
+}
+.profile-face-link {
+  cursor: zoom-in;
+}
+.profile-face-link > .avatar,
+.profile-face-link > [class*='avatar'] {
+  transition: transform var(--motion-panel) var(--ease-spring);
+}
+.profile-face-link:hover > .avatar,
+.profile-face-link:hover > [class*='avatar'] {
+  transform: scale(1.06);
+}
+/* A ring that turns round the face while the pointer is on it. */
+.profile-face-ring {
+  position: absolute;
+  inset: -4px;
+  border-radius: 999px;
+  background: conic-gradient(
+    from 0deg,
+    var(--foreground),
+    transparent 30%,
+    var(--foreground) 55%,
+    transparent 80%,
+    var(--foreground)
+  );
+  mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1.5px));
+  opacity: 0;
+  transform: scale(0.9);
+  transition:
+    opacity var(--motion-fast) var(--ease-out),
+    transform var(--motion-panel) var(--ease-spring);
+  pointer-events: none;
+}
+.profile-face-link:hover .profile-face-ring,
+.profile-face-link:focus-visible .profile-face-ring {
+  opacity: 1;
+  transform: scale(1);
+  animation: face-ring-turn 2.4s linear infinite;
+}
+@keyframes face-ring-turn {
+  to {
+    rotate: 360deg;
+  }
+}
+.profile-face-hint {
+  position: absolute;
+  inset: 3px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: #fff;
+  background: rgb(0 0 0 / 0.5);
+  opacity: 0;
+  transition: opacity var(--motion-fast) var(--ease-out);
+  pointer-events: none;
+}
+.profile-face-hint svg {
+  transform: scale(0.6);
+  transition: transform var(--motion-panel) var(--ease-spring);
+}
+.profile-face-link:hover .profile-face-hint,
+.profile-face-link:focus-visible .profile-face-hint {
+  opacity: 1;
+}
+.profile-face-link:hover .profile-face-hint svg {
+  transform: scale(1);
+}
+.profile-face-label {
+  position: absolute;
+  top: calc(50% + 0.5rem);
+  left: calc(100% + 0.625rem);
+  white-space: nowrap;
+  padding: 0.25rem 0.625rem;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: rgb(var(--ground));
+  background: var(--foreground);
+  box-shadow: 0 6px 18px -6px rgb(0 0 0 / 0.5);
+  opacity: 0;
+  transform: translateX(-6px) scale(0.92);
+  transition:
+    opacity var(--motion-fast) var(--ease-out),
+    transform var(--motion-panel) var(--ease-spring);
+  pointer-events: none;
+}
+.profile-face-link:hover .profile-face-label,
+.profile-face-link:focus-visible .profile-face-label {
+  opacity: 1;
+  transform: none;
+}
+
+/* --------------------------------------------- the person atop a conversation */
+
+.direct-pane-person {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-left: -0.5rem;
+  padding: 0.375rem 0.875rem 0.375rem 0.5rem;
+  border-radius: 1rem;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast) var(--ease-out),
+    box-shadow var(--motion-fast) var(--ease-out);
+}
+.direct-pane-person:hover {
+  background: rgb(var(--ink) / 0.04);
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.08);
+}
+.direct-pane-person:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+.direct-pane-face {
+  position: relative;
+  display: block;
+}
+.direct-pane-face .direct-pane-avatar {
+  transition: transform var(--motion-panel) var(--ease-spring);
+}
+.direct-pane-person:hover .direct-pane-avatar {
+  transform: scale(1.08) rotate(-3deg);
+}
+.direct-pane-face-hint {
+  position: absolute;
+  right: -0.3125rem;
+  bottom: -0.3125rem;
+  display: grid;
+  place-items: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 999px;
+  color: var(--primary-foreground);
+  background: var(--primary);
+  box-shadow: 0 0 0 2.5px var(--background);
+  opacity: 0;
+  transform: scale(0.4);
+  transition:
+    opacity var(--motion-fast) var(--ease-out),
+    transform var(--motion-panel) var(--ease-spring);
+}
+.direct-pane-person:hover .direct-pane-face-hint {
+  opacity: 1;
+  transform: none;
+}
+.direct-pane-who small {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.direct-pane-open {
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--foreground);
+  opacity: 0;
+  transform: translateX(-6px);
+  transition:
+    opacity var(--motion-fast) var(--ease-out),
+    transform var(--motion-panel) var(--ease-spring);
+}
+.direct-pane-person:hover .direct-pane-open {
+  opacity: 1;
+  transform: none;
+}
+.direct-message-face {
+  flex: none;
+  height: fit-content;
+  border-radius: 0.875rem;
+  cursor: pointer;
+}
+.direct-message-face:disabled {
+  cursor: default;
+}
+.direct-message-face .direct-message-avatar {
+  transition: transform var(--motion-panel) var(--ease-spring);
+}
+.direct-message-face:not(:disabled):hover .direct-message-avatar {
+  transform: scale(1.06) rotate(-3deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .profile-face-link:hover .profile-face-ring {
+    animation: none;
+  }
+}
+
+/* The close control floats over the banner, which now scrolls with the rest. */
+.profile-sheet > .profile-sheet-close {
+  z-index: 3;
+}
+.profile-sheet-scroll {
+  scrollbar-width: thin;
+}
+/* Somebody with no banner and no colours still gets a strip with depth:
+   a fine dot field under a soft light, not a flat grey block. */
+.profile-sheet-banner .profile-banner[data-banner='plain'] {
+  background:
+    radial-gradient(60% 120% at 20% 0%, rgb(var(--ink) / 0.12), transparent 60%),
+    radial-gradient(circle at 1px 1px, rgb(var(--ink) / 0.12) 1px, transparent 1.5px) 0 0 / 14px 14px,
+    var(--lift-2);
+}
+.profile-sheet-identity {
+  z-index: 2;
+}

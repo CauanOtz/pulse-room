@@ -20,7 +20,13 @@ test('roles, a staff category and moderation, end to end', async () => {
   const dataDir = await mkdtemp(path.join(os.tmpdir(), 'pulse-roles-e2e-'));
   const database = new TestDatabase();
   const backend = await createServer(
-    { PORT: 0, HOST: '127.0.0.1', LIVEKIT_URL: 'wss://example.invalid', LIVEKIT_API_KEY: 'test', LIVEKIT_API_SECRET: 'test' },
+    {
+      PORT: 0,
+      HOST: '127.0.0.1',
+      LIVEKIT_URL: 'wss://example.invalid',
+      LIVEKIT_API_KEY: 'test',
+      LIVEKIT_API_SECRET: 'test',
+    },
     { read: async () => [] },
     database,
     {
@@ -81,8 +87,9 @@ test('roles, a staff category and moderation, end to end', async () => {
         body: JSON.stringify({ username: 'owner', password }),
       })
     ).json()) as AccountSession;
-    const serverId = ((await (await call('GET', '/api/servers', owner.token)).json()) as { servers: { id: string }[] })
-      .servers[0].id;
+    const serverId = (
+      (await (await call('GET', '/api/servers', owner.token)).json()) as { servers: { id: string }[] }
+    ).servers[0].id;
     const { code } = (await (
       await call('POST', `/api/servers/${serverId}/invites`, owner.token, { maxUses: 5, hours: 1 })
     ).json()) as { code: string };
@@ -110,13 +117,18 @@ test('roles, a staff category and moderation, end to end', async () => {
     // Then what it may do, on the tab it opens on.
     await expect(settings.getByRole('tab', { name: 'Permissions' })).toHaveAttribute('aria-selected', 'true');
     await expect(settings.getByRole('heading', { name: 'Moderator' })).toBeVisible();
-    await settings.getByRole('navigation', { name: 'Permission categories' }).getByRole('button', { name: 'Members', exact: true }).click();
+    await settings
+      .getByRole('navigation', { name: 'Permission categories' })
+      .getByRole('button', { name: 'Members', exact: true })
+      .click();
     await settings.getByLabel('Kick members').check();
     await settings.getByLabel('Timeout members').check();
     await settings.getByRole('button', { name: 'Text channels', exact: true }).click();
     await settings.getByLabel('Manage messages').check();
     await settings.getByRole('button', { name: 'Advanced', exact: true }).click();
-    await expect(settings.getByText('Grants every permission and bypasses channel restrictions.')).toBeVisible();
+    await expect(
+      settings.getByText('Grants every permission and bypasses channel restrictions.'),
+    ).toBeVisible();
     await settings.getByRole('button', { name: 'Save changes' }).click();
     await expect(settings.getByRole('status')).toHaveText('Role saved.');
     await window.screenshot({ path: 'test-results/roles-editor.png' });
@@ -130,8 +142,12 @@ test('roles, a staff category and moderation, end to end', async () => {
     await expect(settings.getByRole('button', { name: 'Actions for Friend', exact: true })).toBeVisible();
     const moderator = (await detailAs(owner)).roles!.find((role) => role.name === 'Moderator')!;
     expect(moderator).toMatchObject({ colour: '#6a5acd', hoist: true });
-    expect(moderator.permissions).toBe(Permission.KickMembers | Permission.ManageMessages | Permission.TimeoutMembers);
-    expect((await detailAs(owner)).members.find((m) => m.id === friend.user.id)?.roleIds).toEqual([moderator.id]);
+    expect(moderator.permissions).toBe(
+      Permission.KickMembers | Permission.ManageMessages | Permission.TimeoutMembers,
+    );
+    expect((await detailAs(owner)).members.find((m) => m.id === friend.user.id)?.roleIds).toEqual([
+      moderator.id,
+    ]);
     await settings.getByRole('button', { name: 'Close dialog' }).click();
 
     // Displayed separately: the member list gathers its people under it.
@@ -140,8 +156,8 @@ test('roles, a staff category and moderation, end to end', async () => {
     await roster.getByRole('button', { name: "View Friend's profile" }).click();
     const card = window.getByRole('dialog', { name: 'Friend profile' });
     await expect(card.getByRole('list', { name: 'Roles' })).toContainText('Moderator');
-    // The small card leads to the whole profile, in the middle of the window.
-    await card.getByRole('button', { name: 'View full profile' }).click();
+    // The face on the small card leads to the whole profile, in the middle of the window.
+    await card.getByRole('button', { name: "Open Friend's full profile" }).click();
     const profile = window.getByRole('dialog', { name: "Friend's profile" });
     await expect(profile).toBeVisible();
     await expect(profile.getByRole('list', { name: 'Roles' })).toContainText('Moderator');
@@ -168,7 +184,10 @@ test('roles, a staff category and moderation, end to end', async () => {
       .click();
     await categoryEditor.getByRole('button', { name: 'Add a role or member' }).click();
     await window.getByRole('menuitem', { name: 'Moderator' }).click();
-    await expect(categoryEditor.getByRole('option', { name: /Moderator/ })).toHaveAttribute('aria-selected', 'true');
+    await expect(categoryEditor.getByRole('option', { name: /Moderator/ })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
     await categoryEditor
       .getByRole('radiogroup', { name: 'View channels' })
       .getByRole('radio', { name: 'Allow' })
@@ -210,12 +229,16 @@ test('roles, a staff category and moderation, end to end', async () => {
     await timeout.getByLabel('5 minutes').check();
     await timeout.getByRole('button', { name: 'Time out' }).click();
     await expect(timeout).toHaveCount(0);
-    await expect(settings.locator('.member-row', { hasText: 'Guest' }).getByLabel('In a timeout')).toBeVisible();
+    await expect(
+      settings.locator('.member-row', { hasText: 'Guest' }).getByLabel('In a timeout'),
+    ).toBeVisible();
     // Settings fill the window, with the way out at the top right.
-    expect(await settings.evaluate((element) => {
-      const box = element.getBoundingClientRect();
-      return Math.round(box.width) === innerWidth && Math.round(box.height) === innerHeight;
-    })).toBe(true);
+    expect(
+      await settings.evaluate((element) => {
+        const box = element.getBoundingClientRect();
+        return Math.round(box.width) === innerWidth && Math.round(box.height) === innerHeight;
+      }),
+    ).toBe(true);
 
     // Roles handed out from the same menu, one tick at a time.
     await settings.getByRole('button', { name: 'Manage Guest' }).click();
@@ -232,13 +255,17 @@ test('roles, a staff category and moderation, end to end', async () => {
     await guestRoles.getByRole('button', { name: 'Close dialog' }).click();
     await window.screenshot({ path: 'test-results/roles-members.png' });
     const general = asGuest.channels.find((channel) => channel.name === 'general')!;
-    const refused = await call('POST', `/api/channels/${general.id}/messages`, guest.token, { content: 'hello?' });
+    const refused = await call('POST', `/api/channels/${general.id}/messages`, guest.token, {
+      content: 'hello?',
+    });
     expect(refused.status).toBe(403);
 
     // The moderator's own menu reaches the guest, but not the owner above them.
     const asFriend = await detailAs(friend);
     expect(asFriend.server.permissions! & Permission.KickMembers).toBeTruthy();
-    expect((await call('DELETE', `/api/servers/${serverId}/members/${owner.user.id}`, friend.token)).status).toBe(403);
+    expect(
+      (await call('DELETE', `/api/servers/${serverId}/members/${owner.user.id}`, friend.token)).status,
+    ).toBe(403);
     await settings.getByRole('button', { name: 'Close dialog' }).click();
   } finally {
     await application.close();

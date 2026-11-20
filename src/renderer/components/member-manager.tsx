@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from 'react';
+import { Fragment, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { Clock, Crown, Headphones, MicOff, MoreVertical, Search, Users, X } from 'lucide-react';
 import type { Ban, CommunityDetail, CommunityMember } from '../../shared/community';
 import { rolesOf } from '../domain/access';
@@ -23,6 +23,14 @@ const restricted = (member: CommunityMember) =>
     member.muted || member.deafened || (member.timeoutUntil && new Date(member.timeoutUntil) > new Date()),
   );
 const joinedDate = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+const relative = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' });
+/** "today", "3 days ago", "last month": how long somebody has been here. */
+function relativeDay(iso: string): string {
+  const days = Math.round((new Date(iso).getTime() - Date.now()) / 86_400_000);
+  if (Math.abs(days) < 30) return relative.format(days, 'day');
+  if (Math.abs(days) < 365) return relative.format(Math.round(days / 30), 'month');
+  return relative.format(Math.round(days / 365), 'year');
+}
 
 export { timeoutChoices } from './member-actions';
 
@@ -52,6 +60,21 @@ export function MemberManager({
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<'all' | 'team' | 'restricted'>('all');
   const profile = detail.members.find((member) => member.id === profileId);
+  const search = useRef<HTMLInputElement>(null);
+  const newest = [...detail.members]
+    .filter((member) => member.joinedAt)
+    .sort((a, b) => new Date(b.joinedAt!).getTime() - new Date(a.joinedAt!).getTime())[0];
+  // "/" jumps to the search, the way it does in most lists people know.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const typing = (event.target as HTMLElement | null)?.closest('input, textarea, [contenteditable]');
+      if (event.key !== '/' || typing) return;
+      event.preventDefault();
+      search.current?.focus();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
   const filters = [
     { id: 'all' as const, label: 'All members', count: detail.members.length },
     {
@@ -71,6 +94,42 @@ export function MemberManager({
 
   return (
     <div className="member-directory space-y-3">
+      <section className="roster-summary" aria-label="Members at a glance">
+        <div className="roster-faces" aria-hidden="true">
+          {detail.members.slice(0, 7).map((member, index) => (
+            <span
+              key={member.id}
+              className="roster-face"
+              style={{ ['--i' as string]: index } as CSSProperties}
+            >
+              <Avatar className="roster-face-avatar" name={member.displayName} imageId={member.avatarId} />
+            </span>
+          ))}
+          {detail.members.length > 7 && (
+            <span className="roster-face is-more">+{detail.members.length - 7}</span>
+          )}
+        </div>
+        <div className="roster-count">
+          <strong>{detail.members.length}</strong>
+          <span>
+            {detail.members.length === 1 ? 'member' : 'members'} in {detail.server.name}
+          </span>
+        </div>
+        <dl className="roster-stats">
+          <div>
+            <dt>Team</dt>
+            <dd>{filters[1].count}</dd>
+          </div>
+          <div>
+            <dt>Restricted</dt>
+            <dd className={filters[2].count ? 'is-alert' : undefined}>{filters[2].count}</dd>
+          </div>
+          <div>
+            <dt>Newest</dt>
+            <dd>{newest ? newest.displayName : '—'}</dd>
+          </div>
+        </dl>
+      </section>
       <div className="directory-toolbar">
         <div className="directory-title">
           <Users size={17} aria-hidden="true" />
@@ -80,11 +139,14 @@ export function MemberManager({
         <label className="directory-search">
           <Search size={15} aria-hidden="true" />
           <input
+            ref={search}
             aria-label="Search members"
             placeholder="Search by name or username"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
+            onKeyDown={(event) => event.key === 'Escape' && query && (event.stopPropagation(), setQuery(''))}
           />
+          {!query && <kbd className="directory-search-key">/</kbd>}
           {query && (
             <button type="button" aria-label="Clear member search" onClick={() => setQuery('')}>
               <X size={13} />
@@ -93,6 +155,13 @@ export function MemberManager({
         </label>
       </div>
       <div className="directory-filters" role="group" aria-label="Filter members">
+        <i
+          className="directory-thumb"
+          aria-hidden="true"
+          style={
+            { ['--tab' as string]: filters.findIndex((option) => option.id === filter) } as CSSProperties
+          }
+        />
         {filters.map((option) => (
           <button
             key={option.id}
@@ -112,7 +181,7 @@ export function MemberManager({
           <span>Joined server</span>
           <span />
         </div>
-        {visible.map((member) => {
+        {visible.map((member, index) => {
           const self = member.id === userId;
           const held = rolesOf(detail, member);
           const timedOut = Boolean(member.timeoutUntil && new Date(member.timeoutUntil) > new Date());
@@ -122,8 +191,15 @@ export function MemberManager({
             .filter((group) => group.length);
           return (
             <div
-              className="member-row flex min-h-14 items-center gap-3 px-3.5 py-2 text-sm transition-colors hover:bg-accent/40"
-              key={member.id}
+              className="member-row flex min-h-14 items-center gap-3 px-3.5 py-2 text-sm transition-colors"
+              key={`${filter}:${member.id}`}
+              style={
+                {
+                  ['--i' as string]: Math.min(index, 12),
+                  ['--role' as string]: held.find((role) => role.colour)?.colour ?? undefined,
+                } as CSSProperties
+              }
+              data-coloured={held.some((role) => role.colour) || undefined}
             >
               {/* The face and the name open the whole profile, as they do everywhere. */}
               <button
@@ -170,7 +246,13 @@ export function MemberManager({
                 </span>
               </div>
               <div className="member-role-stack">
-                <span className="member-access">
+                <span
+                  className={cn(
+                    'member-access',
+                    member.role === 'owner' && 'is-owner',
+                    member.role === 'admin' && 'is-admin',
+                  )}
+                >
                   {member.role === 'owner' ? 'Owner' : member.role === 'admin' ? 'Administrator' : 'Member'}
                 </span>
                 {held.map((role) => (
@@ -190,7 +272,10 @@ export function MemberManager({
               </div>
               <div className="member-joined">
                 {member.joinedAt ? (
-                  <time dateTime={member.joinedAt}>{joinedDate.format(new Date(member.joinedAt))}</time>
+                  <time dateTime={member.joinedAt} title={joinedDate.format(new Date(member.joinedAt))}>
+                    <strong>{relativeDay(member.joinedAt)}</strong>
+                    <small>{joinedDate.format(new Date(member.joinedAt))}</small>
+                  </time>
                 ) : (
                   <span>Not recorded</span>
                 )}

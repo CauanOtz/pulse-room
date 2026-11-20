@@ -28,7 +28,7 @@ import {
 } from './infrastructure/media/media-devices-service';
 import { LocalSettingsRepository } from './infrastructure/persistence/local-settings-repository';
 import type { WorkspaceBindings } from './community-root';
-import type { CommunityChannel, CommunityMember, WornTag } from '../shared/community';
+import type { CommunityChannel, CommunityMember, DirectConversation, WornTag } from '../shared/community';
 import { has, Permission } from '../shared/permissions';
 import { myAccess, rolesOf } from './domain/access';
 import { TextChat } from './components/text-chat';
@@ -910,6 +910,21 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
                   setFullProfileId(undefined);
                   workspace.onAccount();
                 }
+              : undefined
+          }
+          onMessage={
+            fullProfile.id !== workspace.user.id && directs?.supported
+              ? () =>
+                  void workspace.api
+                    .request<{ conversation: DirectConversation }>('/api/directs', 'POST', {
+                      username: fullProfile.username,
+                    })
+                    .then(({ conversation }) => {
+                      setFullProfileId(undefined);
+                      directs.select(conversation.id);
+                      void directs.refresh();
+                    })
+                    .catch(() => undefined)
               : undefined
           }
           onChanged={workspace.onProfileChanged}

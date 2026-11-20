@@ -1,0 +1,575 @@
+/*
+ * The server, edited where members see it. A live hero at the top — banner,
+ * picture, name and line — answers every keystroke; the tools appear where
+ * the pointer is; below it, two cards for the words and the welcome.
+ */
+
+.settings-screen .settings-body {
+  background: var(--background) !important;
+}
+
+.server-studio {
+  display: grid;
+  gap: 1.25rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+/* ------------------------------------------------------------- the hero */
+
+.studio-hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: 1.75rem;
+  background: radial-gradient(80% 60% at 15% 100%, rgb(var(--ink) / 0.04), transparent 70%), var(--lift-1);
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--ink) / 0.09),
+    0 40px 80px -50px rgb(0 0 0 / 0.9);
+  animation: studio-rise 700ms var(--ease-out) backwards;
+}
+@keyframes studio-rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.985);
+    filter: blur(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+
+.studio-hero .studio-banner {
+  height: 15rem;
+  border: 0;
+  border-radius: 0;
+  mask-image: linear-gradient(180deg, #000 55%, transparent);
+}
+.studio-hero .studio-banner > img {
+  animation: studio-banner-settle 1.4s var(--ease-out) both;
+  transition: transform 1.2s var(--ease-out);
+}
+.studio-hero:hover .studio-banner > img {
+  transform: scale(1.03);
+}
+@keyframes studio-banner-settle {
+  from {
+    transform: scale(1.12);
+    filter: saturate(0.6) brightness(0.7);
+  }
+}
+.studio-hero .studio-banner::after,
+.studio-welcome::after {
+  background: linear-gradient(180deg, rgb(0 0 0 / 0.05), rgb(0 0 0 / 0.35)) !important;
+}
+
+/* Tools sit where the pointer is, and step back when it leaves. */
+.studio-banner-tools {
+  position: absolute;
+  z-index: 2;
+  top: 1rem;
+  right: 1rem;
+  display: flex;
+  gap: 0.375rem;
+  opacity: 0;
+  transform: translateY(-6px);
+  transition:
+    opacity var(--motion-fast) var(--ease-out),
+    transform var(--motion-panel) var(--ease-spring);
+}
+.studio-banner:hover .studio-banner-tools,
+.studio-welcome:hover .studio-banner-tools,
+.studio-banner-tools:focus-within {
+  opacity: 1;
+  transform: none;
+}
+.studio-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4375rem;
+  height: 2.125rem;
+  padding: 0 0.875rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #fff;
+  background: rgb(0 0 0 / 0.55);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.18);
+  backdrop-filter: blur(12px);
+  transition:
+    background-color var(--motion-fast) var(--ease-out),
+    transform var(--motion-panel) var(--ease-spring);
+}
+.studio-chip:hover {
+  background: rgb(0 0 0 / 0.75);
+  transform: translateY(-1px);
+}
+.studio-chip.is-icon {
+  width: 2.125rem;
+  padding: 0;
+  justify-content: center;
+}
+.studio-chip.is-icon:hover {
+  background: var(--destructive);
+}
+
+.studio-identity {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 1.5rem;
+  margin-top: -4rem;
+  padding: 0 2rem 1.25rem;
+}
+.studio-icon {
+  position: relative;
+  width: 7.5rem;
+  height: 7.5rem;
+  overflow: hidden;
+  border-radius: 2.125rem;
+  background: var(--lift-4);
+  box-shadow:
+    0 0 0 6px var(--lift-1),
+    0 24px 50px -16px rgb(0 0 0 / 0.9);
+  animation: profile-face-in 760ms var(--ease-spring) 140ms backwards;
+}
+.studio-icon > img,
+.studio-icon .server-icon-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+  font-size: 2rem;
+}
+.studio-icon-edit {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: rgb(0 0 0 / 0.5);
+  opacity: 0;
+  transition: opacity var(--motion-fast) var(--ease-out);
+}
+.studio-icon-edit svg {
+  transform: scale(0.6);
+  transition: transform var(--motion-panel) var(--ease-spring);
+}
+.studio-icon:hover .studio-icon-edit,
+.studio-icon-edit:focus-visible {
+  opacity: 1;
+}
+.studio-icon:hover .studio-icon-edit svg {
+  transform: scale(1);
+}
+.studio-title {
+  min-width: 0;
+  padding-bottom: 0.25rem;
+  animation: sheet-part-in 600ms var(--ease-out) 200ms backwards;
+}
+.studio-title h2 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: clamp(1.75rem, 2.6vw, 2.5rem);
+  font-weight: 680;
+  line-height: 1.1;
+  letter-spacing: -0.045em;
+  animation: sheet-part-in 420ms var(--ease-out);
+}
+.studio-title p {
+  display: -webkit-box;
+  margin-top: 0.375rem;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  max-width: 40rem;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: var(--text-3);
+}
+.studio-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding-bottom: 0.25rem;
+  animation: sheet-part-in 600ms var(--ease-out) 260ms backwards;
+}
+.studio-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4375rem;
+  height: 2.375rem;
+  padding: 0 1rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--foreground);
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.14);
+  transition:
+    box-shadow var(--motion-fast) var(--ease-out),
+    background-color var(--motion-fast) var(--ease-out),
+    transform var(--motion-panel) var(--ease-spring);
+}
+.studio-button:hover {
+  background: rgb(var(--ink) / 0.05);
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.3);
+  transform: translateY(-1px);
+}
+.studio-button:active {
+  transform: scale(0.96);
+}
+.studio-button.is-primary {
+  color: var(--primary-foreground);
+  background: var(--primary);
+  box-shadow: 0 10px 28px -12px rgb(var(--ink) / 0.6);
+}
+.studio-button.is-quiet {
+  color: var(--text-3);
+  box-shadow: none;
+}
+.studio-button.is-quiet:hover {
+  color: var(--destructive);
+  background: color-mix(in oklab, var(--destructive) 10%, transparent);
+  box-shadow: none;
+}
+
+/* The facts are chips along the hero's foot. */
+.studio-hero .server-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0 2rem 1.75rem;
+  border: 0;
+  animation: sheet-part-in 600ms var(--ease-out) 320ms backwards;
+}
+.studio-hero .server-facts > div {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 0;
+  height: 2.125rem;
+  padding: 0 0.875rem 0 0.75rem;
+  border: 0;
+  border-radius: 999px;
+  background: rgb(var(--ink) / 0.03);
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.08);
+}
+.studio-hero .server-facts svg {
+  width: 0.9375rem;
+  height: 0.9375rem;
+  color: var(--text-3);
+}
+.studio-hero .server-facts > div > span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.375rem;
+}
+.studio-hero .server-facts dt {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.studio-hero .server-facts dd {
+  margin: 0;
+  font-size: 0.6875rem;
+  color: var(--text-3);
+}
+
+/* ------------------------------------------------------------- the cards */
+
+.studio-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem;
+  align-items: start;
+}
+@media (max-width: 1180px) {
+  .studio-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.server-studio .studio-card {
+  display: grid;
+  gap: 1.25rem;
+  min-width: 0;
+  padding: 1.5rem;
+  border-radius: 1.5rem !important;
+}
+.studio-columns > .studio-card:nth-child(2) {
+  animation-delay: 140ms;
+}
+.studio-card-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.875rem;
+}
+.studio-card-mark {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 2.375rem;
+  height: 2.375rem;
+  border-radius: 0.875rem;
+  color: var(--text-2);
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.12);
+}
+.studio-card-head h3 {
+  font-size: 1.0625rem;
+  font-weight: 640;
+  letter-spacing: -0.025em;
+}
+.studio-card-head p {
+  margin-top: 0.1875rem;
+  font-size: 0.75rem;
+  color: var(--text-3);
+}
+.studio-fields {
+  display: grid;
+  gap: 1rem;
+}
+.server-studio .studio-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 550;
+  color: var(--text-3);
+  transition: color var(--motion-fast) var(--ease-out);
+}
+.server-studio .studio-field:focus-within {
+  color: var(--foreground);
+}
+.server-studio .counted-input :is(input, textarea) {
+  border: 0 !important;
+  border-radius: 0.875rem !important;
+  background: rgb(var(--ink) / 0.04) !important;
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.1) !important;
+  font-size: 0.875rem !important;
+  line-height: 1.5 !important;
+  color: var(--foreground) !important;
+  transition:
+    box-shadow var(--motion-panel) var(--ease-out),
+    background-color var(--motion-panel) var(--ease-out) !important;
+}
+.server-studio .counted-input input {
+  height: 2.875rem !important;
+  padding: 0 4.5rem 0 1rem !important;
+}
+.server-studio .counted-input textarea {
+  height: auto !important;
+  min-height: 5.5rem !important;
+  padding: 0.75rem 1rem 1.75rem !important;
+  resize: vertical;
+}
+.server-studio .counted-input :is(input, textarea):hover {
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.22) !important;
+}
+.server-studio .counted-input :is(input, textarea):focus {
+  background: rgb(var(--ink) / 0.06) !important;
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--ink) / 0.5),
+    0 0 0 4px rgb(var(--ink) / 0.07) !important;
+}
+.server-studio .counted-input > small {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  color: var(--text-4);
+  transition: color var(--motion-fast) var(--ease-out);
+}
+.server-studio .counted-input:has(input) > small {
+  top: 50%;
+  transform: translateY(-50%);
+}
+.server-studio .counted-input > small.is-near {
+  color: var(--warning);
+}
+
+/* The welcome, as a newcomer will see it. */
+.server-studio .studio-welcome {
+  display: grid;
+  place-items: center;
+  height: 11.5rem;
+  border: 0;
+  border-radius: 1.125rem;
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.1);
+}
+.server-studio .studio-welcome > img {
+  transition: transform 1.2s var(--ease-out);
+}
+.server-studio .studio-welcome:hover > img {
+  transform: scale(1.04);
+}
+.server-studio .studio-welcome .welcome-banner-copy {
+  max-width: 85%;
+  color: #fff;
+  text-shadow: 0 2px 16px rgb(0 0 0 / 0.6);
+}
+.server-studio .studio-welcome .welcome-banner-copy > span,
+.server-studio .studio-welcome .welcome-banner-copy p {
+  color: rgb(255 255 255 / 0.78);
+}
+.server-studio .studio-welcome .welcome-banner-copy > strong {
+  font-size: 1.5rem;
+  letter-spacing: -0.03em;
+}
+.studio-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(12rem, 17rem);
+  align-items: center;
+  gap: 1rem;
+  padding: 0;
+  border: 0;
+}
+.studio-row .server-setting-explanation label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+.studio-row .server-setting-explanation p {
+  margin-top: 0.125rem;
+  font-size: 0.6875rem;
+  color: var(--text-3);
+}
+.server-studio button[role='combobox'] {
+  height: 2.75rem;
+  border: 0;
+  border-radius: 0.875rem;
+  background: rgb(var(--ink) / 0.04);
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.1);
+  transition: box-shadow var(--motion-fast) var(--ease-out);
+}
+.server-studio button[role='combobox']:hover,
+.server-studio button[role='combobox'][data-state='open'] {
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.3);
+}
+@media (max-width: 760px) {
+  .studio-identity {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .studio-hero-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+  .studio-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* --------------------------------------------- saving, said in a pill */
+
+.server-identity-editor .studio-pending {
+  position: sticky;
+  z-index: 5;
+  bottom: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: fit-content;
+  max-width: calc(100% - 2rem);
+  margin: 1.5rem auto 0;
+  padding: 0.5rem 0.5rem 0.5rem 1.125rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--lift-2);
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--ink) / 0.14),
+    0 24px 60px -16px rgb(0 0 0 / 0.9);
+  animation: pending-in 520ms var(--ease-spring);
+}
+@keyframes pending-in {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.92);
+  }
+}
+.studio-pending-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  flex: none;
+  border-radius: 50%;
+  background: var(--warning);
+  box-shadow: 0 0 10px var(--warning);
+  animation: heading-pulse 1.4s var(--ease-in-out) infinite;
+}
+.server-identity-editor .studio-pending > span:not(.studio-pending-dot) {
+  font-size: 0.8125rem;
+  font-weight: 550;
+  white-space: nowrap;
+}
+.server-identity-editor .studio-pending .server-reset-button,
+.server-identity-editor .studio-pending .server-save-button {
+  height: 2.25rem;
+  padding: 0 1rem;
+  border: 0;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  transition: transform var(--motion-panel) var(--ease-spring);
+}
+.server-identity-editor .studio-pending .server-reset-button {
+  color: var(--text-2);
+  background: transparent;
+}
+.server-identity-editor .studio-pending .server-reset-button:hover {
+  color: var(--foreground);
+}
+.server-identity-editor .studio-pending .server-save-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  color: var(--primary-foreground);
+  background: var(--primary);
+  box-shadow: 0 8px 22px -10px rgb(var(--ink) / 0.6);
+}
+.server-identity-editor .studio-pending .server-save-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+.server-identity-editor .server-save-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: fit-content;
+  margin: 1rem auto 0;
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  color: var(--success);
+  background: color-mix(in oklab, var(--success) 8%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--success) 30%, transparent);
+  animation: pending-in 480ms var(--ease-spring);
+}
+.server-identity-editor .server-editor-error {
+  width: fit-content;
+  margin: 1rem auto 0;
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  color: var(--destructive);
+  background: color-mix(in oklab, var(--destructive) 8%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--destructive) 30%, transparent);
+  animation: pending-in 480ms var(--ease-spring);
+}
+
+/* The frame keeps the old class for anything that looks for it, not its looks. */
+.server-studio .studio-icon.server-icon-frame {
+  width: 7.5rem;
+  height: 7.5rem;
+  padding: 0;
+  border: 0;
+  border-radius: 2.125rem;
+  background: var(--lift-4);
+}
+.server-studio .studio-icon.server-icon-frame > img,
+.server-studio .studio-icon .server-icon-preview {
+  border: 0;
+  border-radius: inherit;
+}

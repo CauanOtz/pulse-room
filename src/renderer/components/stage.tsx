@@ -321,6 +321,7 @@ export function Stage({
               <Volume2 size={15} />
               <input
                 aria-label={`${active.name} screen volume`}
+                style={{ ['--range-progress' as string]: `${screenVolume / 2}%` }}
                 type="range"
                 min="0"
                 max="200"

@@ -311,3 +311,10 @@ export interface DirectMessage {
   /** Absent on an invite message whose server has since been deleted. */
   invite?: DirectInvite;
 }
+
+/** The other person in a conversation, as their profile shows them. */
+export interface DirectProfile {
+  account: Account;
+  /** Servers you are both in, by name, for "you both know". */
+  mutualServers: { id: string; name: string; iconId?: string | null }[];
+}

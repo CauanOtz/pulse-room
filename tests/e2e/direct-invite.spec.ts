@@ -113,6 +113,15 @@ test('invites somebody by username, who joins from the message without a code', 
     await inbox.click();
     await window.getByRole('button', { name: 'Owner', exact: true }).click();
     await expect(window.getByText('Owner invited you to a server')).toBeVisible();
+    // The person at the top of the conversation opens their profile.
+    await window.getByRole('button', { name: "View Owner's profile" }).first().click();
+    const profile = window.getByRole('dialog', { name: "Owner's profile" });
+    await expect(profile).toBeVisible();
+    await expect(profile.getByText('You do not share a server yet.')).toBeVisible();
+    await window.waitForTimeout(900);
+    await window.screenshot({ path: 'test-results/direct-profile.png' });
+    await profile.getByRole('button', { name: 'Close profile' }).click();
+    await expect(profile).toHaveCount(0);
     await window.waitForTimeout(600);
     await window.screenshot({ path: 'test-results/direct-guest.png' });
     await window.getByRole('button', { name: 'Join server' }).click();

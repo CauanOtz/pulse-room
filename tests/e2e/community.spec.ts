@@ -133,7 +133,10 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
     await expect(editor.getByRole('option', { name: /@everyone/ })).toHaveAttribute('aria-selected', 'true');
     const view = editor.getByRole('radiogroup', { name: 'View channels' });
     await expect(view.getByRole('radio', { name: 'Deny' })).toHaveAttribute('aria-checked', 'true');
-    await editor.getByRole('radiogroup', { name: 'Share screen' }).getByRole('radio', { name: 'Deny' }).click();
+    await editor
+      .getByRole('radiogroup', { name: 'Share screen' })
+      .getByRole('radio', { name: 'Deny' })
+      .click();
     await expectContainedDialog(window);
     await window.screenshot({ path: 'test-results/community-channel-permissions.png' });
     await editor.getByRole('button', { name: 'Save channel' }).click();
@@ -361,8 +364,9 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
     const rows = window.locator('.member-row');
     await expect(rows).toHaveCount(3);
     expect(
-      await rows.evaluateAll((elements) =>
-        new Set(elements.map((element) => Math.round(element.getBoundingClientRect().height))).size,
+      await rows.evaluateAll(
+        (elements) =>
+          new Set(elements.map((element) => Math.round(element.getBoundingClientRect().height))).size,
       ),
     ).toBe(1);
     // One row's menu at a time, and while it is open the rows behind it are
@@ -381,19 +385,19 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
     const resting = await transferItem.evaluate((element) => getComputedStyle(element).backgroundColor);
     await transferItem.hover();
     await expect(transferItem).not.toHaveCSS('background-color', resting);
-    // Taking somebody out of the server is the one item that answers in red.
+    // Taking somebody out of the server is the one item that answers in red:
+    // red words, on a red-tinted row when the pointer reaches it.
     await removeItem.hover();
-    await expect(removeItem).toHaveCSS(
-      'background-color',
-      await window.evaluate(() => {
-        const probe = document.createElement('div');
-        probe.style.backgroundColor = 'var(--destructive)';
-        document.body.append(probe);
-        const value = getComputedStyle(probe).backgroundColor;
-        probe.remove();
-        return value;
-      }),
-    );
+    const danger = await window.evaluate(() => {
+      const probe = document.createElement('div');
+      probe.style.color = 'var(--destructive)';
+      document.body.append(probe);
+      const value = getComputedStyle(probe).color;
+      probe.remove();
+      return value;
+    });
+    await expect(removeItem).toHaveCSS('color', danger);
+    await expect(removeItem).not.toHaveCSS('background-color', resting);
     await window.screenshot({ path: 'test-results/community-member-menu.png' });
     // What cannot be undone is asked in front of the dialog, not appended to
     // the end of it.

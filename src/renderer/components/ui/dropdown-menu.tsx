@@ -37,21 +37,21 @@ export function DropdownMenuContent({
 export function DropdownMenuLabel({ className, ...props }: ComponentProps<typeof Primitive.Label>) {
   return (
     <Primitive.Label
-      className={cn('px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground', className)}
+      className={cn('pulse-menu-label px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground', className)}
       {...props}
     />
   );
 }
 
 export function DropdownMenuSeparator({ className, ...props }: ComponentProps<typeof Primitive.Separator>) {
-  return <Primitive.Separator className={cn('-mx-1 my-1 h-px bg-border', className)} {...props} />;
+  return <Primitive.Separator className={cn('pulse-menu-rule -mx-1 my-1 h-px bg-border', className)} {...props} />;
 }
 
 export function DropdownMenuItem({ className, ...props }: ComponentProps<typeof Primitive.Item>) {
   return (
     <Primitive.Item
       className={cn(
-        'relative flex cursor-default select-none items-center gap-2 rounded-lg px-2 py-2 text-sm outline-none transition-colors',
+        'pulse-menu-item relative flex cursor-default select-none items-center gap-2 rounded-lg px-2 py-2 text-sm outline-none transition-colors',
         // Radix marks the item under the pointer as highlighted; the colour is
         // hung on that as well as on focus, so the row answers the mouse even
         // where something else holds the keyboard.
@@ -76,7 +76,7 @@ export function DropdownMenuRadioItem({
   return (
     <Primitive.RadioItem
       className={cn(
-        'relative flex cursor-default select-none items-center gap-2 rounded-lg py-2 pl-2 pr-8 text-sm outline-none transition-colors',
+        'pulse-menu-item relative flex cursor-default select-none items-center gap-2 rounded-lg py-2 pl-2 pr-8 text-sm outline-none transition-colors',
         'hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground',
         'data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground',
         'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
@@ -101,7 +101,7 @@ export function DropdownMenuCheckboxItem({
   return (
     <Primitive.CheckboxItem
       className={cn(
-        'relative flex cursor-default select-none items-center gap-2 rounded-lg py-2 pl-2 pr-8 text-sm outline-none transition-colors',
+        'pulse-menu-item relative flex cursor-default select-none items-center gap-2 rounded-lg py-2 pl-2 pr-8 text-sm outline-none transition-colors',
         'hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground',
         'data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground',
         'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
@@ -123,7 +123,7 @@ export function DropdownMenuSubTrigger({ className, children, ...props }: Compon
   return (
     <Primitive.SubTrigger
       className={cn(
-        'relative flex cursor-default select-none items-center gap-2 rounded-lg px-2 py-2 text-sm outline-none transition-colors',
+        'pulse-menu-item relative flex cursor-default select-none items-center gap-2 rounded-lg px-2 py-2 text-sm outline-none transition-colors',
         'hover:bg-accent focus:bg-accent data-[highlighted]:bg-accent data-[state=open]:bg-accent',
         'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
         className,

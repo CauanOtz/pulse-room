@@ -204,23 +204,15 @@ test('server identity, appearance and onboarding persist through the real APIs',
       await expect(pending).toHaveCount(0);
       const removed = (await backend.inject({ method: 'GET', url: base, headers })).json().server;
       expect(removed).toMatchObject({ bannerId: null, welcomeBannerId: null, iconId: null });
-      await window.getByRole('button', { name: /Default permissions Set default/ }).click();
-      await expect(window.getByRole('tab', { name: 'Permissions', exact: true })).toHaveAttribute(
-        'aria-selected',
-        'true',
-      );
-      await expect(window.locator('.role-editor')).toContainText('@everyone');
-      await window.getByRole('button', { name: 'Server', exact: true }).click();
-      await window.getByRole('button', { name: /Invite settings Manage invite/ }).click();
+      // The rail is the one way to the other sections; the page no longer repeats it.
+      await window.getByRole('button', { name: 'Roles', exact: true }).click();
+      await expect(window.locator('.role-editor')).toBeVisible();
+      await window.getByRole('button', { name: 'Invites', exact: true }).click();
       await expect(window.getByRole('button', { name: 'Create invite', exact: true })).toBeVisible();
-      await window.getByRole('button', { name: 'Server', exact: true }).click();
-      await window.getByRole('button', { name: /Moderation & safety Manage members/ }).click();
+      await window.getByRole('button', { name: /^Members/ }).click();
       await expect(window.getByRole('textbox', { name: 'Search members' })).toBeVisible();
       await window.getByRole('button', { name: 'Server', exact: true }).click();
-      await window
-        .locator('.server-danger-zone')
-        .getByRole('button', { name: 'Delete server', exact: true })
-        .click();
+      await window.getByRole('button', { name: 'Delete server', exact: true }).click();
       const deletion = window.getByRole('dialog', { name: 'Delete server', exact: true });
       await expect(deletion).toContainText('cannot be undone');
       await deletion.getByRole('button', { name: 'Cancel', exact: true }).click();
@@ -369,7 +361,10 @@ test('server identity, appearance and onboarding persist through the real APIs',
     await application.close();
     await vite.close();
     await backend.close();
-    if (path.dirname(path.resolve(dataDir)) !== path.resolve(os.tmpdir()) || !path.basename(dataDir).startsWith('pulse-settings-e2e-')) {
+    if (
+      path.dirname(path.resolve(dataDir)) !== path.resolve(os.tmpdir()) ||
+      !path.basename(dataDir).startsWith('pulse-settings-e2e-')
+    ) {
       throw new Error('Refusing to remove a directory outside the settings test workspace.');
     }
     await rm(dataDir, { recursive: true, force: true });

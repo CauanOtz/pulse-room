@@ -24,7 +24,8 @@
     "test:e2e": "npm run build:e2e && playwright test",
     "verify": "npm run typecheck && npm run test && npm run test:e2e",
     "package:windows": "npm run build && electron-builder --win nsis",
-    "release:windows": "npm run build && electron-builder --win nsis --publish always"
+    "release:windows": "npm run build && electron-builder --win nsis --publish always",
+    "sandbox": "tsx scripts/sandbox.ts"
   },
   "dependencies": {
     "@fastify/cors": "^11.1.0",

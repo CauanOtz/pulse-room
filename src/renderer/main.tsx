@@ -6,11 +6,14 @@ import ReactDOM from 'react-dom/client';
 import { App } from './app';
 import { CommunityRoot } from './community-root';
 import { installTheme } from './components/theme';
+import { installRangeProgress } from './components/range-progress';
 import { TooltipProvider } from './components/ui/tooltip';
 import { installOpusFrameSize } from './infrastructure/media/opus-frame-size';
 import './theme.css';
 
 installTheme();
+// Sliders paint the stretch before their thumb from a value kept in CSS.
+installRangeProgress();
 // Before anything opens a connection: the rewrite has to be in place by the
 // time LiveKit is handed its first answer.
 installOpusFrameSize();

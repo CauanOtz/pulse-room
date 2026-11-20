@@ -1,0 +1,213 @@
+/*
+ * What can be done to a message: one floating pill at its top edge, quick
+ * reactions first, the picker, a rule, and the destructive thing last and
+ * apart. It arrives with the pointer and leaves with it.
+ */
+
+.message-toolbar {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  right: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.125rem;
+  padding: 0.25rem;
+  border-radius: 999px;
+  background: var(--lift-2);
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--ink) / 0.1),
+    0 10px 30px -10px rgb(0 0 0 / 0.8);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-40%) scale(0.92);
+  transform-origin: right center;
+  transition:
+    opacity 140ms var(--ease-out),
+    transform 320ms var(--ease-spring);
+}
+.chat-message:hover .message-toolbar,
+.chat-message:focus-within .message-toolbar,
+.message-toolbar:has([data-state='open']) {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(-55%) scale(1);
+}
+
+.message-tool,
+.message-toolbar .emoji-trigger {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: 0 !important;
+  border-radius: 999px !important;
+  color: var(--text-2);
+  background: transparent !important;
+  box-shadow: none !important;
+  transition:
+    color var(--motion-fast) var(--ease-out),
+    background-color var(--motion-fast) var(--ease-out),
+    transform var(--motion-panel) var(--ease-spring);
+}
+.message-tool:hover:not(:disabled),
+.message-toolbar .emoji-trigger:hover:not(:disabled) {
+  color: var(--foreground);
+  background: rgb(var(--ink) / 0.08) !important;
+}
+.message-tool:active:not(:disabled),
+.message-toolbar .emoji-trigger:active:not(:disabled) {
+  transform: scale(0.88);
+}
+.message-toolbar .emoji-trigger svg {
+  width: 1rem;
+  height: 1rem;
+  transition: transform var(--motion-panel) var(--ease-spring);
+}
+.message-toolbar .emoji-trigger:hover svg {
+  transform: rotate(-12deg) scale(1.12);
+}
+
+/* Quick reactions lift like they are about to be thrown. */
+.message-tool.is-quick {
+  font-size: 1rem;
+  line-height: 1;
+}
+.message-tool.is-quick:hover:not(:disabled) {
+  transform: translateY(-2px) scale(1.18);
+}
+.message-tool.is-quick.is-mine {
+  background: rgb(var(--ink) / 0.1);
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.2) !important;
+}
+
+.message-toolbar-rule {
+  width: 1px;
+  height: 1.125rem;
+  margin: 0 0.25rem;
+  background: rgb(var(--ink) / 0.12);
+}
+
+/* Deleting is red only once the pointer is on it, and shakes its head. */
+.message-tool.is-danger:hover {
+  color: #fff;
+  background: var(--destructive) !important;
+  box-shadow: 0 0 16px color-mix(in oklab, var(--destructive) 55%, transparent) !important;
+}
+.message-tool.is-danger:hover svg {
+  animation: bin-wobble 520ms var(--ease-spring);
+}
+@keyframes bin-wobble {
+  25% {
+    transform: rotate(-12deg);
+  }
+  55% {
+    transform: rotate(9deg);
+  }
+  80% {
+    transform: rotate(-4deg);
+  }
+}
+
+/* The message under the toolbar is marked, so it is clear which one it acts on. */
+.chat-message:has(.message-toolbar:hover) {
+  background: rgb(var(--ink) / 0.035);
+}
+.chat-message:has(.message-tool.is-danger:hover) {
+  background: color-mix(in oklab, var(--destructive) 7%, transparent);
+  box-shadow: inset 2px 0 0 var(--destructive);
+}
+
+/* ------------------------------------------------- the question before */
+
+.confirm-dialog .confirm-body {
+  display: grid;
+  gap: 1rem;
+}
+.confirm-dialog.is-danger > header h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+.confirm-dialog.is-danger > header h2::before {
+  content: '';
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--destructive);
+  box-shadow: 0 0 12px var(--destructive);
+}
+.confirm-dialog footer {
+  border-color: rgb(var(--ink) / 0.07) !important;
+}
+.confirm-dialog footer button {
+  height: 2.5rem;
+  border-radius: 999px !important;
+  padding-inline: 1.125rem;
+}
+.confirm-dialog.is-danger footer button.bg-destructive {
+  box-shadow: 0 10px 28px -10px color-mix(in oklab, var(--destructive) 80%, transparent);
+}
+.confirm-dialog.is-danger footer button.bg-destructive:hover {
+  transform: translateY(-1px);
+}
+
+/* What is about to go, quoted as it looked. */
+.delete-preview {
+  position: relative;
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  border-radius: 1rem;
+  background: rgb(var(--ink) / 0.03);
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.08);
+  overflow: hidden;
+  animation: sheet-part-in 480ms var(--ease-out) 80ms backwards;
+}
+.delete-preview::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 2px;
+  background: var(--destructive);
+}
+.delete-preview-avatar {
+  width: 2.25rem;
+  height: 2.25rem;
+  flex: none;
+  border-radius: 0.75rem;
+  background: var(--lift-4);
+}
+.delete-preview header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+.delete-preview strong {
+  font-size: 0.8125rem;
+  font-weight: 620;
+}
+.delete-preview time {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  color: var(--text-4);
+}
+.delete-preview p {
+  display: -webkit-box;
+  margin-top: 0.125rem;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow-wrap: anywhere;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: rgb(var(--ink) / 0.82);
+}
+.delete-preview small {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 0.375rem;
+  font-size: 0.6875rem;
+  color: var(--text-3);
+}

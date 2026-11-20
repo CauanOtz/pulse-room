@@ -21,7 +21,13 @@ test('an animated picture, a banner, colours and a server tag, end to end', asyn
   const dataDir = await mkdtemp(path.join(os.tmpdir(), 'pulse-profile-e2e-'));
   const database = new TestDatabase();
   const backend = await createServer(
-    { PORT: 0, HOST: '127.0.0.1', LIVEKIT_URL: 'wss://example.invalid', LIVEKIT_API_KEY: 'test', LIVEKIT_API_SECRET: 'test' },
+    {
+      PORT: 0,
+      HOST: '127.0.0.1',
+      LIVEKIT_URL: 'wss://example.invalid',
+      LIVEKIT_API_KEY: 'test',
+      LIVEKIT_API_SECRET: 'test',
+    },
     { read: async () => [] },
     database,
     {
@@ -57,7 +63,9 @@ test('an animated picture, a banner, colours and a server tag, end to end', asyn
     return (await response.json()) as T;
   };
   const picture = async (id: string) => {
-    const response = await fetch(`${api}/api/images/${id}`, { headers: { authorization: `Bearer ${token}` } });
+    const response = await fetch(`${api}/api/images/${id}`, {
+      headers: { authorization: `Bearer ${token}` },
+    });
     expect(response.ok).toBe(true);
     return { type: response.headers.get('content-type'), bytes: Buffer.from(await response.arrayBuffer()) };
   };
@@ -127,7 +135,12 @@ test('an animated picture, a banner, colours and a server tag, end to end', asyn
     const face = await picture((await me()).avatarId!);
     expect(face.type).toBe('image/gif');
     // Every frame survived the crop, at the size a face is kept at.
-    expect(inspectImage(face.bytes, 'avatar')).toEqual({ mime: 'image/gif', width: 256, height: 256, frames: 8 });
+    expect(inspectImage(face.bytes, 'avatar')).toEqual({
+      mime: 'image/gif',
+      width: 256,
+      height: 256,
+      frames: 8,
+    });
 
     // ------------------------------------------------ a still banner, then a moving one
     await account.getByLabel('Choose a banner').setInputFiles(bannerPng);
@@ -151,7 +164,12 @@ test('an animated picture, a banner, colours and a server tag, end to end', asyn
     await expect(bannerCrop).toHaveCount(0, { timeout: 60_000 });
     const moving = await picture((await me()).bannerId!);
     expect(moving.type).toBe('image/gif');
-    expect(inspectImage(moving.bytes, 'banner')).toEqual({ mime: 'image/gif', width: 600, height: 240, frames: 6 });
+    expect(inspectImage(moving.bytes, 'banner')).toEqual({
+      mime: 'image/gif',
+      width: 600,
+      height: 240,
+      frames: 6,
+    });
     await expect(account.locator('.banner-field .profile-banner')).toHaveAttribute('data-banner', 'picture');
 
     // ------------------------------------------------ colours, in their own section
@@ -183,7 +201,9 @@ test('an animated picture, a banner, colours and a server tag, end to end', asyn
     // Worn in this server, which is the one open behind the dialog.
     await expect(preview.locator('.server-tag')).toHaveText('club');
     const serverId = (await read<{ servers: { id: string }[] }>('/api/servers')).servers[0].id;
-    const self = (await read<CommunityDetail>(`/api/servers/${serverId}`)).members.find((m) => m.username === 'owner');
+    const self = (await read<CommunityDetail>(`/api/servers/${serverId}`)).members.find(
+      (m) => m.username === 'owner',
+    );
     expect(self?.tag).toMatchObject({ text: 'club', badge: 'flame', colour: '#e8508a', serverName: 'Clube' });
     await window.screenshot({ path: 'test-results/profile-account.png' });
     await window.getByRole('button', { name: 'Close dialog' }).click();
@@ -211,6 +231,19 @@ test('an animated picture, a banner, colours and a server tag, end to end', asyn
     const bannerShape = await card.locator('.profile-banner').boundingBox();
     expect(bannerShape!.width / bannerShape!.height).toBeCloseTo(2.5, 1);
     await window.screenshot({ path: 'test-results/profile-card.png' });
+    // The face is the way into the whole profile, and says so under the pointer.
+    const openFull = card.getByRole('button', { name: "Open Owner's full profile" });
+    await openFull.hover();
+    await window.waitForTimeout(400);
+    await window.screenshot({ path: 'test-results/profile-card-hover.png' });
+    await openFull.click();
+    const full = window.getByRole('dialog', { name: "Owner's profile" });
+    await expect(full).toHaveAttribute('data-themed', 'true');
+    await expect(full.locator('.profile-banner')).toHaveAttribute('data-banner', 'picture');
+    await window.waitForTimeout(1200);
+    await window.screenshot({ path: 'test-results/profile-full.png' });
+    await full.getByRole('button', { name: 'Close profile' }).click();
+    await expect(full).toHaveCount(0);
     await window.keyboard.press('Escape');
 
     // ------------------------------------------------ your own card, at the foot

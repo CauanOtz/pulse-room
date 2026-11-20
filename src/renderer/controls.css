@@ -1,0 +1,297 @@
+/*
+ * The small controls every screen shares: menus, sliders and the search
+ * field of the member directory.
+ */
+
+/* ------------------------------------------------- member search field */
+
+/* The pill is the field; the input inside it draws nothing of its own. */
+.member-directory .directory-search > input,
+.settings-screen .member-directory .directory-search > input {
+  flex: 1;
+  min-width: 0;
+  height: 100% !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: none;
+  color: var(--foreground);
+}
+.member-directory .directory-search > input::placeholder {
+  color: var(--text-4);
+}
+.member-directory .directory-search > svg {
+  flex: none;
+  color: var(--text-3);
+  transition:
+    color var(--motion-fast) var(--ease-out),
+    transform var(--motion-panel) var(--ease-spring);
+}
+.member-directory .directory-search:focus-within > svg {
+  color: var(--foreground);
+  transform: scale(1.1) rotate(-8deg);
+}
+.member-directory .directory-search > button {
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 999px;
+  color: var(--text-3);
+  background: rgb(var(--ink) / 0.08);
+}
+.member-directory .directory-search > button:hover {
+  color: var(--foreground);
+  background: rgb(var(--ink) / 0.16);
+}
+
+/* ---------------------------------------------------------------- menus */
+
+[role='menu'].pulse-pop {
+  min-width: 15rem;
+  padding: 0.375rem;
+  border: 0 !important;
+  border-radius: 1.125rem !important;
+  background: var(--lift-2) !important;
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--ink) / 0.1),
+    0 24px 60px -16px rgb(0 0 0 / 0.85) !important;
+}
+.theme-light [role='menu'].pulse-pop {
+  background: var(--popover) !important;
+  box-shadow:
+    inset 0 0 0 1px rgb(0 0 0 / 0.08),
+    0 24px 60px -20px rgb(0 0 0 / 0.25) !important;
+}
+.pulse-menu-item {
+  height: 2.375rem;
+  gap: 0.75rem !important;
+  padding: 0 0.75rem !important;
+  border-radius: 0.75rem !important;
+  font-size: 0.8125rem !important;
+  font-weight: 500;
+  color: var(--text-1);
+  background: transparent !important;
+  transition:
+    background-color 120ms var(--ease-out),
+    color 120ms var(--ease-out) !important;
+}
+.pulse-menu-item > svg:first-child {
+  width: 1rem;
+  height: 1rem;
+  flex: none;
+  color: var(--text-3);
+  transition:
+    color 120ms var(--ease-out),
+    transform var(--motion-panel) var(--ease-spring);
+}
+.pulse-menu-item[data-highlighted] {
+  color: var(--foreground) !important;
+  background: rgb(var(--ink) / 0.07) !important;
+}
+.pulse-menu-item[data-highlighted] > svg:first-child {
+  color: var(--foreground);
+  transform: scale(1.12) rotate(-6deg);
+}
+/* Destructive items stay red, and warn rather than shout on hover. */
+.pulse-menu-item.text-destructive,
+.pulse-menu-item.text-destructive > svg:first-child {
+  color: var(--destructive) !important;
+}
+.pulse-menu-item.text-destructive[data-highlighted] {
+  color: var(--destructive) !important;
+  background: color-mix(in oklab, var(--destructive) 13%, transparent) !important;
+}
+.pulse-menu-item.text-destructive[data-highlighted] > svg:first-child {
+  animation: bin-wobble 520ms var(--ease-spring);
+  transform: none;
+}
+.pulse-menu-item[data-disabled] {
+  opacity: 0.4;
+}
+.pulse-menu-rule {
+  margin: 0.375rem 0.625rem !important;
+  background: rgb(var(--ink) / 0.08) !important;
+}
+.pulse-menu-label {
+  padding: 0.5rem 0.75rem 0.25rem !important;
+  font-size: 0.6875rem !important;
+  font-weight: 550 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+  color: var(--text-4) !important;
+}
+/* Choices show their check in a small lit dot. */
+.pulse-menu-item [data-state='checked'] {
+  display: grid;
+  place-items: center;
+  width: 1.125rem;
+  height: 1.125rem;
+  border-radius: 999px;
+  color: var(--primary-foreground);
+  background: var(--primary);
+}
+.pulse-menu-item [data-state='checked'] svg {
+  width: 0.75rem;
+  height: 0.75rem;
+  stroke-width: 3;
+}
+
+/* Items come in one after another as the menu opens. */
+[role='menu'].pulse-pop[data-state='open'] > .pulse-menu-item,
+[role='menu'].pulse-pop[data-state='open'] > [role='group'] > .pulse-menu-item {
+  animation: menu-item-in 300ms var(--ease-out) backwards;
+}
+[role='menu'].pulse-pop > :nth-child(2) {
+  animation-delay: 20ms;
+}
+[role='menu'].pulse-pop > :nth-child(3) {
+  animation-delay: 40ms;
+}
+[role='menu'].pulse-pop > :nth-child(4) {
+  animation-delay: 60ms;
+}
+[role='menu'].pulse-pop > :nth-child(5) {
+  animation-delay: 80ms;
+}
+[role='menu'].pulse-pop > :nth-child(6) {
+  animation-delay: 100ms;
+}
+[role='menu'].pulse-pop > :nth-child(7) {
+  animation-delay: 120ms;
+}
+[role='menu'].pulse-pop > :nth-child(n + 8) {
+  animation-delay: 140ms;
+}
+@keyframes menu-item-in {
+  from {
+    opacity: 0;
+    transform: translateX(-6px);
+  }
+}
+
+/* -------------------------------------------------------------- sliders */
+
+input[type='range'] {
+  appearance: none;
+  -webkit-appearance: none;
+  height: 1.25rem;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  accent-color: auto;
+}
+input[type='range']::-webkit-slider-runnable-track {
+  height: 0.3125rem;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    var(--foreground) 0 var(--range-progress, 50%),
+    rgb(var(--ink) / 0.14) var(--range-progress, 50%) 100%
+  );
+  transition: height var(--motion-fast) var(--ease-out);
+}
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 1rem;
+  height: 1rem;
+  margin-top: -0.34375rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--foreground);
+  box-shadow:
+    0 0 0 3px var(--background),
+    0 2px 10px rgb(0 0 0 / 0.45);
+  transition:
+    transform var(--motion-panel) var(--ease-spring),
+    box-shadow var(--motion-panel) var(--ease-out);
+}
+input[type='range']:hover::-webkit-slider-thumb {
+  transform: scale(1.15);
+  box-shadow:
+    0 0 0 3px var(--background),
+    0 0 0 8px rgb(var(--ink) / 0.1);
+}
+input[type='range']:active::-webkit-slider-thumb {
+  transform: scale(1.3);
+  box-shadow:
+    0 0 0 3px var(--background),
+    0 0 0 10px rgb(var(--ink) / 0.12),
+    0 0 20px rgb(var(--ink) / 0.35);
+}
+input[type='range']:focus-visible {
+  outline: none;
+}
+input[type='range']:focus-visible::-webkit-slider-thumb {
+  box-shadow:
+    0 0 0 3px var(--background),
+    0 0 0 5px var(--ring);
+}
+input[type='range']:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* The screen volume of a live, as one pill with its number. */
+.stage-live.live-workspace .live-volume {
+  gap: 0.625rem !important;
+  height: 2.125rem;
+  padding: 0 0.875rem 0 0.75rem;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.1);
+  transition: box-shadow var(--motion-fast) var(--ease-out);
+}
+.stage-live.live-workspace .live-volume:hover {
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.24);
+}
+.stage-live.live-workspace .live-volume input[type='range'] {
+  width: 7rem;
+}
+.stage-live.live-workspace .live-volume > svg {
+  color: var(--text-2);
+  transition: transform var(--motion-panel) var(--ease-spring);
+}
+.stage-live.live-workspace .live-volume:hover > svg {
+  transform: scale(1.12);
+}
+.stage-live.live-workspace .live-volume > span {
+  min-width: 2.5rem;
+  text-align: right;
+  color: var(--foreground);
+}
+
+/* Radix sliders drawn the same way. */
+.pulse-slider {
+  height: 1.25rem;
+}
+.pulse-slider-track {
+  height: 0.3125rem !important;
+  background: rgb(var(--ink) / 0.14) !important;
+}
+.pulse-slider-range {
+  background: var(--foreground) !important;
+}
+.pulse-slider-thumb {
+  width: 1rem !important;
+  height: 1rem !important;
+  border: 0 !important;
+  background: var(--foreground) !important;
+  box-shadow:
+    0 0 0 3px var(--background),
+    0 2px 10px rgb(0 0 0 / 0.45) !important;
+  transition:
+    transform var(--motion-panel) var(--ease-spring),
+    box-shadow var(--motion-panel) var(--ease-out) !important;
+}
+.pulse-slider-thumb:hover {
+  transform: scale(1.15);
+  box-shadow:
+    0 0 0 3px var(--background),
+    0 0 0 8px rgb(var(--ink) / 0.1) !important;
+}
+.pulse-slider-thumb:active {
+  transform: scale(1.3);
+}

@@ -8,12 +8,21 @@ import {
   type ReactNode,
 } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { ArrowRight, AtSign, LoaderCircle, MailPlus, MessageCircle, SendHorizontal } from 'lucide-react';
+import {
+  ArrowRight,
+  AtSign,
+  Expand,
+  LoaderCircle,
+  MailPlus,
+  MessageCircle,
+  SendHorizontal,
+} from 'lucide-react';
 import type { Account, DirectConversation, DirectMessage } from '../../../shared/community';
 import type { CommunityClient } from '../../infrastructure/community-client';
 import { initialsOf } from '../../domain/roster';
 import { Avatar } from '../avatar';
 import { cn } from '../ui/utils';
+import { DirectProfileModal } from './direct-profile';
 import { InviteCard } from './invite-card';
 
 const pollMs = 3_000;
@@ -222,6 +231,7 @@ export function DirectPane({
   const [messages, setMessages] = useState<DirectMessage[]>([]);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [error, setError] = useState('');
   const history = useRef<HTMLDivElement>(null);
   const field = useRef<HTMLTextAreaElement>(null);
@@ -248,6 +258,7 @@ export function DirectPane({
   useEffect(() => {
     setMessages([]);
     setError('');
+    setProfileOpen(false);
     lastSeen.current = undefined;
     if (!conversationId) return undefined;
     void load().catch(() => undefined);
@@ -304,17 +315,42 @@ export function DirectPane({
   return (
     <main className={cn('direct-pane flex min-w-0 flex-col bg-background', className)}>
       <header className="direct-pane-head">
-        <Avatar
-          className="direct-pane-avatar"
-          name={peer.displayName}
-          initials={initialsOf(peer.displayName)}
-          imageId={peer.avatarId}
-        />
-        <span className="direct-pane-who">
-          <strong>{peer.displayName}</strong>
-          <small>@{peer.username}</small>
-        </span>
+        {/* The person at the top is the way into their profile. */}
+        <button
+          type="button"
+          className="direct-pane-person"
+          aria-label={`View ${peer.displayName}'s profile`}
+          onClick={() => setProfileOpen(true)}
+        >
+          <span className="direct-pane-face">
+            <Avatar
+              className="direct-pane-avatar"
+              name={peer.displayName}
+              initials={initialsOf(peer.displayName)}
+              imageId={peer.avatarId}
+            />
+            <span className="direct-pane-face-hint" aria-hidden="true">
+              <Expand size={12} />
+            </span>
+          </span>
+          <span className="direct-pane-who">
+            <strong>{peer.displayName}</strong>
+            <small>
+              @{peer.username}
+              <span className="direct-pane-open">View profile</span>
+            </small>
+          </span>
+        </button>
       </header>
+      {profileOpen && (
+        <DirectProfileModal
+          api={api}
+          conversationId={conversation.id}
+          peer={peer}
+          onOpenServer={onJoined}
+          onClose={() => setProfileOpen(false)}
+        />
+      )}
 
       <div ref={history} className="chat-history direct-history min-h-0 flex-1 overflow-y-auto px-5 py-4">
         <div className="chat-column mx-auto flex min-h-full w-full max-w-3xl flex-col justify-end">
@@ -361,12 +397,20 @@ export function DirectPane({
                       {clock.format(new Date(message.createdAt))}
                     </time>
                   ) : (
-                    <Avatar
-                      className="direct-message-avatar"
-                      name={author.displayName}
-                      initials={initialsOf(author.displayName)}
-                      imageId={author.avatarId}
-                    />
+                    <button
+                      type="button"
+                      className="direct-message-face"
+                      aria-label={`View ${author.displayName}'s profile`}
+                      disabled={message.authorId === user.id}
+                      onClick={() => setProfileOpen(true)}
+                    >
+                      <Avatar
+                        className="direct-message-avatar"
+                        name={author.displayName}
+                        initials={initialsOf(author.displayName)}
+                        imageId={author.avatarId}
+                      />
+                    </button>
                   )}
                   <div className="min-w-0 flex-1">
                     {!continued && (

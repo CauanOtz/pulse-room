@@ -26,7 +26,7 @@
   border-radius: 999px;
   font-size: 0.75rem;
   font-weight: 550;
-  isolation: isolate;
+  transition: color 260ms var(--ease-out);
 }
 .member-sidebar .sidebar-tab-heading [role='tab']::after {
   display: none;
@@ -34,13 +34,23 @@
 .member-sidebar .sidebar-tab-heading [aria-selected='true'] {
   color: var(--primary-foreground);
 }
+.member-sidebar .sidebar-tab-heading {
+  position: relative;
+  isolation: isolate;
+}
 .member-tab-thumb {
   position: absolute;
-  inset: 0;
   z-index: -1;
-  border-radius: inherit;
+  top: 0.25rem;
+  bottom: 0.25rem;
+  left: 0.25rem;
+  width: calc((100% - 0.5rem) / 3);
+  border-radius: 999px;
   background: var(--primary);
   box-shadow: 0 4px 16px -4px rgb(var(--ink) / 0.4);
+  transform: translateX(calc(var(--tab, 0) * 100%));
+  transition: transform 460ms var(--ease-spring);
+  pointer-events: none;
 }
 .member-sidebar .sidebar-tab-heading [role='tab'] > span {
   display: inline-grid;

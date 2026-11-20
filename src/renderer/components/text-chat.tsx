@@ -15,9 +15,13 @@ import type {
 import type { CommunityClient } from '../infrastructure/community-client';
 import { attachmentLimit, attachmentsPerMessage, attachmentTypes } from '../../shared/chat';
 import { EmojiPicker } from './emoji-picker';
+import { ConfirmDialog } from './confirm-dialog';
 import { ChatAttachment } from './chat-attachment';
 import { PendingAttachment } from './pending-attachment';
 import { MessageContent } from './message-content';
+
+/** One click away under every message; the picker has the rest. */
+const quickReactions = ['👍', '❤️', '😂'];
 
 const clock = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' });
 const calendar = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
@@ -81,6 +85,8 @@ export function TextChat({
   }, [history, latest]);
   const [draft, setDraft] = useState('');
   const [error, setError] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState<ChatMessage>();
+  const [deleting, setDeleting] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [busy, setBusy] = useState(false);
   const [files, setFiles] = useState<{ key: string; file: File; attachment?: Attachment }[]>([]);
@@ -207,6 +213,22 @@ export function TextChat({
       textarea.current?.focus();
       textarea.current?.setSelectionRange(start + emoji.length, start + emoji.length);
     });
+  }
+
+  /** Removes a message for good, from the server and from every list here. */
+  async function removeMessage(message: ChatMessage) {
+    setDeleting(true);
+    try {
+      await api.request(`${base}/${message.id}`, 'DELETE');
+      setLatest((rest) => rest.filter((m) => m.id !== message.id));
+      setHistory((rest) => rest.filter((m) => m.id !== message.id));
+      onChanged?.();
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : 'That message could not be deleted.');
+    } finally {
+      setDeleting(false);
+      setConfirmDelete(undefined);
+    }
   }
 
   async function react(message: ChatMessage, emoji: string) {
@@ -410,41 +432,55 @@ export function TextChat({
                       </div>
                     )}
                   </div>
-                  {canSend && (
-                    <div className="chat-message-actions">
-                      <EmojiPicker
-                        label={`React to message from ${message.authorName}`}
-                        disabled={reacting === message.id}
-                        onSelect={(emoji) => void react(message, emoji)}
-                      />
+                  {(canSend || mine) && (
+                    // One toolbar for everything that can be done to a message,
+                    // drawn only for the message under the pointer.
+                    <div className="message-toolbar" role="toolbar" aria-label="Message actions">
+                      {canSend &&
+                        quickReactions.map((emoji) => (
+                          <Tooltip key={emoji} label={`React with ${emoji}`}>
+                            <button
+                              type="button"
+                              className={cn(
+                                'message-tool is-quick',
+                                message.reactions?.some(
+                                  (reaction) => reaction.emoji === emoji && reaction.mine,
+                                ) && 'is-mine',
+                              )}
+                              aria-label={`React with ${emoji}`}
+                              disabled={reacting === message.id}
+                              onClick={() => void react(message, emoji)}
+                            >
+                              {emoji}
+                            </button>
+                          </Tooltip>
+                        ))}
+                      {canSend && (
+                        <EmojiPicker
+                          className="message-tool is-picker"
+                          label={`React to message from ${message.authorName}`}
+                          disabled={reacting === message.id}
+                          onSelect={(emoji) => void react(message, emoji)}
+                        />
+                      )}
+                      {mine && (
+                        <>
+                          <span className="message-toolbar-rule" aria-hidden="true" />
+                          <Tooltip label="Delete message" shortcut="Shift+Click to skip">
+                            <button
+                              className="message-tool is-danger"
+                              type="button"
+                              aria-label={`Delete message from ${message.authorName}`}
+                              onClick={(event) =>
+                                event.shiftKey ? void removeMessage(message) : setConfirmDelete(message)
+                              }
+                            >
+                              <Trash2 aria-hidden="true" className="size-4" />
+                            </button>
+                          </Tooltip>
+                        </>
+                      )}
                     </div>
-                  )}
-                  {mine && (
-                    // The one destructive thing in the channel waits to be
-                    // looked for, and says what it is when it is.
-                    <Tooltip label="Delete message">
-                      <button
-                        className={cn(
-                          'chat-delete absolute right-1 top-0 grid size-7 -translate-y-1/2 place-items-center rounded-md bg-popover text-muted-foreground opacity-0 shadow-[var(--gloss)]',
-                          'transition-opacity hover:text-destructive group-hover/message:opacity-100 focus-visible:opacity-100',
-                          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                        )}
-                        type="button"
-                        aria-label={`Delete message from ${message.authorName}`}
-                        onClick={() =>
-                          void api
-                            .request(`${base}/${message.id}`, 'DELETE')
-                            .then(() => {
-                              setLatest((rest) => rest.filter((m) => m.id !== message.id));
-                              setHistory((rest) => rest.filter((m) => m.id !== message.id));
-                              onChanged?.();
-                            })
-                            .catch((e) => setError(e.message))
-                        }
-                      >
-                        <Trash2 aria-hidden="true" className="size-3.5" />
-                      </button>
-                    </Tooltip>
                   )}
                 </article>
               </div>
@@ -453,6 +489,51 @@ export function TextChat({
           <div ref={bottom} />
         </div>
       </div>
+      {confirmDelete && (
+        <ConfirmDialog
+          busy={deleting}
+          confirmation={{
+            title: 'Delete this message?',
+            description:
+              'It disappears for everyone in the channel, with any files it carried. This cannot be undone.',
+            confirmLabel: 'Delete message',
+            tone: 'danger',
+            action: async () => removeMessage(confirmDelete),
+          }}
+          preview={
+            <div className="delete-preview">
+              <Avatar
+                className="delete-preview-avatar"
+                name={confirmDelete.authorName}
+                imageId={avatars?.get(confirmDelete.authorId)}
+              />
+              <div className="min-w-0">
+                <header>
+                  <strong>{confirmDelete.authorName}</strong>
+                  <time dateTime={confirmDelete.createdAt}>
+                    {new Date(confirmDelete.createdAt).toLocaleString([], {
+                      day: 'numeric',
+                      month: 'short',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </time>
+                </header>
+                {confirmDelete.content && <p>{confirmDelete.content}</p>}
+                {Boolean(confirmDelete.attachments?.length) && (
+                  <small>
+                    <Paperclip aria-hidden="true" className="size-3" />
+                    {confirmDelete.attachments!.length}{' '}
+                    {confirmDelete.attachments!.length === 1 ? 'file' : 'files'}
+                  </small>
+                )}
+              </div>
+            </div>
+          }
+          onCancel={() => setConfirmDelete(undefined)}
+          onConfirm={() => void removeMessage(confirmDelete)}
+        />
+      )}
       {(error || loadError) && (
         <p
           className="form-error rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive"

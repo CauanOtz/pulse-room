@@ -108,6 +108,21 @@ describe('direct messages', () => {
     expect((await messages(friend, conversation.id)).map((message) => message.content)).toEqual(['hi there']);
   });
 
+  it("shows the other person's profile and the servers both are in, only to the two of them", async () => {
+    const [conversation] = await conversations(owner);
+    const profile = (await call('GET', `/api/directs/${conversation.id}/profile`, friend)).json() as {
+      account: { username: string; displayName: string };
+      mutualServers: { name: string }[];
+    };
+    expect(profile.account).toMatchObject({ username: 'owner', displayName: 'Owner' });
+    expect(profile.mutualServers).toEqual([]);
+    const shared = (await call('GET', `/api/directs/${conversation.id}/profile`, owner)).json() as {
+      account: { username: string };
+    };
+    expect(shared.account.username).toBe('friend');
+    expect((await call('GET', `/api/directs/${conversation.id}/profile`, stranger)).statusCode).toBe(404);
+  });
+
   it('keeps a conversation private to its two people', async () => {
     const [conversation] = await conversations(owner);
     expect((await call('GET', `/api/directs/${conversation.id}/messages`, stranger)).statusCode).toBe(404);
@@ -145,6 +160,10 @@ describe('server invitations sent as messages', () => {
     const accepted = await call('POST', `/api/direct-invites/${message.invite!.id}/accept`, stranger);
     expect(accepted.json()).toEqual({ serverId });
     expect((await servers(stranger)).map((server) => server.id)).toContain(serverId);
+    const mutual = (await call('GET', `/api/directs/${conversationId}/profile`, stranger)).json() as {
+      mutualServers: { name: string }[];
+    };
+    expect(mutual.mutualServers.map((server) => server.name)).toEqual(['Late nights']);
     const [card] = await messages(stranger, conversationId);
     expect(card.invite).toMatchObject({ status: 'accepted', memberCount: 3 });
     expect(

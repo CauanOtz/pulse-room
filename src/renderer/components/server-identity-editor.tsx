@@ -3,13 +3,12 @@ import {
   CalendarDays,
   Camera,
   Check,
-  ChevronRight,
+  DoorOpen,
   Eye,
   Hash,
   ImageUp,
-  Link,
   LoaderCircle,
-  ShieldHalf,
+  PenLine,
   Trash2,
   Users,
 } from 'lucide-react';
@@ -91,22 +90,18 @@ export function ServerIdentityEditor({
   onChanged,
   onDirtyChange,
   onBusyChange,
-  onNavigate,
-  onDelete,
-  canInvite,
-  canManageRoles,
-  isOwner,
 }: {
   api: CommunityClient;
   detail: CommunityDetail;
   onChanged(): Promise<void>;
   onDirtyChange(dirty: boolean): void;
   onBusyChange(busy: boolean): void;
-  onNavigate(section: 'invites' | 'permissions' | 'members'): void;
-  onDelete(): void;
-  canInvite: boolean;
-  canManageRoles: boolean;
-  isOwner: boolean;
+  /** Kept for callers; the rail is where these are reached now. */
+  onNavigate?(section: 'invites' | 'permissions' | 'members'): void;
+  onDelete?(): void;
+  canInvite?: boolean;
+  canManageRoles?: boolean;
+  isOwner?: boolean;
 }) {
   const [saved, setSaved] = useState(() => draftOf(detail.server));
   const [draft, setDraft] = useState(saved);
@@ -222,228 +217,196 @@ export function ServerIdentityEditor({
         void save();
       }}
     >
-      <fieldset disabled={busy} className="server-editor-fields">
-        <section className="server-settings-card identity-card" aria-labelledby="server-identity-title">
-          <CardHeading
-            id="server-identity-title"
-            title="Server identity"
-            description="Customize your server’s name, icon and description. This information is visible to all members."
-          />
-          <div className="server-identity-grid">
-            <div className="server-identity-form">
-              <div className="server-icon-editor">
-                <div className="server-icon-frame">
-                  {draft.icon.url ? (
-                    <img src={draft.icon.url} alt="Server picture preview" />
-                  ) : (
-                    <Avatar name={draft.name} imageId={draft.icon.id} className="server-icon-preview" />
-                  )}
-                  <button
-                    type="button"
-                    className="server-camera-button"
-                    aria-label="Change server picture"
-                    onClick={() => choose('icon')}
-                  >
-                    <Camera size={17} />
-                  </button>
-                </div>
-                {(draft.icon.id || draft.icon.blob) && (
-                  <button type="button" className="artwork-remove" onClick={() => remove('icon')}>
-                    Remove picture
-                  </button>
-                )}
-              </div>
-              <div className="server-identity-inputs">
-                <label className="server-setting-field">
-                  Server name
-                  <span className="counted-input">
-                    <input
-                      aria-label="Server name"
-                      required
-                      maxLength={60}
-                      value={draft.name}
-                      onChange={(event) => change('name', event.target.value)}
-                    />
-                    <small aria-hidden="true">{draft.name.length} / 60</small>
-                  </span>
-                </label>
-                <label className="server-setting-field">
-                  Description (optional)
-                  <span className="counted-input">
-                    <textarea
-                      aria-label="Description (optional)"
-                      rows={2}
-                      maxLength={200}
-                      placeholder="A few words about your server."
-                      value={draft.description}
-                      onChange={(event) => change('description', event.target.value)}
-                    />
-                    <small aria-hidden="true">{draft.description.length} / 200</small>
-                  </span>
-                </label>
-              </div>
-            </div>
-            <div className="server-banner-editor">
-              <ServerBanner imageId={draft.banner.id} localUrl={draft.banner.url} className="identity-banner">
-                <button
-                  type="button"
-                  className="server-settings-button artwork-edit"
-                  onClick={() => choose('banner')}
-                >
-                  <ImageUp size={16} /> Edit banner
-                </button>
-                {(draft.banner.id || draft.banner.blob) && (
-                  <button
-                    type="button"
-                    className="banner-remove"
-                    aria-label="Remove server banner"
-                    title="Use default banner"
-                    onClick={() => remove('banner')}
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                )}
-              </ServerBanner>
-              <div className="server-banner-actions">
-                <button type="button" className="server-settings-button" onClick={() => choose('icon')}>
-                  <ImageUp size={16} /> Change picture
-                </button>
-                <button type="button" className="server-settings-button" onClick={() => setPreview(true)}>
-                  <Eye size={17} /> Preview server
-                </button>
-              </div>
-            </div>
-          </div>
-          <ServerFacts detail={detail} />
-        </section>
-        <section className="server-settings-card onboarding-card" aria-labelledby="server-onboarding-title">
-          <CardHeading
-            id="server-onboarding-title"
-            title="Appearance & onboarding"
-            description="Set the tone for your server and help new members feel at home."
-          />
-          <div className="server-onboarding-grid">
-            <ServerBanner
-              imageId={draft.welcomeBanner.id ?? draft.banner.id}
-              localUrl={draft.welcomeBanner.url ?? (!draft.welcomeBanner.id ? draft.banner.url : undefined)}
-              className="welcome-banner"
-            >
-              <div className="welcome-banner-copy">
-                <span>Welcome to</span>
-                <strong>{draft.name || 'Your server'}</strong>
-                <p>{draft.description || 'Make a little room for your community.'}</p>
-                {draft.welcomeMessage && <p className="welcome-message-preview">{draft.welcomeMessage}</p>}
-              </div>
-              <button
-                type="button"
-                className="server-settings-button artwork-edit"
-                onClick={() => choose('welcomeBanner')}
-              >
-                <ImageUp size={16} /> Edit welcome banner
+      <fieldset disabled={busy} className="server-editor-fields server-studio">
+        {/* What members see, edited where they see it. */}
+        <section className="studio-hero" aria-labelledby="server-identity-title">
+          <h3 id="server-identity-title" className="sr-only">
+            Server identity
+          </h3>
+          <ServerBanner imageId={draft.banner.id} localUrl={draft.banner.url} className="studio-banner">
+            <div className="studio-banner-tools">
+              <button type="button" className="studio-chip" onClick={() => choose('banner')}>
+                <ImageUp size={15} /> Edit banner
               </button>
-              {(draft.welcomeBanner.id || draft.welcomeBanner.blob) && (
+              {(draft.banner.id || draft.banner.blob) && (
                 <button
                   type="button"
-                  className="banner-remove"
-                  aria-label="Remove welcome banner"
-                  title="Use server banner"
-                  onClick={() => remove('welcomeBanner')}
+                  className="studio-chip is-icon"
+                  aria-label="Remove server banner"
+                  title="Use default banner"
+                  onClick={() => remove('banner')}
                 >
                   <Trash2 size={14} />
                 </button>
               )}
-            </ServerBanner>
-            <div className="server-onboarding-fields">
-              <div className="server-onboarding-row">
-                <div className="server-setting-explanation">
-                  <label id="landing-channel-label">Default landing channel</label>
-                  <p>Choose where members arrive when they join your server.</p>
-                </div>
-                <Select
-                  value={
-                    draft.landingChannelId &&
-                    channels.some((channel) => channel.id === draft.landingChannelId)
-                      ? draft.landingChannelId
-                      : 'automatic'
-                  }
-                  onValueChange={(value) => change('landingChannelId', value === 'automatic' ? null : value)}
-                >
-                  <SelectTrigger aria-labelledby="landing-channel-label">
-                    <Hash size={17} />
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="automatic">First available channel</SelectItem>
-                    {channels.map((channel) => (
-                      <SelectItem key={channel.id} value={channel.id}>
-                        {channel.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="server-onboarding-row welcome-message-row">
-                <div className="server-setting-explanation">
-                  <label htmlFor="server-welcome-message">Welcome message</label>
-                  <p>A short message shown to new members when they join.</p>
-                </div>
+            </div>
+          </ServerBanner>
+          <div className="studio-identity">
+            <div className="studio-icon server-icon-frame">
+              {draft.icon.url ? (
+                <img src={draft.icon.url} alt="Server picture preview" />
+              ) : (
+                <Avatar name={draft.name} imageId={draft.icon.id} className="server-icon-preview" />
+              )}
+              <button
+                type="button"
+                className="studio-icon-edit"
+                aria-label="Change server picture"
+                onClick={() => choose('icon')}
+              >
+                <Camera size={18} />
+              </button>
+            </div>
+            <div className="studio-title">
+              <h2 key={draft.name ? 'named' : 'empty'}>{draft.name || 'Your server'}</h2>
+              <p>{draft.description || 'Add a description so people know what this place is for.'}</p>
+            </div>
+            <div className="studio-hero-actions">
+              <button type="button" className="studio-button" onClick={() => choose('icon')}>
+                <ImageUp size={15} /> Change picture
+              </button>
+              {(draft.icon.id || draft.icon.blob) && (
+                <button type="button" className="studio-button is-quiet" onClick={() => remove('icon')}>
+                  Remove picture
+                </button>
+              )}
+              <button type="button" className="studio-button is-primary" onClick={() => setPreview(true)}>
+                <Eye size={15} /> Preview server
+              </button>
+            </div>
+          </div>
+          <ServerFacts detail={detail} />
+        </section>
+
+        <div className="studio-columns">
+          <section className="server-settings-card studio-card" aria-labelledby="studio-details-title">
+            <header className="studio-card-head">
+              <span className="studio-card-mark" aria-hidden="true">
+                <PenLine size={16} />
+              </span>
+              <span>
+                <h3 id="studio-details-title">Details</h3>
+                <p>The name and the line under it, wherever the server appears.</p>
+              </span>
+            </header>
+            <div className="server-identity-inputs studio-fields">
+              <label className="server-setting-field studio-field">
+                Server name
+                <span className="counted-input">
+                  <input
+                    aria-label="Server name"
+                    required
+                    maxLength={60}
+                    value={draft.name}
+                    onChange={(event) => change('name', event.target.value)}
+                  />
+                  <small aria-hidden="true" className={draft.name.length > 50 ? 'is-near' : undefined}>
+                    {draft.name.length} / 60
+                  </small>
+                </span>
+              </label>
+              <label className="server-setting-field studio-field">
+                Description (optional)
                 <span className="counted-input">
                   <textarea
-                    id="server-welcome-message"
+                    aria-label="Description (optional)"
                     rows={3}
-                    maxLength={300}
-                    placeholder="Write a warm welcome for new members…"
-                    value={draft.welcomeMessage}
-                    onChange={(event) => change('welcomeMessage', event.target.value)}
+                    maxLength={200}
+                    placeholder="A few words about your server."
+                    value={draft.description}
+                    onChange={(event) => change('description', event.target.value)}
                   />
-                  <small aria-hidden="true">{draft.welcomeMessage.length} / 300</small>
+                  <small
+                    aria-hidden="true"
+                    className={draft.description.length > 180 ? 'is-near' : undefined}
+                  >
+                    {draft.description.length} / 200
+                  </small>
                 </span>
-              </div>
+              </label>
             </div>
-          </div>
-        </section>
-        <section className="server-settings-card management-card" aria-labelledby="server-management-title">
-          <CardHeading
-            id="server-management-title"
-            title="Server management"
-            description="Manage invites, permissions and other important settings for your server."
-          />
-          <div className="server-management-links">
-            {canInvite && (
-              <ManagementLink
-                icon={<Link />}
-                title="Invite settings"
-                description="Manage invite links, expiry and invite permissions."
-                onClick={() => onNavigate('invites')}
-              />
-            )}
-            {canManageRoles && (
-              <ManagementLink
-                icon={<ShieldHalf />}
-                title="Default permissions"
-                description="Set default roles and permissions for new members."
-                onClick={() => onNavigate('permissions')}
-              />
-            )}
-            <ManagementLink
-              icon={<Users />}
-              title="Moderation & safety"
-              description="Manage members, roles and server moderation."
-              onClick={() => onNavigate('members')}
-            />
-          </div>
-        </section>
-        {isOwner && (
-          <section className="server-settings-card server-danger-zone">
-            <div>
-              <h3>Danger zone</h3>
-              <p>Permanently delete this server. This action cannot be undone.</p>
-            </div>
-            <button type="button" className="server-settings-button server-delete-button" onClick={onDelete}>
-              <Trash2 size={18} /> Delete server
-            </button>
           </section>
-        )}
+
+          <section className="server-settings-card studio-card" aria-labelledby="server-onboarding-title">
+            <header className="studio-card-head">
+              <span className="studio-card-mark" aria-hidden="true">
+                <DoorOpen size={16} />
+              </span>
+              <span>
+                <h3 id="server-onboarding-title">Welcome</h3>
+                <p>What somebody sees the first time they arrive.</p>
+              </span>
+            </header>
+            <ServerBanner
+              imageId={draft.welcomeBanner.id ?? draft.banner.id}
+              localUrl={draft.welcomeBanner.url ?? (!draft.welcomeBanner.id ? draft.banner.url : undefined)}
+              className="studio-welcome"
+            >
+              <div className="welcome-banner-copy">
+                <span>Welcome to</span>
+                <strong>{draft.name || 'Your server'}</strong>
+                <p>{draft.welcomeMessage || draft.description || 'Make a little room for your community.'}</p>
+              </div>
+              <div className="studio-banner-tools">
+                <button type="button" className="studio-chip" onClick={() => choose('welcomeBanner')}>
+                  <ImageUp size={15} /> Edit welcome banner
+                </button>
+                {(draft.welcomeBanner.id || draft.welcomeBanner.blob) && (
+                  <button
+                    type="button"
+                    className="studio-chip is-icon"
+                    aria-label="Remove welcome banner"
+                    title="Use server banner"
+                    onClick={() => remove('welcomeBanner')}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                )}
+              </div>
+            </ServerBanner>
+            <div className="server-onboarding-row studio-row">
+              <div className="server-setting-explanation">
+                <label id="landing-channel-label">Default landing channel</label>
+                <p>Where new members arrive.</p>
+              </div>
+              <Select
+                value={
+                  draft.landingChannelId && channels.some((channel) => channel.id === draft.landingChannelId)
+                    ? draft.landingChannelId
+                    : 'automatic'
+                }
+                onValueChange={(value) => change('landingChannelId', value === 'automatic' ? null : value)}
+              >
+                <SelectTrigger aria-labelledby="landing-channel-label">
+                  <Hash size={16} />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="automatic">First available channel</SelectItem>
+                  {channels.map((channel) => (
+                    <SelectItem key={channel.id} value={channel.id}>
+                      {channel.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <label className="server-setting-field studio-field" htmlFor="server-welcome-message">
+              Welcome message
+              <span className="counted-input">
+                <textarea
+                  id="server-welcome-message"
+                  rows={3}
+                  maxLength={300}
+                  placeholder="Write a warm welcome for new members…"
+                  value={draft.welcomeMessage}
+                  onChange={(event) => change('welcomeMessage', event.target.value)}
+                />
+                <small aria-hidden="true">{draft.welcomeMessage.length} / 300</small>
+              </span>
+            </label>
+          </section>
+        </div>
       </fieldset>
       <input
         ref={input}
@@ -475,7 +438,8 @@ export function ServerIdentityEditor({
         </p>
       )}
       {dirty && (
-        <div className="server-unsaved-bar" role="region" aria-label="Unsaved server changes">
+        <div className="server-unsaved-bar studio-pending" role="region" aria-label="Unsaved server changes">
+          <span className="studio-pending-dot" aria-hidden="true" />
           <span>{busy ? 'Saving your changes…' : 'You have unsaved changes.'}</span>
           <button
             type="button"
@@ -553,14 +517,6 @@ export function ServerIdentityEditor({
   );
 }
 
-function CardHeading({ id, title, description }: { id: string; title: string; description: string }) {
-  return (
-    <header className="server-card-heading">
-      <h3 id={id}>{title}</h3>
-      <p>{description}</p>
-    </header>
-  );
-}
 export function ServerFacts({ detail }: { detail: CommunityDetail }) {
   const date = detail.server.createdAt
     ? new Date(detail.server.createdAt).toLocaleDateString('en-US', {
@@ -593,27 +549,5 @@ export function ServerFacts({ detail }: { detail: CommunityDetail }) {
         </span>
       </div>
     </dl>
-  );
-}
-function ManagementLink({
-  icon,
-  title,
-  description,
-  onClick,
-}: {
-  icon: ReactNode;
-  title: string;
-  description: string;
-  onClick(): void;
-}) {
-  return (
-    <button type="button" className="server-management-link" onClick={onClick}>
-      <span className="management-icon">{icon}</span>
-      <span>
-        <strong>{title}</strong>
-        <small>{description}</small>
-      </span>
-      <ChevronRight size={17} />
-    </button>
   );
 }

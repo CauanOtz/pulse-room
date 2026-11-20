@@ -576,6 +576,9 @@ export async function createServer(
       ),
     }),
   );
+  server.get('/api/directs/:conversationId/profile', async (request) =>
+    directs.profile(actor(request).id, id(request, 'conversationId')),
+  );
   server.post('/api/directs/:conversationId/read', async (request) => {
     await directs.read(actor(request).id, id(request, 'conversationId'));
     return { ok: true };

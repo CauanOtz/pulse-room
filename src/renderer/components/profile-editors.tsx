@@ -9,7 +9,8 @@ import { ProfileBanner, TagChip, themedCard } from './profile-identity';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { cn } from './ui/utils';
 
-const errorMessage = (error: unknown) => (error instanceof Error ? error.message : 'That could not be saved.');
+const errorMessage = (error: unknown) =>
+  error instanceof Error ? error.message : 'That could not be saved.';
 
 const buttonClass =
   'inline-flex h-8 items-center justify-center gap-2 rounded-md border border-border bg-transparent px-3 text-xs font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50';
@@ -209,13 +210,21 @@ export function BannerField({
           <ImageUp size={15} /> {user.bannerId ? 'Change banner' : 'Add banner'}
         </button>
         {user.bannerId && (
-          <button type="button" className={cn(buttonClass, 'text-muted-foreground')} disabled={busy} onClick={() => void remove()}>
+          <button
+            type="button"
+            className={cn(buttonClass, 'text-muted-foreground')}
+            disabled={busy}
+            onClick={() => void remove()}
+          >
             <Trash2 size={15} /> Remove banner
           </button>
         )}
       </div>
       {problem ? (
-        <small className="block rounded-md bg-destructive/10 px-2 py-1 text-xs font-medium text-destructive" role="alert">
+        <small
+          className="block rounded-md bg-destructive/10 px-2 py-1 text-xs font-medium text-destructive"
+          role="alert"
+        >
           {problem}
         </small>
       ) : (
@@ -301,7 +310,10 @@ export function ThemeEditor({
       </label>
       {/* The two colours stay in view with the switch off, dimmed, so what
           it does is plain before it is turned on. */}
-      <div className={cn('grid max-w-md gap-4 transition-opacity', !value && 'pointer-events-none opacity-45')} aria-disabled={!value}>
+      <div
+        className={cn('grid max-w-md gap-4 transition-opacity', !value && 'pointer-events-none opacity-45')}
+        aria-disabled={!value}
+      >
         <ColourField
           label="Primary"
           value={(value ?? saved ?? defaultTheme).primary}
@@ -346,7 +358,9 @@ export function TagWearer({ api, onChanged }: { api: CommunityClient; onChanged(
   const wear = async (choice: TagChoice, tagId: string | null) => {
     const before = choice.activeId;
     const set = (activeId: string | null) =>
-      setChoices((list) => list?.map((entry) => (entry.serverId === choice.serverId ? { ...entry, activeId } : entry)));
+      setChoices((list) =>
+        list?.map((entry) => (entry.serverId === choice.serverId ? { ...entry, activeId } : entry)),
+      );
     set(tagId);
     setBusy(choice.serverId);
     setProblem('');
@@ -363,7 +377,11 @@ export function TagWearer({ api, onChanged }: { api: CommunityClient; onChanged(
 
   return (
     <section aria-labelledby="account-tag-heading" className="tag-wearer space-y-3">
-      <Heading id="account-tag-heading" title="Server tags" hint="Choose the tag you wear in each server, beside your name there." />
+      <Heading
+        id="account-tag-heading"
+        title="Server tags"
+        hint="Choose the tag you wear in each server, beside your name there."
+      />
       {choices === undefined ? (
         <p className="text-xs text-muted-foreground">Looking for tags…</p>
       ) : choices.length === 0 ? (
@@ -374,7 +392,9 @@ export function TagWearer({ api, onChanged }: { api: CommunityClient; onChanged(
         <ul className="space-y-1.5">
           {choices.map((choice) => (
             <li key={choice.serverId} className="grid grid-cols-[minmax(0,11rem)_11rem] items-center gap-3">
-              <span className="min-w-0 truncate text-xs font-medium text-foreground">{choice.serverName}</span>
+              <span className="min-w-0 truncate text-xs font-medium text-foreground">
+                {choice.serverName}
+              </span>
               <Select
                 value={choice.activeId ?? none}
                 disabled={busy === choice.serverId}

@@ -51,7 +51,10 @@ export function ProfileCard({ user, onOpenAccount }: ProfileCardProps) {
         </div>
 
         <div className="flex min-w-0 flex-col">
-          <strong className="flex min-w-0 items-center gap-1.5 text-base font-semibold" title={user.displayName}>
+          <strong
+            className="flex min-w-0 items-center gap-1.5 text-base font-semibold"
+            title={user.displayName}
+          >
             <span className="truncate">{user.displayName}</span>
             {user.tag && <TagChip tag={user.tag} size="xs" />}
           </strong>

@@ -14,6 +14,11 @@
 @import './panel.css';
 @import './attachments.css';
 @import './directs.css';
+@import './profile.css';
+@import './messages.css';
+@import './studio.css';
+@import './members.css';
+@import './controls.css';
 
 @theme {
   --font-sans: 'Schibsted Grotesk Variable', 'Segoe UI', system-ui, sans-serif;

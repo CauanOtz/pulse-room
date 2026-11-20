@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type {
   DirectConversation,
+  DirectProfile,
   DirectInvite,
   DirectInviteStatus,
   DirectMessage,
@@ -9,6 +10,7 @@ import { Permission } from '../src/shared/permissions.js';
 import { requirePermission, withServer } from './access.js';
 import { admitMember } from './community-service.js';
 import type { Database } from './database.js';
+import { profileColumns, profileJoins, toAccount, type ProfileRow } from './profile.js';
 import { HttpError } from './security.js';
 
 /** How long an invitation sent as a message stays open. */
@@ -234,6 +236,36 @@ export class DirectService {
       await this.participant(db, userId, conversationId);
       return this.insertMessage(db, conversationId, userId, text);
     });
+  }
+
+  /**
+   * The other person's profile, for somebody in a conversation with them,
+   * and the servers the two share. No server tag: there is no server here.
+   */
+  async profile(userId: string, conversationId: string): Promise<DirectProfile> {
+    const {
+      rows: [conversation],
+    } = await this.db.query<{ peerId: string }>(
+      `SELECT CASE WHEN first_id=$2 THEN second_id ELSE first_id END AS "peerId"
+      FROM direct_conversations WHERE id=$1 AND (first_id=$2 OR second_id=$2)`,
+      [conversationId, userId],
+    );
+    if (!conversation) throw new HttpError(404, 'That conversation does not exist.');
+    const {
+      rows: [row],
+    } = await this.db.query<ProfileRow>(
+      `SELECT ${profileColumns} FROM accounts a ${profileJoins()} WHERE a.id=$1`,
+      [conversation.peerId],
+    );
+    if (!row) throw new HttpError(404, 'That account no longer exists.');
+    const { rows: mutualServers } = await this.db.query<{ id: string; name: string; iconId: string | null }>(
+      `SELECT c.id, c.name, c.icon_id AS "iconId" FROM memberships mine
+      JOIN memberships theirs ON theirs.server_id = mine.server_id AND theirs.account_id = $2
+      JOIN communities c ON c.id = mine.server_id
+      WHERE mine.account_id = $1 ORDER BY c.name LIMIT 12`,
+      [userId, conversation.peerId],
+    );
+    return { account: toAccount(row), mutualServers };
   }
 
   async read(userId: string, conversationId: string): Promise<void> {

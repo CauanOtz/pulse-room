@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Crown, Maximize2, Mic, Settings2, Shield, UserRound } from 'lucide-react';
+import { Crown, Expand, Mic, Settings2, Shield, UserRound } from 'lucide-react';
 import type { MemberRole, ProfileTheme, Role, WornTag } from '../../shared/community';
 import { RoleMark } from './role-appearance';
 import { Avatar } from './avatar';
@@ -56,17 +56,16 @@ export function ProfilePopover({
     (onAudioOptions ? 250 : 218) +
     (profile.bio?.trim() ? 80 : 0) +
     (profile.roles?.length ? 56 : 0) +
-    (onOpenFull ? 44 : 0) +
     (bannerHeight - 56);
   // Open into the conversation/stage instead of covering the member list or
   // other participant tiles. Only flip to the right when the window edge makes
   // the preferred side impossible.
   const preferredLeft = position.x - width - 12;
-  const left = preferredLeft >= 12
-    ? preferredLeft
-    : Math.min(position.x + 12, window.innerWidth - width - 12);
+  const left =
+    preferredLeft >= 12 ? preferredLeft : Math.min(position.x + 12, window.innerWidth - width - 12);
   const top = Math.max(12, Math.min(position.y + 8, window.innerHeight - height - 12));
-  const roleLabel = profile.role === 'owner' ? 'Owner' : profile.role === 'admin' ? 'Administrator' : 'Member';
+  const roleLabel =
+    profile.role === 'owner' ? 'Owner' : profile.role === 'admin' ? 'Administrator' : 'Member';
 
   return createPortal(
     <div className="popover-backdrop fixed inset-0 z-40" role="presentation" onMouseDown={onClose}>
@@ -80,14 +79,19 @@ export function ProfilePopover({
         data-themed={profile.theme ? 'true' : undefined}
         onMouseDown={(event) => event.stopPropagation()}
       >
-        <ProfileBanner bannerId={profile.bannerId} theme={profile.theme} className="w-full" style={{ height: bannerHeight }} />
+        <ProfileBanner
+          bannerId={profile.bannerId}
+          theme={profile.theme}
+          className="w-full"
+          style={{ height: bannerHeight }}
+        />
         <div className="px-4 pb-4">
           <div className="-mt-7 flex items-end justify-between gap-3">
             {onOpenFull ? (
               // The face is the way into the whole profile, as it is everywhere.
               <button
                 type="button"
-                className="group relative shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="profile-face-link group relative shrink-0 rounded-full focus-visible:outline-none"
                 aria-label={`Open ${profile.displayName}'s full profile`}
                 onClick={() => {
                   onOpenFull();
@@ -100,8 +104,12 @@ export function ProfilePopover({
                   imageId={profile.avatarId}
                   animate="always"
                 />
-                <span className="absolute inset-[3px] grid place-items-center rounded-full bg-black/50 text-[9px] font-bold uppercase tracking-wide text-white opacity-0 transition-opacity group-hover:opacity-100">
-                  Profile
+                <span className="profile-face-ring" aria-hidden="true" />
+                <span className="profile-face-hint" aria-hidden="true">
+                  <Expand size={15} />
+                </span>
+                <span className="profile-face-label" aria-hidden="true">
+                  View profile
                 </span>
               </button>
             ) : (
@@ -115,7 +123,13 @@ export function ProfilePopover({
             {/* Only a standing worth naming is named: "member" says nothing. */}
             {profile.role && profile.role !== 'member' && (
               <span className="mb-1 inline-flex items-center gap-1 rounded-md border border-border bg-secondary/70 px-2 py-1 text-[10px] font-medium text-muted-foreground">
-                {profile.role === 'owner' ? <Crown size={12} /> : profile.role === 'admin' ? <Shield size={12} /> : <UserRound size={12} />}
+                {profile.role === 'owner' ? (
+                  <Crown size={12} />
+                ) : profile.role === 'admin' ? (
+                  <Shield size={12} />
+                ) : (
+                  <UserRound size={12} />
+                )}
                 {roleLabel}
               </span>
             )}
@@ -128,14 +142,27 @@ export function ProfilePopover({
               </span>
               {profile.tag && <TagChip tag={profile.tag} />}
             </h2>
-            {profile.username && <p className="truncate text-xs text-muted-foreground">@{profile.username}</p>}
+            {profile.username && (
+              <p className="truncate text-xs text-muted-foreground">@{profile.username}</p>
+            )}
           </div>
           <div className="my-3 h-px bg-border" />
           <div className="flex items-center gap-2 text-xs">
             {profile.voiceChannelName ? (
-              <><span className="grid size-6 place-items-center rounded-md bg-success/10 text-success"><Mic size={13} /></span><span className="min-w-0 truncate"><span className="text-muted-foreground">In voice · </span>{profile.voiceChannelName}</span></>
+              <>
+                <span className="grid size-6 place-items-center rounded-md bg-success/10 text-success">
+                  <Mic size={13} />
+                </span>
+                <span className="min-w-0 truncate">
+                  <span className="text-muted-foreground">In voice · </span>
+                  {profile.voiceChannelName}
+                </span>
+              </>
             ) : (
-              <><span className="size-1.5 rounded-full bg-muted-foreground/60" /><span className="text-muted-foreground">Not in a voice channel</span></>
+              <>
+                <span className="size-1.5 rounded-full bg-muted-foreground/60" />
+                <span className="text-muted-foreground">Not in a voice channel</span>
+              </>
             )}
           </div>
           {profile.bio?.trim() && (
@@ -145,7 +172,9 @@ export function ProfilePopover({
           )}
           {profile.roles && profile.roles.length > 0 && (
             <div className="mt-3 space-y-1.5">
-              <h3 className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Roles</h3>
+              <h3 className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                Roles
+              </h3>
               <ul className="flex flex-wrap gap-1" aria-label="Roles">
                 {profile.roles.map((role) => (
                   <li
@@ -159,24 +188,14 @@ export function ProfilePopover({
               </ul>
             </div>
           )}
-          {onOpenFull && (
-            <button
-              className="mt-3 flex h-9 w-full items-center justify-center gap-2 rounded-md bg-primary text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              type="button"
-              onClick={() => {
-                onOpenFull();
-                onClose();
-              }}
-            >
-              <Maximize2 size={14} />
-              View full profile
-            </button>
-          )}
           {onAudioOptions && (
             <button
               className="mt-3 flex h-9 w-full items-center justify-center gap-2 rounded-md border border-border bg-secondary/50 text-xs font-medium transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               type="button"
-              onClick={() => { onAudioOptions(); onClose(); }}
+              onClick={() => {
+                onAudioOptions();
+                onClose();
+              }}
             >
               <Settings2 size={14} />
               Audio options

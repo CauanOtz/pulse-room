@@ -257,6 +257,9 @@ test('role workspace edits identity, permissions, hierarchy and members through 
       await window.getByRole('button', { name: 'Reorder Guest', exact: true }).focus();
       await window.keyboard.press('Alt+ArrowUp');
       await expect(order.locator('li strong').nth(1)).toHaveText('Guest');
+      // The new order is drawn before the request finishes; rows only become
+      // draggable again once it has, which the handle shows by unlocking.
+      await expect(window.getByRole('button', { name: 'Reorder Guest', exact: true })).toBeEnabled();
       await order.locator('li', { hasText: 'Guest' }).dragTo(order.locator('li', { hasText: 'Community' }));
       await expect(order.locator('li strong').first()).toHaveText('Guest');
 
@@ -290,10 +293,16 @@ test('role workspace edits identity, permissions, hierarchy and members through 
         [760, 700],
         [1920, 1080],
       ]) {
-        await application.evaluate(
-          ({ BrowserWindow }, size) => BrowserWindow.getAllWindows()[0].setContentSize(size[0], size[1]),
-          [width, height],
-        );
+        // The desktop can maximise or minimise the window while the test runs,
+        // and a window in either state ignores a new size, so it is brought
+        // back to a normal one first and the page is given time to see it.
+        await application.evaluate(({ BrowserWindow }, size) => {
+          const current = BrowserWindow.getAllWindows()[0];
+          if (current.isMinimized()) current.restore();
+          if (current.isMaximized()) current.unmaximize();
+          current.setContentSize(size[0], size[1]);
+        }, [width, height]);
+        await expect.poll(() => window.evaluate(() => innerWidth)).toBe(width);
         await expect(window.getByLabel('Role name', { exact: true })).toBeVisible();
         expect(
           await window

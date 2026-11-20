@@ -96,15 +96,17 @@ export function RoleDetailsEditor({
   const access = myAccess(detail, userId);
   const grantable = (flag: number) => access.isAdministrator || has(access.permissions, flag);
   const remoteKey = JSON.stringify(role);
-  const acceptedRemote = useRef(remoteKey);
-  useEffect(() => {
-    if (!dirty && !saving && acceptedRemote.current !== remoteKey) {
-      setSaved(role);
-      setDraft(draftOf(role));
-      acceptedRemote.current = remoteKey;
-      setConflicted(false);
-    }
-  }, [remoteKey, dirty, saving]);
+  const [acceptedRemote, setAcceptedRemote] = useState(remoteKey);
+  // A newer version of an untouched role is taken in while rendering, not in
+  // an effect: the fields unlock when a save ends in the same render that the
+  // refreshed role arrives, and anything typed after that must land on the
+  // new version rather than be replaced by it a moment later.
+  if (!dirty && !saving && acceptedRemote !== remoteKey) {
+    setSaved(role);
+    setDraft(draftOf(role));
+    setAcceptedRemote(remoteKey);
+    setConflicted(false);
+  }
   useEffect(() => {
     onDirtyChange(dirty);
   }, [dirty, onDirtyChange]);
@@ -167,7 +169,7 @@ export function RoleDetailsEditor({
   const reset = () => {
     setSaved(role);
     setDraft(draftOf(role));
-    acceptedRemote.current = remoteKey;
+    setAcceptedRemote(remoteKey);
     setError('');
     setStatus('');
     setConflicted(false);
@@ -186,7 +188,7 @@ export function RoleDetailsEditor({
     }
     setSaved(role);
     setDraft(next);
-    acceptedRemote.current = remoteKey;
+    setAcceptedRemote(remoteKey);
     setConflicted(false);
     setError('');
   }

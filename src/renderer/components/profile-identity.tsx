@@ -142,7 +142,11 @@ export function ProfileBanner({
 
   return (
     <div
-      className={cn('profile-banner relative overflow-hidden', !theme && !url && 'bg-secondary/70', className)}
+      className={cn(
+        'profile-banner relative overflow-hidden',
+        !theme && !url && 'bg-secondary/70',
+        className,
+      )}
       style={{ ...style, ...(url ? {} : { background: themeGradient(theme) }) }}
       data-banner={url ? 'picture' : theme ? 'theme' : 'plain'}
       aria-hidden="true"

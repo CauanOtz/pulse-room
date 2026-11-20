@@ -258,6 +258,13 @@ test('uploads media, inserts emojis, reacts, browses shared tabs and removes att
     ).toHaveCount(4);
     await message.hover();
     await message.getByRole('button', { name: 'Delete message from Owner' }).click();
+    // Deleting asks first, with the message quoted.
+    const asking = window.getByRole('dialog', { name: 'Delete this message?' });
+    await expect(asking).toContainText('A studio take and a moodboard.');
+    await window.waitForTimeout(500);
+    await window.screenshot({ path: 'test-results/rich-chat-delete.png' });
+    await asking.getByRole('button', { name: 'Delete message', exact: true }).click();
+    await expect(asking).toHaveCount(0);
     await expect(message).toHaveCount(0);
     await expect(
       window.getByRole('complementary', { name: 'Media', exact: true }).getByText('No media yet'),

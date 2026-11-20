@@ -69,6 +69,10 @@ export function RoleEditor({
   const [error, setError] = useState('');
   const [status, setStatus] = useState('');
   const [dragging, setDragging] = useState<string>();
+  // The row being dragged, readable the moment the drag starts. The first
+  // dragover can arrive before React has drawn the drag, and a row that does
+  // not accept it then never receives the drop.
+  const dragged = useRef<string | undefined>(undefined);
   const [dropTarget, setDropTarget] = useState<string>();
   const [confirmation, setConfirmation] = useState<Confirmation>();
   const [confirmBusy, setConfirmBusy] = useState(false);
@@ -310,14 +314,17 @@ export function RoleEditor({
                       }
                       event.dataTransfer.setData('text/plain', role.id);
                       event.dataTransfer.effectAllowed = 'move';
+                      dragged.current = role.id;
                       setDragging(role.id);
                     }}
                     onDragEnd={() => {
+                      dragged.current = undefined;
                       setDragging(undefined);
                       setDropTarget(undefined);
                     }}
                     onDragOver={(event) => {
-                      if (draggable && dragging && dragging !== role.id) {
+                      const source = dragged.current;
+                      if (draggable && source && source !== role.id) {
                         event.preventDefault();
                         setDropTarget(role.id);
                       }
@@ -325,9 +332,11 @@ export function RoleEditor({
                     onDragLeave={() => setDropTarget(undefined)}
                     onDrop={(event) => {
                       event.preventDefault();
-                      if (!draggable || !dragging || dragging === role.id) return;
-                      const ids = removable.map((entry) => entry.id).filter((id) => id !== dragging);
-                      ids.splice(ids.indexOf(role.id), 0, dragging);
+                      const source = dragged.current;
+                      if (!draggable || !source || source === role.id) return;
+                      const ids = removable.map((entry) => entry.id).filter((id) => id !== source);
+                      ids.splice(ids.indexOf(role.id), 0, source);
+                      dragged.current = undefined;
                       setDragging(undefined);
                       setDropTarget(undefined);
                       reorder(ids);
