@@ -54,6 +54,12 @@ export interface ProcessedMicrophoneTrack {
   processed: boolean;
   /** Retunes the live graph, so a settings change never interrupts the call. */
   apply(options: MicrophoneOptions): void;
+  /**
+   * Takes this client's own network out of the chain, for when the voice
+   * server runs a better one on the published track. Two filters in a row
+   * each take a little of the voice with the noise.
+   */
+  dropOwnIsolation(): void;
   dispose(): Promise<void>;
 }
 
@@ -120,13 +126,18 @@ export class MicrophoneTrackFactory {
 
     // The network goes before the gate, so the gate judges a voice with the
     // room already taken out of it.
+    let ownIsolation = isolation;
     const cleaned: AudioNode = isolation
       ? highPass.connect(isolation).connect(mono(context.createGain(), 'discrete'))
       : highPass;
     source.connect(highPass);
+    // Where the cleaned voice goes next: the gate, or the plain gain without it.
+    let next: AudioNode | undefined;
     if (gate) {
+      next = gate;
       cleaned.connect(gate).connect(output);
     } else if (fallbackGain && fallbackLimiter) {
+      next = fallbackGain;
       fallbackGain.gain.value = this.boundedGain(options.gain);
       fallbackLimiter.threshold.value = -3;
       fallbackLimiter.knee.value = 3;
@@ -150,13 +161,24 @@ export class MicrophoneTrackFactory {
       gate?.parameters.get('enabled')?.setValueAtTime(next.noiseSuppression ? 1 : 0, context.currentTime);
     };
 
+    const dropOwnIsolation = () => {
+      if (!ownIsolation || !next) return;
+      // The high pass feeds the gate directly, and the network, with nothing
+      // left to read, is shut down rather than left running on silence.
+      highPass.connect(next);
+      highPass.disconnect(ownIsolation);
+      ownIsolation.destroy();
+      ownIsolation = undefined;
+    };
+
     return {
       track: processedTrack,
       processed: true,
       apply,
+      dropOwnIsolation,
       dispose: async () => {
         if (gate) gate.port.onmessage = null;
-        isolation?.destroy();
+        ownIsolation?.destroy();
         // A graph that is going away is not talking, whatever it said last.
         onSpeaking?.(false);
         inputStream.getTracks().forEach((track) => track.stop());
@@ -196,6 +218,7 @@ export class MicrophoneTrackFactory {
       track,
       processed: false,
       apply: () => undefined,
+      dropOwnIsolation: () => undefined,
       dispose: async () => {
         inputStream.getTracks().forEach((each) => each.stop());
       },

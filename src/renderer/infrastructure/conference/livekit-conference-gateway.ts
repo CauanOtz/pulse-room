@@ -3,6 +3,7 @@ import {
   LocalVideoTrack,
   Room,
   RoomEvent,
+  TrackEvent,
   Track,
   type LocalTrackPublication,
   type Participant as LiveKitParticipant,
@@ -27,6 +28,7 @@ import { ObservableConference } from './observable-conference';
 import { createDisplayMediaOptions } from '../media/display-media-options';
 import { ParticipantStreamRegistry } from '../media/participant-stream-registry';
 import { MicrophoneTrackFactory, type ProcessedMicrophoneTrack } from '../media/microphone-track-factory';
+import { createKrispFilter, runsOnLiveKitCloud } from '../media/krisp-noise-filter';
 import { updateScreenShareTrack } from '../media/screen-share-quality';
 import { reuseParticipants } from './snapshot-diff';
 import { accountOf, ListeningLevels } from '../persistence/listening-levels';
@@ -132,6 +134,8 @@ export class LiveKitConferenceGateway extends ObservableConference {
   // How much of a voice this machine is willing to hold back before playing it.
   private voiceDelay: VoiceDelayName = 'lowest';
   private microphoneOptions?: MicrophoneOptions;
+  // The voice server of the call in progress, which decides whether Krisp can run.
+  private serverUrl?: string;
   private generation = 0;
   private joinAbort?: AbortController;
 
@@ -206,6 +210,7 @@ export class LiveKitConferenceGateway extends ObservableConference {
       const credentials = await this.takeToken(command, this.joinAbort.signal);
       if (generation !== this.generation) throw new Error('Call was cancelled.');
       await this.room.connect(credentials.serverUrl, credentials.token);
+      this.serverUrl = credentials.serverUrl;
       if (generation !== this.generation) {
         await this.room.disconnect();
         throw new Error('Call was cancelled.');
@@ -288,6 +293,7 @@ export class LiveKitConferenceGateway extends ObservableConference {
       this.microphonePublication = publication;
       this.microphoneOptions = options;
       this.update({ microphoneEnabled: true, error: undefined });
+      if (options.voiceIsolation) void this.useKrisp(publication, processed);
     } catch (error) {
       // Reporting an open microphone that never published would leave the
       // speaker believing the room can hear them.
@@ -301,6 +307,33 @@ export class LiveKitConferenceGateway extends ObservableConference {
     }
 
     this.refreshParticipants();
+  }
+
+  /**
+   * Krisp on the published microphone, where the voice server allows it: the
+   * filter Discord uses, and far better at a fan or a keyboard than the small
+   * network this client carries. Krisp only starts filtering once the cloud
+   * has confirmed the project may use it, so that network stays on until the
+   * track says Krisp is running, and stays on for good if it never does.
+   */
+  private async useKrisp(publication: LocalTrackPublication, processed: ProcessedMicrophoneTrack): Promise<void> {
+    if (!runsOnLiveKitCloud(this.serverUrl)) return;
+    const track = publication.track;
+    if (!(track instanceof LocalAudioTrack)) return;
+    try {
+      const filter = await createKrispFilter();
+      if (!filter || this.microphonePublication !== publication) return;
+      const handOver = () => {
+        if (!track.enhancedNoiseCancellation || this.microphonePublication !== publication) return;
+        track.off(TrackEvent.AudioTrackFeatureUpdate, handOver);
+        processed.dropOwnIsolation();
+      };
+      track.on(TrackEvent.AudioTrackFeatureUpdate, handOver);
+      await track.setProcessor(filter);
+      handOver();
+    } catch (error) {
+      console.warn('Krisp could not start; the built-in voice isolation stays on.', error);
+    }
   }
 
   /**

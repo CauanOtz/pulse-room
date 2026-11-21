@@ -259,7 +259,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
                     />
                     <Toggle
                       label="Voice isolation"
-                      detail="A small neural network (RNNoise) removes keyboards, fans and voices in the room, the way Krisp does. It replaces the browser filter while it is on."
+                      detail="Krisp, the filter Discord uses, removes fans, keyboards and voices in the room before anyone hears them. Where the voice server cannot run it, a smaller network (RNNoise) does the job. It replaces the browser filter while it is on."
                       checked={settings.voiceIsolation}
                       onChange={(voiceIsolation) => setSettings({ ...settings, voiceIsolation })}
                     />

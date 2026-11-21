@@ -24,7 +24,11 @@ test('runs the microphone through the noise gate when joining', async () => {
       // Settings survive between launches, so start from the shipped defaults.
       localStorage.removeItem('pulse-room:settings:v1');
 
-      const store = { modules: [] as string[], failures: [] as string[], nodes: [] as AudioWorkletNode[] };
+      const store = {
+        modules: [] as string[],
+        failures: [] as string[],
+        nodes: [] as { name: string; node: AudioWorkletNode }[],
+      };
       (window as any).gateProbe = store;
 
       const originalAddModule = AudioWorklet.prototype.addModule;
@@ -42,7 +46,7 @@ test('runs the microphone through the noise gate when joining', async () => {
       window.AudioWorkletNode = class extends OriginalNode {
         constructor(context: BaseAudioContext, name: string, options?: AudioWorkletNodeOptions) {
           super(context, name, options);
-          store.nodes.push(this);
+          store.nodes.push({ name, node: this });
         }
       } as typeof AudioWorkletNode;
     });
@@ -58,21 +62,21 @@ test('runs the microphone through the noise gate when joining', async () => {
       .poll(async () =>
         window.evaluate(() => {
           const store = (window as any).gateProbe;
+          const gate = store.nodes.find((each: { name: string }) => each.name === 'noise-gate')?.node;
           return {
-            module: String(store.modules[0] ?? '')
-              .split('/')
-              .pop(),
+            modules: store.modules.map((url: string) => url.split('/').pop()),
             failures: store.failures,
-            nodes: store.nodes.length,
-            threshold: store.nodes[0]?.parameters.get('threshold')?.value,
-            enabled: store.nodes[0]?.parameters.get('enabled')?.value,
+            // Voice isolation is on by default, so the network sits in front of the gate.
+            nodes: store.nodes.map((each: { name: string }) => each.name),
+            threshold: gate?.parameters.get('threshold')?.value,
+            enabled: gate?.parameters.get('enabled')?.value,
           };
         }),
       )
       .toEqual({
-        module: expect.stringMatching(/^noise-gate-processor.*\.js$/),
+        modules: expect.arrayContaining([expect.stringMatching(/^noise-gate-processor.*\.js$/)]),
         failures: [],
-        nodes: 1,
+        nodes: ['@sapphi-red/web-noise-suppressor/rnnoise', 'noise-gate'],
         // The default noise gate strength of 60 is -50 dBFS.
         threshold: -50,
         enabled: 1,
