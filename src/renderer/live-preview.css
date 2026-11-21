@@ -322,9 +322,20 @@
   min-height: 28px;
   padding: 5px 8px;
 }
-.voice-surface-compact .live-workspace .live-action span,
-.voice-surface-compact .live-workspace .live-volume {
+/* With the conversation below, the live keeps its volume, just slimmer. */
+.voice-surface-compact .live-workspace .live-action span {
   display: none;
+}
+.voice-surface-compact .stage-live.live-workspace .live-volume {
+  height: 1.75rem;
+  gap: 0.5rem !important;
+  padding: 0 0.625rem 0 0.5rem;
+}
+.voice-surface-compact .stage-live.live-workspace .live-volume input[type='range'] {
+  width: 5rem;
+}
+.voice-surface-compact .stage-live.live-workspace .live-volume > span {
+  min-width: 2.25rem;
 }
 .voice-surface-compact .stage-live .live-player-footer {
   display: flex;
@@ -626,61 +637,6 @@
 }
 .voice-surface-compact .voice-room-people .voice-secondary .tile-avatar {
   font-size: 12px;
-}
-.voice-surface-compact .room-broadcasts {
-  max-width: 370px;
-}
-.voice-surface-compact .room-broadcasts > header {
-  display: none;
-}
-.voice-surface-compact .broadcast-preview {
-  max-height: 115px;
-}
-.voice-surface-compact .broadcast-footer {
-  min-height: 48px;
-  padding: 7px 10px;
-  gap: 8px;
-}
-.voice-surface-compact .broadcast-owner-avatar {
-  width: 25px;
-  height: 25px;
-  font-size: 9px;
-}
-.voice-surface-compact .broadcast-owner small {
-  display: none;
-}
-.voice-surface-compact .broadcast-cta {
-  min-height: 29px;
-  padding: 5px 8px;
-  font-size: 10px;
-}
-.voice-surface-compact .broadcast-placeholder {
-  padding: 30px 10px 10px;
-  gap: 6px;
-  font-size: 10px;
-}
-.voice-surface-compact .broadcast-placeholder-avatar {
-  width: 30px;
-  height: 30px;
-  font-size: 11px;
-}
-.voice-surface-compact .broadcast-flags {
-  top: 8px;
-  left: 8px;
-}
-.voice-surface-compact .broadcast-live,
-.voice-surface-compact .broadcast-watching {
-  min-height: 21px;
-  padding: 2px 6px;
-  font-size: 9px;
-}
-@media (max-height: 740px) {
-  .voice-surface-compact .broadcast-preview {
-    max-height: 90px;
-  }
-  .voice-surface-compact .has-broadcasts .voice-secondary .tile-name {
-    display: none;
-  }
 }
 @container voice-room (max-width: 620px) {
   .stage-room .voice-ensemble.has-broadcasts {

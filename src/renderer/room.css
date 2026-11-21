@@ -671,6 +671,13 @@
 .voice-surface-compact .contact-sheet.has-broadcasts .room-broadcasts > header {
   display: none;
 }
+/* A short frame: the face alone, centred above the caption rather than on it. */
+.voice-surface-compact .contact-sheet .broadcast-placeholder {
+  padding-bottom: 3.25rem;
+}
+.voice-surface-compact .contact-sheet .broadcast-placeholder > span:not(.avatar) {
+  display: none;
+}
 .voice-surface-compact .contact-sheet.has-broadcasts .voice-room-heading {
   display: none;
 }
