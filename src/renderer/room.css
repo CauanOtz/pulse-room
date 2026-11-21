@@ -1371,3 +1371,67 @@
 .stage-live .live-stream-navigation p {
   color: var(--text-4);
 }
+
+/* ------------------------------------------------------------ full screen */
+
+/* Full screen is the stage alone, with no frame around it. */
+.stage.is-fullscreen {
+  border-width: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+/* A tooltip left open would hang over the picture after the bars have gone. */
+body:has(.stage.is-fullscreen.is-idle) .pulse-tooltip {
+  opacity: 0 !important;
+}
+/* A live in full screen is the picture and nothing else. The bars float over
+   it and leave with the pointer, on black whichever theme the window is in. */
+.stage-live.live-workspace.is-fullscreen {
+  --ink: 255 255 255;
+  --foreground: #f7f7f8;
+  --muted-foreground: #b6b6bd;
+  --text-1: #f7f7f8;
+  --text-2: #b6b6bd;
+  --text-3: #8a8a92;
+  --text-4: #5c5c63;
+  --primary: #fafafa;
+  --primary-foreground: #000000;
+  --background: #000000;
+  --lift-2: #0c0c0e;
+  --lift-3: #121214;
+  --lift-4: #19191c;
+  --lift-5: #232327;
+  display: block;
+  background: #000;
+  color: var(--foreground);
+}
+.stage-live.live-workspace.is-fullscreen .live-player-body {
+  position: absolute;
+  inset: 0;
+}
+.stage-live.live-workspace.is-fullscreen .live-surface {
+  margin: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.stage-live.live-workspace.is-fullscreen .live-toolbar,
+.stage-live.live-workspace.is-fullscreen .live-player-footer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 3;
+  border: 0;
+}
+.stage-live.live-workspace.is-fullscreen .live-toolbar {
+  top: 0;
+  padding-bottom: 2rem;
+  background: linear-gradient(to bottom, rgb(0 0 0 / 0.75), rgb(0 0 0 / 0));
+}
+.stage-live.live-workspace.is-fullscreen .live-player-footer {
+  bottom: 0;
+  padding-top: 2.5rem;
+  background: linear-gradient(to top, rgb(0 0 0 / 0.8), rgb(0 0 0 / 0));
+}
+.stage-live.live-workspace.is-fullscreen .live-action {
+  background: rgb(0 0 0 / 0.35);
+}

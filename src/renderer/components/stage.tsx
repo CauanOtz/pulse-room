@@ -228,7 +228,10 @@ export function Stage({
   if (!active || !picture) {
     return (
       <section
-        className="stage stage-room relative flex size-full flex-col overflow-hidden rounded-xl border border-border bg-stage shadow-[var(--gloss)]"
+        className={cn(
+          'stage stage-room relative flex size-full flex-col overflow-hidden rounded-xl border border-border bg-stage shadow-[var(--gloss)]',
+          fullScreen && 'is-fullscreen',
+        )}
         ref={stageRef}
       >
         <div className="voice-session-meta">
@@ -283,6 +286,7 @@ export function Stage({
         broadcasts.length > 1 && !mosaic && 'has-stream-navigation',
         !railOpen && 'is-rail-closed',
         mosaic && 'is-mosaic',
+        fullScreen && 'is-fullscreen',
         !controlsVisible && 'is-idle cursor-none',
       )}
       ref={stageRef}
