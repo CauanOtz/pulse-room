@@ -393,23 +393,22 @@ export function SettingsDialog(props: SettingsDialogProps) {
                       </strong>
                       <span className="text-[11px] text-muted-foreground">{updateCopy}</span>
                     </div>
-                    {props.updateStatus.state === 'downloaded' ? (
+                    {props.updateStatus.state === 'downloaded' ||
+                    props.updateStatus.state === 'available' ||
+                    props.updateStatus.state === 'downloading' ? (
                       <button
                         className="inline-flex h-8 shrink-0 items-center justify-center rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
                         type="button"
                         onClick={props.onInstallUpdate}
                       >
-                        Restart and update
+                        {props.updateStatus.state === 'downloaded' ? 'Restart and update' : 'Update now'}
                       </button>
                     ) : (
                       <button
                         className="inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-md border border-border px-3 text-xs font-medium text-foreground transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-50"
                         type="button"
                         onClick={props.onCheckUpdates}
-                        disabled={
-                          props.updateStatus.state === 'checking' ||
-                          props.updateStatus.state === 'downloading'
-                        }
+                        disabled={props.updateStatus.state === 'checking'}
                       >
                         <RefreshCw
                           size={14}

@@ -169,6 +169,8 @@ function registerIpcHandlers(): void {
   });
   ipcMain.handle('updates:check', () => updateService.check());
   ipcMain.handle('updates:install', () => updateService.install());
+  ipcMain.handle('updates:current', () => updateService.current());
+  ipcMain.handle('updates:finished', () => updateService.takeFinished());
   ipcMain.handle('shortcuts:set-global', (event, enabled: boolean) => {
     if (event.sender !== mainWindow?.webContents) throw new Error('Invalid sender');
     return setGlobalShortcuts(Boolean(enabled));

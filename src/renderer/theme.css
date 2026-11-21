@@ -19,6 +19,7 @@
 @import './studio.css';
 @import './members.css';
 @import './controls.css';
+@import './update-screen.css';
 
 @theme {
   --font-sans: 'Schibsted Grotesk Variable', 'Segoe UI', system-ui, sans-serif;

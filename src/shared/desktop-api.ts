@@ -10,9 +10,22 @@ export type UpdateStatus =
   | { state: 'checking' }
   | { state: 'available'; version: string }
   | { state: 'not-available'; version: string }
-  | { state: 'downloading'; percent: number }
+  | {
+      state: 'downloading';
+      percent: number;
+      version?: string;
+      bytesPerSecond?: number;
+      transferred?: number;
+      total?: number;
+    }
   | { state: 'downloaded'; version: string }
   | { state: 'error'; message: string };
+
+/** The update the running version came from, told once after it installs. */
+export interface FinishedUpdate {
+  from: string;
+  to: string;
+}
 
 import type { ShortcutAction } from './shortcuts';
 
@@ -37,6 +50,10 @@ export interface DesktopApi {
   updates: {
     check(): Promise<UpdateStatus>;
     install(): Promise<void>;
+    /** Where the updater stands now, without asking the server again. */
+    current?(): Promise<UpdateStatus>;
+    /** The update this launch finished, once; null on every other launch. */
+    finished?(): Promise<FinishedUpdate | null>;
     onStatus(listener: (status: UpdateStatus) => void): () => void;
   };
 }

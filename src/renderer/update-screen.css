@@ -1,0 +1,254 @@
+/* ---------------------------------------------------------- updating */
+
+/*
+ * The app's own update screen. The window goes to the theme's ground, fine
+ * lines drift behind (React Bits' Line Waves), the title carries a moving
+ * sheen and one hairline fills with the download.
+ */
+.update-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  overflow: hidden;
+  background: var(--background);
+  color: var(--foreground);
+  -webkit-app-region: drag;
+}
+.update-backdrop {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /* Fades out towards the edges in an oval, not a frame. */
+  mask-image: radial-gradient(75% 80% at 50% 50%, #000 35%, transparent 100%);
+}
+/* A pool of the ground colour under the words, so the lines frame them. */
+.update-backdrop::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    34% 30% at 50% 50%,
+    var(--background) 0%,
+    color-mix(in srgb, var(--background) 72%, transparent) 55%,
+    transparent 100%
+  );
+}
+
+.update-card {
+  position: relative;
+  display: flex;
+  width: min(340px, 100%);
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  -webkit-app-region: no-drag;
+}
+
+.update-mark {
+  display: grid;
+  width: 58px;
+  height: 58px;
+  margin-bottom: 26px;
+  place-items: center;
+}
+.update-mark img {
+  width: 58px;
+  height: 58px;
+  border-radius: 16px;
+  box-shadow:
+    0 0 0 1px rgb(var(--ink) / 0.12),
+    0 20px 44px rgb(0 0 0 / 0.4);
+  animation: update-breathe 2.6s var(--ease-out) infinite alternate;
+}
+.update-card[data-phase='finished'] .update-mark img,
+.update-card[data-phase='failed'] .update-mark img {
+  animation: none;
+}
+.update-card[data-phase='failed'] .update-mark img {
+  filter: grayscale(1);
+  opacity: 0.6;
+}
+
+.update-heading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+.update-heading h2 {
+  display: grid;
+  margin: 0;
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 1.2;
+}
+.update-title {
+  display: inline-block;
+}
+.update-version {
+  padding: 2px 9px;
+  border: 1px solid rgb(var(--ink) / 0.14);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--background) 70%, transparent);
+  color: var(--muted-foreground);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+}
+
+/* One hairline, filled from the left. The glint runs along what is done. */
+.update-progress {
+  position: relative;
+  width: 100%;
+  height: 2px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(var(--ink) / 0.1);
+}
+.update-progress-fill {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  background: var(--foreground);
+  box-shadow: 0 0 14px rgb(var(--ink) / 0.6);
+  transform-origin: left center;
+  transition: transform 600ms var(--ease-out);
+}
+.update-card[data-phase='installing'] .update-progress-fill {
+  transition-duration: 1000ms;
+}
+.update-progress-glint {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 35%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--background) 55%, transparent),
+    transparent
+  );
+  animation: update-glint 1.5s linear infinite;
+}
+.update-card[data-phase='finished'] .update-progress-glint,
+.update-card[data-phase='failed'] .update-progress-glint {
+  display: none;
+}
+
+.update-readout {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+  color: var(--muted-foreground);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.update-meta {
+  display: inline-flex;
+  align-items: center;
+}
+.update-meta > span {
+  gap: 7px;
+}
+.update-percent {
+  display: inline-flex;
+  align-items: baseline;
+  color: var(--foreground);
+  font-size: 13px;
+}
+.update-percent-sign {
+  margin-left: 1px;
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+
+/* Digits on drums: each one a strip of 0 to 9 that turns to its figure. */
+.update-number {
+  display: inline-flex;
+}
+.update-drum {
+  display: inline-block;
+  width: 1ch;
+  height: 1.2em;
+  overflow: hidden;
+  line-height: 1.2em;
+  transition:
+    width 400ms var(--ease-out),
+    opacity 300ms var(--ease-out);
+}
+.update-drum[data-blank] {
+  width: 0;
+  opacity: 0;
+}
+.update-drum-strip {
+  display: flex;
+  height: 1000%;
+  flex-direction: column;
+  transition: transform 700ms var(--ease-spring, var(--ease-out));
+  will-change: transform;
+}
+.update-drum-strip > span {
+  height: 10%;
+}
+
+.update-detail {
+  max-width: 290px;
+  margin: 24px 0 0;
+  color: var(--muted-foreground);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+.update-dismiss {
+  margin-top: 18px;
+  padding: 6px 12px;
+  border: 1px solid rgb(var(--ink) / 0.12);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--background) 70%, transparent);
+  color: var(--muted-foreground);
+  font-size: 12px;
+  transition:
+    color var(--motion-fast) var(--ease-out),
+    border-color var(--motion-fast) var(--ease-out),
+    transform var(--motion-fast) var(--ease-out);
+}
+.update-dismiss:hover {
+  border-color: rgb(var(--ink) / 0.3);
+  color: var(--foreground);
+  transform: translateY(-1px);
+}
+.update-dismiss:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+@keyframes update-breathe {
+  to {
+    transform: scale(1.035);
+  }
+}
+@keyframes update-glint {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(300%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .update-mark img,
+  .update-progress-glint {
+    animation: none;
+  }
+  .update-drum-strip {
+    transition: none;
+  }
+}

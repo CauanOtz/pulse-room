@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { AudioLines, Hash, Maximize2, Users, Volume2 } from 'lucide-react';
 import type { UpdateStatus } from '../shared/desktop-api';
+import { updateFlow } from './components/update-screen';
 import { ConferenceController } from './application/conference-controller';
 import { emptyPresence, presenceSounds, type RoomPresence } from './application/room-presence';
 import { voiceChannels, type Participant } from './domain/conference';
@@ -1011,7 +1012,10 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
         onClose={() => setSettingsOpen(false)}
         onSave={handleSettingsSaved}
         onCheckUpdates={() => window.desktop && void window.desktop.updates.check().then(setUpdateStatus)}
-        onInstallUpdate={() => window.desktop && void window.desktop.updates.install()}
+        onInstallUpdate={() => {
+          setSettingsOpen(false);
+          updateFlow.start();
+        }}
       />
     </div>
   );
