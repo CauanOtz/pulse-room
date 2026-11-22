@@ -1429,6 +1429,18 @@ body:has(.stage.is-fullscreen.is-idle) .pulse-tooltip {
   z-index: 3;
   border: 0;
 }
+/* With the list of streams open, the bars float over the picture alone and
+   leave the list beside it to be clicked. They follow it as it folds. */
+.stage-live.live-workspace.is-fullscreen.has-stream-navigation .live-toolbar,
+.stage-live.live-workspace.is-fullscreen.has-stream-navigation .live-player-footer {
+  transition:
+    opacity 200ms var(--ease-out),
+    right 420ms var(--ease-out);
+}
+.stage-live.live-workspace.is-fullscreen.has-stream-navigation:not(.is-rail-closed) .live-toolbar,
+.stage-live.live-workspace.is-fullscreen.has-stream-navigation:not(.is-rail-closed) .live-player-footer {
+  right: 15.5rem;
+}
 .stage-live.live-workspace.is-fullscreen .live-toolbar {
   top: 0;
   padding-bottom: 2rem;
