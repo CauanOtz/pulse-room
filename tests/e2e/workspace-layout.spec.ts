@@ -152,7 +152,9 @@ test('voice and chat share the workspace without losing controls on resize', asy
     expect(
       await window.evaluate(() => {
         const lead = document.querySelector('.is-featured .tile-face')!.getBoundingClientRect();
-        const other = document.querySelector('.voice-secondary .tile-face')!.getBoundingClientRect();
+        const other = document
+          .querySelector('.participant-tile:not(.is-featured) .tile-face')!
+          .getBoundingClientRect();
         const room = document.querySelector('.voice-ensemble')!;
         return (
           Math.abs(lead.top - other.top) < 1 &&

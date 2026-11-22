@@ -89,6 +89,32 @@ describe('Stage', () => {
     expect(document.querySelector('.participant-tile.is-speaking')).toHaveTextContent('Maya');
   });
 
+  it('keeps every face in place when the conversation changes hands', () => {
+    vi.useFakeTimers();
+    try {
+      const room = (speaking: string) => [
+        createParticipant({ id: 'you', name: 'You', isLocal: true, isSpeaking: speaking === 'you' }),
+        createParticipant({ id: 'maya', name: 'Maya', isSpeaking: speaking === 'maya' }),
+        createParticipant({ id: 'babi', name: 'Babi', isSpeaking: speaking === 'babi' }),
+      ];
+      const { rerender } = render(<Watchable participants={room('maya')} />);
+      const before = [...document.querySelectorAll('.participant-tile')];
+      expect(document.querySelector('.participant-tile.is-featured')).toHaveTextContent('Maya');
+      for (const next of ['babi', 'you', 'maya', 'babi']) {
+        rerender(<Watchable participants={room(next)} />);
+        act(() => vi.advanceTimersByTime(800));
+      }
+      expect(document.querySelector('.participant-tile.is-featured')).toHaveTextContent('Babi');
+      // The same elements, in the same order: nothing was built again, so
+      // no picture reloads and no entrance plays a second time.
+      const after = [...document.querySelectorAll('.participant-tile')];
+      expect(after).toHaveLength(3);
+      after.forEach((tile, index) => expect(tile).toBe(before[index]));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('shows nobody a screen they did not ask for', () => {
     const participants = [
       createParticipant({ id: 'you', name: 'You', isLocal: true }),

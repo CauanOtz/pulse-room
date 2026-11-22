@@ -63,20 +63,24 @@ export function ParticipantTiles({
   if (layout === 'spotlight') {
     const featured = participants.find((person) => person.id === featuredId) ?? participants[0];
     const broadcasts = participants.filter((person) => person.isBroadcasting);
-    const secondary = participants.filter((person) => person.id !== featured?.id && !person.isBroadcasting);
+    // Every face lives in one list and the speaker is only marked. Moving the
+    // speaker's tile into a wrapper of its own made React build both tiles
+    // again on every change of speaker: the pictures reloaded and the entrance
+    // played over, so the room blinked whenever the conversation changed hands.
+    const faces = (people: Participant[], avatarOnly = false) => (
+      <div className="voice-secondary" aria-label="Participants">
+        {people.map((person) => tile(person, person.id === featured?.id, avatarOnly))}
+      </div>
+    );
     if (broadcasts.length)
       return (
         <div className="tile-grid voice-ensemble contact-sheet has-broadcasts">
           <div className="voice-room-people">
             {information}
             <div className="sheet-row">
-              <div className="voice-people-focus">
-                {featured && !featured.isBroadcasting && tile(featured, true, true)}
-              </div>
-              {secondary.length > 0 && (
-                <div className="voice-secondary" aria-label="Other participants">
-                  {secondary.map((person) => tile(person, false, true))}
-                </div>
+              {faces(
+                participants.filter((person) => !person.isBroadcasting),
+                true,
               )}
             </div>
           </div>
@@ -103,12 +107,7 @@ export function ParticipantTiles({
     return (
       <div className="tile-grid voice-ensemble contact-sheet" data-count={Math.min(participants.length, 8)}>
         {information}
-        <div className="sheet-row">
-          {featured && tile(featured, true)}
-          <div className="voice-secondary" aria-label="Other participants">
-            {participants.filter((person) => person.id !== featured?.id).map((person) => tile(person))}
-          </div>
-        </div>
+        <div className="sheet-row">{faces(participants)}</div>
       </div>
     );
   }
