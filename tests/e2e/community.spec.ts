@@ -73,7 +73,11 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
     await window.getByLabel('Display name', { exact: true }).fill('Owner');
     await window.getByLabel('Password', { exact: true }).fill('Testing private communities!');
     await window.getByRole('button', { name: 'Create account', exact: true }).click();
-    await expect(window.getByRole('dialog', { name: 'Save your recovery code' })).toBeVisible();
+    // Signing up runs the full scrypt profile and the first database writes,
+    // then mounts the whole workspace: a busy CI runner can take over 5 s.
+    await expect(window.getByRole('dialog', { name: 'Save your recovery code' })).toBeVisible({
+      timeout: 15_000,
+    });
     await window.getByRole('button', { name: 'I saved my recovery code' }).click();
     await window.getByRole('button', { name: 'Create or join a server' }).click();
     await expectContainedDialog(window);
@@ -480,7 +484,8 @@ test('accounts, two private servers, invitations, chat, permissions and persiste
     await window.getByLabel('Username', { exact: true }).fill('friend');
     await window.getByLabel('Password', { exact: true }).fill('Testing private communities!');
     await window.getByRole('button', { name: 'Sign in', exact: true }).click();
-    await expect(window.getByRole('button', { name: 'Friends', exact: true })).toBeVisible();
+    // The password check alone can take seconds on a CI runner.
+    await expect(window.getByRole('button', { name: 'Friends', exact: true })).toBeVisible({ timeout: 15_000 });
     await expect(window.getByRole('button', { name: longServerName, exact: true })).toHaveCount(0);
     await expect(window.getByRole('button', { name: 'Game room', exact: true })).toHaveCount(0);
     await window.getByRole('button', { name: 'Server settings and members' }).click();

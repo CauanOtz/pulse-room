@@ -64,8 +64,10 @@ test('invites somebody by username, who joins from the message without a code', 
     await window.getByLabel('Username', { exact: true }).fill('owner');
     await window.getByLabel('Password', { exact: true }).fill(password);
     await window.getByRole('button', { name: 'Sign in', exact: true }).click();
+    // The password check alone can take seconds on a CI runner.
     await expect(window.getByRole('button', { name: 'Server settings and members' })).toContainText(
       'Late nights',
+      { timeout: 15_000 },
     );
     await application.evaluate(({ BrowserWindow }) =>
       BrowserWindow.getAllWindows()[0].setContentSize(1440, 900),

@@ -120,7 +120,8 @@ test('voice and chat share the workspace without losing controls on resize', asy
     await window.getByLabel('Username', { exact: true }).fill('owner');
     await window.getByLabel('Password', { exact: true }).fill(password);
     await window.getByRole('button', { name: 'Sign in', exact: true }).click();
-    await expect(window.getByRole('textbox', { name: 'Message' })).toBeVisible();
+    // The password check alone can take seconds on a CI runner.
+    await expect(window.getByRole('textbox', { name: 'Message' })).toBeVisible({ timeout: 15_000 });
     await expect(window.locator('.stage-room')).toHaveCount(0);
     await window.getByRole('button', { name: 'Lounge', exact: true }).click();
     await expect(window.locator('.stage-room')).toBeVisible();

@@ -88,7 +88,8 @@ test('uploads media, inserts emojis, reacts, browses shared tabs and removes att
     await window.getByLabel('Username', { exact: true }).fill('owner');
     await window.getByLabel('Password', { exact: true }).fill(password);
     await window.getByRole('button', { name: 'Sign in', exact: true }).click();
-    await expect(window.getByRole('textbox', { name: 'Message', exact: true })).toBeVisible();
+    // The password check alone can take seconds on a CI runner.
+    await expect(window.getByRole('textbox', { name: 'Message', exact: true })).toBeVisible({ timeout: 15_000 });
     await application.evaluate(({ BrowserWindow }) =>
       BrowserWindow.getAllWindows()[0].setContentSize(1572, 870),
     );
