@@ -19,6 +19,10 @@ import { ChatService } from './chat-service.js';
 import { DirectService } from './direct-service.js';
 import { attachmentLimit, attachmentsPerMessage, reactionEmojis } from '../src/shared/chat.js';
 import { TagService, type TagInput } from './tag-service.js';
+import { LiveHub } from './live-hub.js';
+import { StatusTracker } from './status-tracker.js';
+import { publishChanges, watchPresence } from './live-effects.js';
+import { livePath } from '../src/shared/live.js';
 import {
   publishSources,
   VoiceAccessService,
@@ -101,6 +105,8 @@ const publicRoutes = new Set([
   '/api/auth/login',
   '/api/auth/recover',
   '/api/auth/registration',
+  // Signs in with its first message: a browser cannot set headers on a socket.
+  livePath,
 ]);
 
 export async function createServer(
@@ -152,11 +158,47 @@ export async function createServer(
     methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   });
   await server.register(rateLimit, { max: 300, timeWindow: '1 minute' });
+  const live = new LiveHub({
+    authenticate: (token) => accounts.authenticate(token),
+    sessionAlive: async (sessionId) =>
+      (
+        await db.query(
+          `SELECT 1 FROM sessions s JOIN accounts a ON a.id=s.account_id
+          WHERE s.id=$1 AND s.expires_at > now() AND a.suspended_at IS NULL`,
+          [sessionId],
+        )
+      ).rows.length > 0,
+    canRead: async (userId, channelId) => {
+      await communities.channel(userId, channelId);
+    },
+    canWrite: async (userId, channelId) => {
+      const { channel, permissions } = await communities.channel(userId, channelId);
+      if (channel.type !== 'text' || !has(permissions, Permission.SendMessages))
+        throw new HttpError(403, 'You cannot write here.');
+    },
+    peerOf: async (userId, conversationId) => {
+      const {
+        rows: [row],
+      } = await db.query<{ peer: string }>(
+        `SELECT CASE WHEN first_id=$2 THEN second_id ELSE first_id END AS peer
+        FROM direct_conversations WHERE id=$1 AND (first_id=$2 OR second_id=$2)`,
+        [conversationId, userId],
+      );
+      if (!row) throw new HttpError(404, 'Conversation not found.');
+      return row.peer;
+    },
+  });
+  await live.register(server);
+  const status = new StatusTracker(live, db);
+  live.onAccountChange = (accountId) => status.changed(accountId);
+  server.addHook('onListen', async () => status.start());
+  server.addHook('onClose', async () => status.stop());
   server.addHook('onRequest', async (request, reply) => {
     reply.header('Cache-Control', 'no-store');
     if (request.method === 'OPTIONS' || publicRoutes.has(request.routeOptions.url ?? '')) return;
     const account = await accounts.authenticate(request.headers.authorization?.replace(/^Bearer /, ''));
     authenticated.set(request, account);
+    status.seen(account.id);
     await accounts.touch(
       account.sessionId,
       clientVersion(request.headers['x-pulse-client'], request.headers['user-agent']),
@@ -174,6 +216,8 @@ export async function createServer(
     request.log.error({ code: (error as { code?: string }).code }, 'Request failed');
     return reply.code(503).send({ error: 'Service unavailable. Please try again.' });
   });
+  publishChanges(server, live, db, (request) => authenticated.get(request));
+  watchPresence(server, live, db, presenceSource);
   const authLimit = { rateLimit: { max: 10, timeWindow: '1 minute' } };
   /** Pushes a change of who may speak or hear into the calls now, not at the next sweep. */
   const enforce = () =>
@@ -266,9 +310,13 @@ export async function createServer(
         .parse(request.body).code,
     ),
   );
-  server.get('/api/servers/:serverId', async (request) =>
-    communities.detail(actor(request).id, id(request, 'serverId')),
-  );
+  server.get('/api/servers/:serverId', async (request) => {
+    const detail = await communities.detail(actor(request).id, id(request, 'serverId'));
+    return {
+      ...detail,
+      members: detail.members.map((member) => ({ ...member, online: status.isOnline(member.id) })),
+    };
+  });
   server.patch('/api/servers/:serverId', async (request) => {
     const imageId = z
       .string()
@@ -547,7 +595,12 @@ export async function createServer(
   });
 
   // ------------------------------------------------------ direct messages
-  server.get('/api/directs', async (request) => ({ conversations: await directs.list(actor(request).id) }));
+  server.get('/api/directs', async (request) => ({
+    conversations: (await directs.list(actor(request).id)).map((conversation) => ({
+      ...conversation,
+      peer: { ...conversation.peer, online: status.isOnline(conversation.peer.id) },
+    })),
+  }));
   server.post(
     '/api/directs',
     { config: { rateLimit: { max: 30, timeWindow: '10 minutes' } } },

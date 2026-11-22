@@ -1,0 +1,135 @@
+/* Somebody typing, floated just above the composer's field. It takes no room
+   of its own, so the conversation never jumps when it comes and goes. */
+.typing-line {
+  position: absolute;
+  left: 44px;
+  right: 24px;
+  bottom: calc(100% - 2px);
+  height: 18px;
+  pointer-events: none;
+  z-index: 2;
+}
+.typing-line-body {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 100%;
+  height: 18px;
+  padding: 0 8px 0 6px;
+  border-radius: 999px;
+  background: var(--background);
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: 0.005em;
+  color: var(--text-3);
+  white-space: nowrap;
+}
+.typing-line-body > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.typing-line-body strong {
+  font-weight: 600;
+  color: var(--text-1);
+}
+.typing-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 2.5px;
+  flex: none;
+}
+.typing-dots i {
+  width: 3.5px;
+  height: 3.5px;
+  border-radius: 999px;
+  background: var(--text-1);
+  animation: typing-dot 1.2s var(--ease-in-out) infinite;
+}
+.typing-dots i:nth-child(2) {
+  animation-delay: 0.16s;
+}
+.typing-dots i:nth-child(3) {
+  animation-delay: 0.32s;
+}
+@keyframes typing-dot {
+  0%,
+  60%,
+  100% {
+    opacity: 0.28;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-2.5px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .typing-dots i {
+    animation: none;
+    opacity: 0.7;
+  }
+}
+
+/* Here or away. Being in a call has its own glowing dot; this one is quieter:
+   a solid dot for here, an empty ring for away, and the whole row dims. */
+.member-sidebar .member-status {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 0.75rem;
+  height: 0.75rem;
+  border: 2.5px solid var(--sidebar);
+  border-radius: 50%;
+  transition:
+    background-color 240ms var(--ease-out),
+    box-shadow 240ms var(--ease-out);
+}
+.member-sidebar .member-status.is-online {
+  background: var(--success);
+}
+.member-sidebar .member-status.is-offline {
+  background: var(--sidebar);
+  box-shadow: inset 0 0 0 1.5px var(--text-3);
+}
+.member-sidebar .member-entry[data-offline] .member-avatar-wrap > :not(.member-status) {
+  opacity: 0.42;
+  filter: grayscale(1);
+  transition:
+    opacity 240ms var(--ease-out),
+    filter 240ms var(--ease-out);
+}
+.member-sidebar .member-entry[data-offline] .member-name,
+.member-sidebar .member-entry[data-offline] .member-activity {
+  color: var(--text-3);
+}
+.member-sidebar .member-entry[data-offline]:hover .member-avatar-wrap > :not(.member-status) {
+  opacity: 0.7;
+}
+
+/* The same mark beside a conversation, ringed in whatever lies behind it. */
+.status-dot {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
+  border: 2.5px solid var(--status-ring, var(--background));
+  pointer-events: none;
+  transition:
+    background-color 240ms var(--ease-out),
+    box-shadow 240ms var(--ease-out);
+}
+.status-dot.is-online {
+  background: var(--success);
+}
+.status-dot.is-offline {
+  background: var(--status-ring, var(--background));
+  box-shadow: inset 0 0 0 1.5px var(--text-3);
+}
+.direct-row-face {
+  position: relative;
+  display: flex;
+  flex: none;
+  --status-ring: var(--sidebar);
+}

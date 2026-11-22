@@ -14,7 +14,10 @@ import { accountOf } from '../domain/roster';
 
 type Position = { x: number; y: number };
 
-/** Voice presence is real; absence from a call does not claim somebody is offline. */
+/**
+ * Voice presence is real, and so is being here at all when the service says
+ * so. A service that does not say leaves the dot off rather than guessing.
+ */
 export function MemberSidebar({
   members,
   roles,
@@ -144,6 +147,7 @@ export function MemberSidebar({
                       key={member.id}
                       data-hover-scope
                       data-speaking={speaking || undefined}
+                      data-offline={(!inVoice && member.online === false) || undefined}
                     >
                       <button
                         className="member-identity"
@@ -158,12 +162,18 @@ export function MemberSidebar({
                             name={member.displayName}
                             imageId={member.avatarId}
                           />
-                          {inVoice && (
+                          {inVoice ? (
                             <span
                               className={`member-presence ${muted ? 'is-muted' : ''}`}
                               aria-label="In a voice channel"
                             />
-                          )}
+                          ) : member.online !== undefined ? (
+                            <span
+                              className={`member-status ${member.online ? 'is-online' : 'is-offline'}`}
+                              role="img"
+                              aria-label={member.online ? 'Online' : 'Offline'}
+                            />
+                          ) : null}
                         </span>
                         <span className="member-identity-copy">
                           <span className="member-name-line">

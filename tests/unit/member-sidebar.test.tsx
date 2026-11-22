@@ -38,6 +38,16 @@ describe('groupMembers', () => {
     expect(groups.map((group) => group.label)).toEqual(['Owner']);
   });
 
+  it('puts the people who are away last, whatever their role, when the service says who is here', () => {
+    const away = people.map((one) => ({ ...one, online: one.id !== '1' && one.id !== '4' ? false : true }));
+    const groups = groupMembers(away, new Set(['4']));
+    expect(groups.map((group) => [group.label, group.members.map((one) => one.displayName)])).toEqual([
+      ['In voice', ['babi']],
+      ['Owner', ['merge']],
+      ['Offline', ['Allan', 'castiel']],
+    ]);
+  });
+
   it('sorts names the way they are read, not by their case', () => {
     const names = groupMembers(people, new Set())
       .flatMap((group) => group.members)
@@ -83,5 +93,20 @@ describe('MemberSidebar', () => {
     expect(within(list).getByText('babi')).toBeInTheDocument();
     expect(within(list).getByText('(you)')).toBeInTheDocument();
     expect(within(list).getAllByLabelText('In a voice channel')).toHaveLength(1);
+    // A service that does not say who is here gets no dot at all.
+    expect(within(list).queryByRole('img', { name: /Online|Offline/ })).toBeNull();
+  });
+  it('marks who is here and who is away, and dims the people away', () => {
+    const known = people.map((one) => ({ ...one, online: one.id === '1' }));
+    render(
+      <TooltipProvider>
+        <MemberSidebar members={known} userId="1" voiceIds={new Set()} />
+      </TooltipProvider>,
+    );
+    const list = screen.getByRole('complementary', { name: 'Members' });
+    expect(within(list).getByText('Offline — 3')).toBeInTheDocument();
+    expect(within(list).getAllByRole('img', { name: 'Online' })).toHaveLength(1);
+    expect(within(list).getAllByRole('img', { name: 'Offline' })).toHaveLength(3);
+    expect(list.querySelectorAll('.member-entry[data-offline]')).toHaveLength(3);
   });
 });

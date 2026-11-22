@@ -19,6 +19,8 @@ import { ConfirmDialog } from './confirm-dialog';
 import { ChatAttachment } from './chat-attachment';
 import { PendingAttachment } from './pending-attachment';
 import { MessageContent } from './message-content';
+import { TypingLine } from './typing-line';
+import { paced, poll, useLive, useLiveSignals, useTypists, type Poller } from '../infrastructure/live-context';
 
 /** One click away under every message; the picker has the rest. */
 const quickReactions = ['👍', '❤️', '😂'];
@@ -100,32 +102,37 @@ export function TextChat({
   const historyElement = useRef<HTMLDivElement>(null);
   const scrollToEnd = useRef(true);
   const base = `/api/channels/${channel.id}/messages`;
+  // The server says when this channel changes; the timer is for when it cannot.
+  const live = useLive();
+  const reader = useRef<Poller>(undefined);
   useEffect(() => {
-    const abort = new AbortController();
-    let timer: ReturnType<typeof setTimeout>;
-    const read = async () => {
+    const poller = poll(async (signal) => {
       try {
-        const result = await api.request<{ messages: ChatMessage[] }>(base, 'GET', undefined, abort.signal);
-        if (!abort.signal.aborted) {
+        const result = await api.request<{ messages: ChatMessage[] }>(base, 'GET', undefined, signal);
+        if (!signal.aborted) {
           setLatest(result.messages);
           setLoadError('');
         }
       } catch (e) {
-        if (!abort.signal.aborted) {
+        if (!signal.aborted) {
           setLoadError(e instanceof Error ? e.message : 'Chat is unavailable.');
           setLatest([]);
           setHistory([]);
         }
-      } finally {
-        if (!abort.signal.aborted) timer = setTimeout(() => void read(), 3000);
       }
-    };
-    void read();
+    }, paced(live, 3_000));
+    reader.current = poller;
     return () => {
-      abort.abort();
-      clearTimeout(timer);
+      reader.current = undefined;
+      poller.stop();
     };
-  }, [api, base]);
+  }, [api, base, live]);
+  useEffect(() => live?.watch(channel.id), [live, channel.id]);
+  useLiveSignals((signal) => {
+    if (signal.type === 'sync' || (signal.type === 'channel' && signal.channelId === channel.id))
+      reader.current?.kick();
+  });
+  const typists = useTypists({ channelId: channel.id });
   useEffect(() => {
     if (scrollToEnd.current) bottom.current?.scrollIntoView({ block: 'end' });
   }, [messages]);
@@ -164,6 +171,7 @@ export function TextChat({
       });
       setDraft('');
       setFiles([]);
+      live?.stoppedTyping({ channelId: channel.id });
       onChanged?.();
       const result = await api.request<{ messages: ChatMessage[] }>(base);
       setLatest(result.messages);
@@ -545,12 +553,13 @@ export function TextChat({
       <form
         // Keep the composer level with the profile controls while its field
         // floats inside the conversation.
-        className="chat-composer border-t border-border px-5 py-2.5"
+        className="chat-composer relative border-t border-border px-5 py-2.5"
         onSubmit={(e) => {
           e.preventDefault();
           void send();
         }}
       >
+        <TypingLine typists={typists} />
         {!!files.length && (
           <div className="pending-attachments">
             {files.map((pending) => (
@@ -611,7 +620,10 @@ export function TextChat({
               disabled={!canSend || busy}
               maxLength={2000}
               value={draft}
-              onChange={(e) => setDraft(e.target.value)}
+              onChange={(e) => {
+                setDraft(e.target.value);
+                if (e.target.value.trim()) live?.typing({ channelId: channel.id });
+              }}
               onPaste={(event) => {
                 if (event.clipboardData.files.length) {
                   event.preventDefault();

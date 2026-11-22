@@ -152,14 +152,15 @@ test('role workspace edits identity, permissions, hierarchy and members through 
       await pending.getByRole('button', { name: 'Discard', exact: true }).click();
       await expect(window.getByLabel('Role name', { exact: true })).toHaveValue('Community');
 
-      // A remote edit never replaces the local draft; saving refreshes the conflict.
+      // A remote edit never replaces the local draft. It arrives at once over
+      // the live connection, and saving waits until you choose what to keep.
       await window.getByLabel('Role description', { exact: true }).fill('Local description');
       expect(
         (await backend.inject({ method: 'PATCH', url: endpoint, headers, payload: { hoist: true } }))
           .statusCode,
       ).toBe(200);
-      await pending.getByRole('button', { name: 'Save changes', exact: true }).click();
       await expect(window.getByText('This role changed elsewhere.', { exact: true })).toBeVisible();
+      await expect(pending.getByRole('button', { name: 'Save changes', exact: true })).toBeDisabled();
       await expect(window.getByLabel('Role description', { exact: true })).toHaveValue('Local description');
       await window.getByRole('button', { name: 'Keep my changes', exact: true }).click();
       await pending.getByRole('button', { name: 'Save changes', exact: true }).click();

@@ -169,6 +169,8 @@ export interface CommunityMember extends Account {
    * to the person it concerns, whose client moves itself there.
    */
   moveTo?: string;
+  /** Here right now; absent from a server that does not know. */
+  online?: boolean;
 }
 export interface CommunityChannel {
   id: string;
@@ -274,6 +276,8 @@ export interface DirectPeer {
   username: string;
   displayName: string;
   avatarId?: string | null;
+  /** Here right now; absent from a server that does not know. */
+  online?: boolean;
 }
 
 export interface DirectConversation {

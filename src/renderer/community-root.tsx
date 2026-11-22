@@ -23,6 +23,8 @@ import { ImageCache } from './infrastructure/image-cache';
 import { ImagesProvider } from './components/avatar';
 import { DirectPane, DirectSidebar } from './components/directs/direct-messages';
 import { useDirects, type DirectsState } from './infrastructure/use-directs';
+import { LiveConnection } from './infrastructure/live-connection';
+import { LiveProvider, paced, poll } from './infrastructure/live-context';
 
 /** Direct messages, owned by the root so the list keeps polling anywhere. */
 export interface DirectsBindings extends DirectsState {
@@ -144,22 +146,30 @@ export function CommunityRoot({ apiUrl }: { apiUrl: string }) {
       if (!next) setDetail(undefined);
     }
   };
+  // One socket for the whole signed-in session. It only says what changed;
+  // the reads below fetch it, and fall back to their timers without it.
+  const userId = user?.id;
+  const [live, setLive] = useState<LiveConnection>();
+  useEffect(() => {
+    if (!userId) return undefined;
+    const connection = new LiveConnection(api.url, () => api.token);
+    connection.start();
+    setLive(connection);
+    return () => {
+      connection.stop();
+      setLive(undefined);
+    };
+  }, [api, userId]);
+
   // The list of servers and the room you are in are two different questions, so
   // they are asked separately. Switching rooms then costs one round trip rather
   // than re-reading a list that has not changed.
   useEffect(() => {
-    if (!user) return;
-    const abort = new AbortController();
-    let timer: ReturnType<typeof setTimeout>;
-    const read = async () => {
+    if (!userId) return undefined;
+    const poller = poll(async (signal) => {
       try {
-        const result = await api.request<{ servers: Community[] }>(
-          '/api/servers',
-          'GET',
-          undefined,
-          abort.signal,
-        );
-        if (abort.signal.aborted) return;
+        const result = await api.request<{ servers: Community[] }>('/api/servers', 'GET', undefined, signal);
+        if (signal.aborted) return;
         setServers(result.servers);
         // Only a first choice is made here. A server that disappears is noticed
         // by the read of that server, and a reply sent before you chose
@@ -167,54 +177,60 @@ export function CommunityRoot({ apiUrl }: { apiUrl: string }) {
         setServerId((current) => current || (result.servers[0]?.id ?? ''));
         setError('');
       } catch (e) {
-        if (!abort.signal.aborted) setError(e instanceof Error ? e.message : 'Could not load your servers.');
-      } finally {
-        if (!abort.signal.aborted) timer = setTimeout(() => void read(), 5000);
+        if (!signal.aborted) setError(e instanceof Error ? e.message : 'Could not load your servers.');
       }
-    };
-    void read();
+    }, paced(live, 5_000));
+    const unlisten = live?.listen((event) => {
+      // A server's name or picture lives in the list too.
+      if (event.type === 'sync' || event.type === 'servers' || event.type === 'server') poller.kick();
+    });
     return () => {
-      abort.abort();
-      clearTimeout(timer);
+      unlisten?.();
+      poller.stop();
     };
-  }, [api, user]);
+  }, [api, userId, live]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!userId) return undefined;
     if (!serverId) {
       setDetail(undefined);
-      return;
+      return undefined;
     }
-    const abort = new AbortController();
-    let timer: ReturnType<typeof setTimeout>;
-    const read = async () => {
+    const poller = poll(async (signal) => {
       try {
-        const next = await api.request<CommunityDetail>(
-          `/api/servers/${serverId}`,
-          'GET',
-          undefined,
-          abort.signal,
-        );
-        if (abort.signal.aborted) return;
+        const next = await api.request<CommunityDetail>(`/api/servers/${serverId}`, 'GET', undefined, signal);
+        if (signal.aborted) return;
         setDetail(next);
         setError('');
       } catch (e) {
-        if (abort.signal.aborted) return;
+        if (signal.aborted) return;
         setError(e instanceof Error ? e.message : 'Could not open that server.');
         // Membership can be taken away while the room is open.
         if (e instanceof ApiError && [403, 404].includes(e.status)) leaveServer(serverId);
-      } finally {
-        if (!abort.signal.aborted) timer = setTimeout(() => void read(), 5000);
       }
-    };
-    void read();
+    }, paced(live, 5_000));
+    const unlisten = live?.listen((event) => {
+      if (event.type === 'sync' || (event.type === 'server' && event.serverId === serverId)) poller.kick();
+      // Coming and going is common and small: changed in place, not read again.
+      if (event.type === 'status')
+        setDetail((current) =>
+          current?.members.some((member) => member.id === event.userId && member.online !== event.online)
+            ? {
+                ...current,
+                members: current.members.map((member) =>
+                  member.id === event.userId ? { ...member, online: event.online } : member,
+                ),
+              }
+            : current,
+        );
+    });
     return () => {
-      abort.abort();
-      clearTimeout(timer);
+      unlisten?.();
+      poller.stop();
     };
-  }, [api, user, serverId]);
+  }, [api, userId, serverId, live]);
 
-  const directState = useDirects(api, Boolean(user));
+  const directState = useDirects(api, Boolean(user), live);
   const [directsOpen, setDirectsOpen] = useState(false);
   const [directId, setDirectId] = useState<string>();
   const joinedServerIds = useMemo(() => new Set(servers.map((server) => server.id)), [servers]);
@@ -276,6 +292,7 @@ export function CommunityRoot({ apiUrl }: { apiUrl: string }) {
     );
   if (!user) return <AccountScreen api={api} onAuthenticated={(session) => void authenticated(session)} />;
   return (
+    <LiveProvider value={live}>
     <ImagesProvider images={images}>
       {detail ? (
         <App
@@ -454,5 +471,6 @@ export function CommunityRoot({ apiUrl }: { apiUrl: string }) {
         />
       )}
     </ImagesProvider>
+    </LiveProvider>
   );
 }

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { DirectConversation } from '../../shared/community';
 import { ApiError, type CommunityClient } from './community-client';
+import type { LiveConnection } from './live-connection';
+import { paced, poll } from './live-context';
 
 const pollMs = 6_000;
 
@@ -13,8 +15,8 @@ export interface DirectsState {
   refresh(): Promise<void>;
 }
 
-/** The list of conversations, kept fresh by polling while signed in. */
-export function useDirects(api: CommunityClient, signedIn: boolean): DirectsState {
+/** The list of conversations, read again when the server says it changed. */
+export function useDirects(api: CommunityClient, signedIn: boolean, live?: LiveConnection): DirectsState {
   const [conversations, setConversations] = useState<DirectConversation[]>([]);
   const [supported, setSupported] = useState(true);
 
@@ -34,15 +36,26 @@ export function useDirects(api: CommunityClient, signedIn: boolean): DirectsStat
       setConversations([]);
       return undefined;
     }
-    void refresh();
-    const timer = setInterval(() => void refresh(), pollMs);
-    const wake = () => void refresh();
+    const poller = poll(refresh, paced(live, pollMs));
+    const unlisten = live?.listen((event) => {
+      if (event.type === 'sync' || event.type === 'directs') poller.kick();
+      if (event.type === 'status')
+        setConversations((current) =>
+          current.some((item) => item.peer.id === event.userId && item.peer.online !== event.online)
+            ? current.map((item) =>
+                item.peer.id === event.userId ? { ...item, peer: { ...item.peer, online: event.online } } : item,
+              )
+            : current,
+        );
+    });
+    const wake = () => poller.kick();
     window.addEventListener('focus', wake);
     return () => {
-      clearInterval(timer);
+      unlisten?.();
+      poller.stop();
       window.removeEventListener('focus', wake);
     };
-  }, [refresh, signedIn]);
+  }, [refresh, signedIn, live]);
 
   return {
     conversations,

@@ -24,6 +24,9 @@ import { Avatar } from '../avatar';
 import { cn } from '../ui/utils';
 import { DirectProfileModal } from './direct-profile';
 import { InviteCard } from './invite-card';
+import { TypingLine } from '../typing-line';
+import { StatusDot } from '../status-dot';
+import { paced, poll, useLive, useLiveSignals, useTypists, type Poller } from '../../infrastructure/live-context';
 
 const pollMs = 3_000;
 const clock = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' });
@@ -174,12 +177,15 @@ export function DirectSidebar({
                     transition={{ type: 'spring', stiffness: 520, damping: 42 }}
                   />
                 )}
-                <Avatar
-                  className="direct-row-avatar"
-                  name={conversation.peer.displayName}
-                  initials={initialsOf(conversation.peer.displayName)}
-                  imageId={conversation.peer.avatarId}
-                />
+                <span className="direct-row-face">
+                  <Avatar
+                    className="direct-row-avatar"
+                    name={conversation.peer.displayName}
+                    initials={initialsOf(conversation.peer.displayName)}
+                    imageId={conversation.peer.avatarId}
+                  />
+                  <StatusDot online={conversation.peer.online} />
+                </span>
                 <span className="direct-row-copy">
                   <strong>{conversation.peer.displayName}</strong>
                   <small>{preview(conversation, userId)}</small>
@@ -255,17 +261,31 @@ export function DirectPane({
     }
   }, [api, conversationId]);
 
+  // The server says when this conversation changes; the timer is for when it cannot.
+  const live = useLive();
+  const reader = useRef<Poller>(undefined);
   useEffect(() => {
     setMessages([]);
     setError('');
     setProfileOpen(false);
     lastSeen.current = undefined;
     if (!conversationId) return undefined;
-    void load().catch(() => undefined);
-    const timer = setInterval(() => void load().catch(() => undefined), pollMs);
+    const poller = poll(load, paced(live, pollMs));
+    reader.current = poller;
     field.current?.focus();
-    return () => clearInterval(timer);
-  }, [conversationId, load]);
+    return () => {
+      reader.current = undefined;
+      poller.stop();
+    };
+  }, [conversationId, load, live]);
+  useLiveSignals((signal) => {
+    if (
+      signal.type === 'sync' ||
+      (signal.type === 'directs' && (!signal.conversationId || signal.conversationId === conversationId))
+    )
+      reader.current?.kick();
+  });
+  const typists = useTypists({ conversationId });
 
   useLayoutEffect(() => {
     const element = history.current;
@@ -285,6 +305,7 @@ export function DirectPane({
         { content },
       );
       setDraft('');
+      if (conversationId) live?.stoppedTyping({ conversationId });
       setMessages((current) => [...current, result.message]);
       onChanged();
     } catch (problem) {
@@ -329,6 +350,7 @@ export function DirectPane({
               initials={initialsOf(peer.displayName)}
               imageId={peer.avatarId}
             />
+            <StatusDot online={peer.online} />
             <span className="direct-pane-face-hint" aria-hidden="true">
               <Expand size={12} />
             </span>
@@ -445,9 +467,10 @@ export function DirectPane({
         </p>
       )}
       <form
-        className="chat-composer border-t border-border px-5 py-2.5"
+        className="chat-composer relative border-t border-border px-5 py-2.5"
         onSubmit={(event) => void send(event)}
       >
+        <TypingLine typists={typists} />
         <div className="composer-row mx-auto flex w-full items-center gap-3">
           <div className="composer-field flex min-w-0 flex-1 items-center">
             <textarea
@@ -458,7 +481,10 @@ export function DirectPane({
               placeholder={`Message @${peer.username}`}
               className="min-h-10 max-h-40 w-full flex-1 resize-none border-0 bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none"
               value={draft}
-              onChange={(event) => setDraft(event.target.value)}
+              onChange={(event) => {
+                setDraft(event.target.value);
+                if (event.target.value.trim()) live?.typing({ conversationId: conversation.id });
+              }}
               onKeyDown={(event) => {
                 if (event.key === 'Enter' && !event.shiftKey) {
                   event.preventDefault();

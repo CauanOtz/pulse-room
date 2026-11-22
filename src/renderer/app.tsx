@@ -41,6 +41,7 @@ import { ServerWelcome } from './components/server-welcome';
 import { landingChannel } from './domain/landing-channel';
 import { MemberActionsSection, type VoiceSeat } from './components/member-actions';
 import { keysOf } from '../shared/shortcuts';
+import { paced, poll, useLive, useLiveSignals, type Poller } from './infrastructure/live-context';
 
 const mediaDevicesService = new MediaDevicesService();
 const roomSoundPlayer = new RoomSoundPlayer();
@@ -325,22 +326,35 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
     snapshot.participants,
   ]);
 
-  // Rooms this client did not join can only be seen through the service.
+  // Rooms this client did not join can only be seen through the service,
+  // which says when they change; the timer is for when it cannot.
+  const live = useLive();
+  const presenceServerId = workspace?.detail.server.id;
+  const occupancyReader = useRef<Poller>(undefined);
   useEffect(() => {
     if (!workspace) return undefined;
-    let active = true;
-    const read = () =>
-      void workspace.api
-        .request<{ rooms: ChannelOccupancy[] }>(`/api/presence?serverId=${workspace.detail.server.id}`)
-        .then(({ rooms }) => active && setOccupancy(rooms))
-        .catch(() => active && setOccupancy([]));
-    read();
-    const timer = setInterval(read, 3_000);
+    const poller = poll(
+      (signal) =>
+        workspace.api
+          .request<{ rooms: ChannelOccupancy[] }>(`/api/presence?serverId=${presenceServerId}`, 'GET', undefined, signal)
+          .then(({ rooms }) => {
+            if (!signal.aborted) setOccupancy(rooms);
+          })
+          .catch(() => {
+            if (!signal.aborted) setOccupancy([]);
+          }),
+      paced(live, 3_000, 20_000),
+    );
+    occupancyReader.current = poller;
     return () => {
-      active = false;
-      clearInterval(timer);
+      occupancyReader.current = undefined;
+      poller.stop();
     };
-  }, [snapshot.connectionState, workspace?.api, workspace?.detail.server.id]);
+  }, [snapshot.connectionState, workspace?.api, presenceServerId, live]);
+  useLiveSignals((signal) => {
+    if (signal.type === 'sync' || (signal.type === 'presence' && signal.serverId === presenceServerId))
+      occupancyReader.current?.kick();
+  });
 
   useEffect(() => {
     void mediaDevicesService.list().then(setDevices);

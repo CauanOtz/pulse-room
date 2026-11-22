@@ -19,8 +19,9 @@ const order: { key: MemberRole; label: string }[] = [
  *
  * A service from before roles sends none, and the fixed standings group them.
  *
- * The service reports who is sitting in a voice channel and nothing more, so no
- * group here claims to know who is awake.
+ * People the service reports as away come last, under Offline, whatever their
+ * role. A service that does not say who is here leaves everybody where their
+ * role puts them, rather than calling them away.
  */
 export function groupMembers(
   members: readonly CommunityMember[],
@@ -31,8 +32,10 @@ export function groupMembers(
     a.displayName.localeCompare(b.displayName, undefined, { sensitivity: 'base' }),
   );
   const inVoice = sorted.filter((member) => voiceIds.has(member.id));
-  const rest = sorted.filter((member) => !voiceIds.has(member.id));
+  const away = sorted.filter((member) => !voiceIds.has(member.id) && member.online === false);
+  const rest = sorted.filter((member) => !voiceIds.has(member.id) && member.online !== false);
   const voice = { key: 'voice', label: 'In voice', members: inVoice };
+  const offline = { key: 'offline', label: 'Offline', members: away };
   if (!roles)
     return [
       voice,
@@ -41,6 +44,7 @@ export function groupMembers(
         label,
         members: rest.filter((member) => member.role === key),
       })),
+      offline,
     ].filter((group) => group.members.length > 0);
 
   const hoisted = roles.filter((role) => role.hoist && !role.isDefault).sort((a, b) => b.position - a.position);
@@ -56,5 +60,6 @@ export function groupMembers(
       members: others.filter((member) => shownUnder(member)?.id === role.id),
     })),
     { key: 'member', label: 'Members', members: others.filter((member) => !shownUnder(member)) },
+    offline,
   ].filter((group) => group.members.length > 0);
 }
