@@ -28,17 +28,18 @@ export function isNewer(candidate: string, current: string): boolean {
 const versionOf = (status?: UpdateStatus) =>
   status && 'version' in status && status.state !== 'not-available' ? status.version : undefined;
 
-/**
- * A new version, said in a corner the moment it is known: which one is
- * running, which one is out, and a way to take it now. It can be closed;
- * the download carries on behind it either way, and it comes back for a
- * newer version or on the next launch.
- */
-export function UpdatePrompt({ current = __APP_VERSION__ }: { current?: string }) {
+/** A version newer than this one, on its way or ready, as the updater reports it. */
+export interface PendingUpdate {
+  version: string;
+  /** Downloaded and ready to install. */
+  ready: boolean;
+  /** How much of it has arrived, while it downloads. */
+  progress?: number;
+}
+
+/** Follows the updater: the newer version it found, if any, and how far along it is. */
+export function usePendingUpdate(current: string = __APP_VERSION__): PendingUpdate | undefined {
   const [status, setStatus] = useState<UpdateStatus>();
-  const [dismissed, setDismissed] = useState<string>();
-  const [confirmed, setConfirmed] = useState(false);
-  const flowing = useSyncExternalStore(updateFlow.subscribe, updateFlow.isRequested);
   // A download in progress may not repeat the version it is fetching.
   const known = useRef<string>(undefined);
   const named = versionOf(status);
@@ -54,7 +55,27 @@ export function UpdatePrompt({ current = __APP_VERSION__ }: { current?: string }
   const pending =
     status?.state === 'available' || status?.state === 'downloading' || status?.state === 'downloaded';
   const next = pending ? (named ?? known.current) : undefined;
-  const shown = Boolean(next && isNewer(next, current) && next !== dismissed && !flowing);
+  if (!next || !isNewer(next, current)) return undefined;
+  return {
+    version: next,
+    ready: status?.state === 'downloaded',
+    progress: status?.state === 'downloading' ? Math.max(0, Math.min(100, status.percent)) : undefined,
+  };
+}
+
+/**
+ * A new version, said in a corner the moment it is known: which one is
+ * running, which one is out, and a way to take it now. It can be closed;
+ * the download carries on behind it either way, and it comes back for a
+ * newer version or on the next launch.
+ */
+export function UpdatePrompt({ current = __APP_VERSION__ }: { current?: string }) {
+  const update = usePendingUpdate(current);
+  const [dismissed, setDismissed] = useState<string>();
+  const [confirmed, setConfirmed] = useState(false);
+  const flowing = useSyncExternalStore(updateFlow.subscribe, updateFlow.isRequested);
+  const next = update?.version;
+  const shown = Boolean(next && next !== dismissed && !flowing);
 
   useEffect(() => {
     if (!confirmed) return undefined;
@@ -65,8 +86,8 @@ export function UpdatePrompt({ current = __APP_VERSION__ }: { current?: string }
     return () => clearTimeout(timer);
   }, [confirmed]);
 
-  const progress = status?.state === 'downloading' ? Math.max(0, Math.min(100, status.percent)) : undefined;
-  const ready = status?.state === 'downloaded';
+  const progress = update?.progress;
+  const ready = update?.ready ?? false;
 
   return (
     <AnimatePresence>

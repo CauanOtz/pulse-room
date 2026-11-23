@@ -17,6 +17,8 @@ test('a new version is offered in a notice that can be put off or taken at once'
     configFile: path.resolve('vite.config.mts'),
     cacheDir: path.join(dataDir, 'vite-cache'),
     server: { host: '127.0.0.1', port: 0 },
+    // The demo room, which has the server rail where the quiet indicator lives.
+    define: { 'import.meta.env.VITE_API_URL': JSON.stringify('') },
   });
   await vite.listen();
   const application = await electron.launch({
@@ -56,11 +58,21 @@ test('a new version is offered in a notice that can be put off or taken at once'
     await window.screenshot({ path: 'test-results/update-prompt.png' });
 
     // Closed, it stays closed for that version...
+    // The rail keeps a quiet mark while it downloads, with the download drawn around it.
+    const rail = window.getByRole('navigation', { name: 'Servers' });
+    await expect(rail.getByRole('button', { name: 'Version 9.9.9 is downloading' })).toBeVisible();
     await notice.getByRole('button', { name: 'Close the update notice' }).click();
     await expect(notice).toBeHidden();
     await send({ state: 'downloaded', version: '9.9.9' });
     await window.waitForTimeout(400);
     await expect(notice).toHaveCount(0);
+    // Closed, the notice stays away; the rail still says there is something newer.
+    const indicator = rail.getByRole('button', { name: 'Update to version 9.9.9' });
+    await expect(indicator).toBeVisible();
+    await indicator.hover();
+    await window.waitForTimeout(700);
+    await window.screenshot({ path: 'test-results/update-rail.png' });
+    await window.mouse.move(700, 400);
 
     // ...and comes back for a newer one.
     await send({ state: 'downloaded', version: '9.9.10' });

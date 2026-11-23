@@ -1,10 +1,13 @@
-import { Compass, MessageCircle, Plus, UserRound } from 'lucide-react';
-import { motion } from 'motion/react';
+import { ArrowDownToLine, Compass, MessageCircle, Plus, UserRound } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
 import appIconUrl from '../../../assets/app-icon.png';
 import type { Community } from '../../shared/community';
 import { Avatar } from './avatar';
 import { cn } from './ui/utils';
 import { useNotificationStore } from '../infrastructure/notification-store';
+import { Tooltip } from './ui/tooltip';
+import { usePendingUpdate } from './update-prompt';
+import { updateFlow } from './update-screen';
 
 interface RailItem {
   id: string;
@@ -158,17 +161,20 @@ export function ServerRail({
           <Compass size={17} />
         </button>
       )}
-      {/* Only where there is no profile bar to hold it: the account lives there. */}
-      {onAccount && showAccount && (
-        <button
-          className="server-button account-rail-button mt-auto grid size-9.5 shrink-0 place-items-center rounded-[13px] bg-secondary text-secondary-foreground transition-[border-radius,background-color,color] duration-150 hover:rounded-[10px] hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          title="Your account"
-          aria-label="Your account"
-          onClick={onAccount}
-        >
-          <UserRound size={17} />
-        </button>
-      )}
+      <div className="rail-foot mt-auto flex flex-col items-center gap-1.5">
+        <RailUpdate />
+        {/* Only where there is no profile bar to hold it: the account lives there. */}
+        {onAccount && showAccount && (
+          <button
+            className="server-button account-rail-button grid size-9.5 shrink-0 place-items-center rounded-[13px] bg-secondary text-secondary-foreground transition-[border-radius,background-color,color] duration-150 hover:rounded-[10px] hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            title="Your account"
+            aria-label="Your account"
+            onClick={onAccount}
+          >
+            <UserRound size={17} />
+          </button>
+        )}
+      </div>
     </nav>
   );
 }
@@ -187,5 +193,68 @@ function MentionBadge({ count }: { count: number }) {
     >
       {count > 9 ? '9+' : count}
     </motion.b>
+  );
+}
+
+const ringRadius = 17;
+const ringLength = 2 * Math.PI * ringRadius;
+
+/**
+ * A newer version, kept quietly at the foot of the rail for anybody who
+ * closed the notice or never saw it: an arrow while it downloads, with the
+ * download drawn around it, and a small green light once it is ready.
+ */
+function RailUpdate() {
+  const update = usePendingUpdate();
+  return (
+    <AnimatePresence>
+      {update && (
+        <motion.span
+          key="rail-update"
+          className="rail-update-slot"
+          initial={{ opacity: 0, scale: 0.6, y: 8 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.6 }}
+          transition={{ type: 'spring', stiffness: 520, damping: 26 }}
+        >
+          <Tooltip
+            side="right"
+            label={
+              update.ready
+                ? `Update ready: v${update.version}. Click to install`
+                : `Downloading v${update.version}${update.progress !== undefined ? ` · ${Math.round(update.progress)}%` : ''}`
+            }
+          >
+            <button
+              type="button"
+              className="server-button rail-update"
+              data-ready={update.ready || undefined}
+              aria-label={
+                update.ready
+                  ? `Update to version ${update.version}`
+                  : `Version ${update.version} is downloading`
+              }
+              onClick={() => updateFlow.start()}
+            >
+              {update.progress !== undefined && (
+                <svg className="rail-update-ring" viewBox="0 0 38 38" aria-hidden="true">
+                  <circle cx="19" cy="19" r={ringRadius} />
+                  <circle
+                    className="rail-update-ring-fill"
+                    cx="19"
+                    cy="19"
+                    r={ringRadius}
+                    strokeDasharray={ringLength}
+                    strokeDashoffset={ringLength * (1 - update.progress / 100)}
+                  />
+                </svg>
+              )}
+              <ArrowDownToLine size={16} aria-hidden="true" />
+              {update.ready && <span className="rail-update-light" aria-hidden="true" />}
+            </button>
+          </Tooltip>
+        </motion.span>
+      )}
+    </AnimatePresence>
   );
 }

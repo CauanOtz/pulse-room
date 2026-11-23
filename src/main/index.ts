@@ -20,7 +20,9 @@ import { SessionVault } from './application/session-vault';
 // Screen sharing needs media and display capture; the live stage needs the
 // HTML fullscreen permission that Electron asks for separately.
 const allowedPermissions = new Set(['media', 'display-capture', 'fullscreen']);
-const updateCheckEveryMs = 30 * 60_000;
+const updateCheckEveryMs = 10 * 60_000;
+// Coming back to the window asks again, if the last answer is older than this.
+const updateCheckOnFocusMs = 3 * 60_000;
 const isTest = process.env.NODE_ENV === 'test';
 // Windows names the sender of a notification by this id; the installed app
 // uses the installer's own. A copy run from the project uses another, or the
@@ -77,7 +79,11 @@ function createMainWindow(): BrowserWindow {
   });
 
   window.once('ready-to-show', () => window.show());
-  window.on('focus', () => window.flashFrame(false));
+  window.on('focus', () => {
+    window.flashFrame(false);
+    // A release that came out while somebody was in a game is noticed when they look back.
+    if (app.isPackaged) void updateService.checkIfStale(updateCheckOnFocusMs);
+  });
   window.on('close', (event) => {
     if (quitting) return;
     event.preventDefault();

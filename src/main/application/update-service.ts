@@ -6,6 +6,7 @@ import type { FinishedUpdate, UpdateStatus } from '../../shared/desktop-api';
 
 export class UpdateService {
   private status: UpdateStatus = { state: 'idle' };
+  private checkedAt = 0;
 
   public constructor(private readonly getWindow: () => BrowserWindow | null) {
     autoUpdater.autoDownload = true;
@@ -32,9 +33,16 @@ export class UpdateService {
     const state = this.status.state;
     if (state === 'available' || state === 'downloading' || state === 'downloaded') return this.status;
 
+    this.checkedAt = Date.now();
     this.setStatus({ state: 'checking' });
     await autoUpdater.checkForUpdates();
     return this.status;
+  }
+
+  /** Asks again only if the last answer is older than this; for a window coming back into use. */
+  public async checkIfStale(maxAgeMs: number): Promise<void> {
+    if (Date.now() - this.checkedAt < maxAgeMs) return;
+    await this.check().catch(() => undefined);
   }
 
   /**
