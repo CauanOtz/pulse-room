@@ -37,6 +37,8 @@ export type LiveEvent =
       authorId: string;
       mentioned: boolean;
     }
+  /** A new version of the app was published; worth asking the updater now. */
+  | { type: 'release'; version: string }
   /** Somebody you share a server or a conversation with came or went. */
   | { type: 'status'; userId: string; online: boolean }
   /** Your conversations changed; `conversationId` when one in particular did. */

@@ -68,6 +68,29 @@ jobs:
             release/*.blockmap
             release/latest.yml
 
+      # Every open app asks its updater as soon as the files above are there,
+      # instead of at its next check. A missing secret or a server that cannot
+      # be reached costs only that: the release itself is already out.
+      - name: Tell open apps about the release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          RELEASE_HOOK_SECRET: ${{ secrets.RELEASE_HOOK_SECRET }}
+          API_URL: ${{ vars.VITE_API_URL }}
+        run: |
+          if (-not $env:RELEASE_HOOK_SECRET -or -not $env:API_URL) {
+            Write-Host 'No release hook configured; open apps will find the update at their next check.'
+            exit 0
+          }
+          $version = (Get-Content package.json | ConvertFrom-Json).version
+          try {
+            $answer = Invoke-RestMethod -Method Post -Uri "$($env:API_URL.TrimEnd('/'))/api/hooks/release" `
+              -Headers @{ Authorization = "Bearer $env:RELEASE_HOOK_SECRET" } `
+              -ContentType 'application/json' -Body (@{ version = $version } | ConvertTo-Json)
+            Write-Host "Told $($answer.told) open apps about $version."
+          } catch {
+            Write-Warning "Could not tell open apps about the release: $_"
+          }
+
   # The phone build is published beside the Windows installer, signed with the
   # identity the friends' phones already trust, so updates install over the top.
   android:

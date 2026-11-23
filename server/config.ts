@@ -26,6 +26,8 @@ const configurationSchema = z
     PORT: z.coerce.number().int().positive().default(3001),
     HOST: z.string().default('0.0.0.0'),
     APP_INVITE_SECRET: z.string().optional(),
+    /** Shared with the release workflow, which calls once a version is published. */
+    RELEASE_HOOK_SECRET: z.string().min(32).optional(),
     DATABASE_URL: z.string().min(1).optional(),
     LIVEKIT_URL: secureLiveKitUrl,
     LIVEKIT_API_KEY: z.string().min(1),

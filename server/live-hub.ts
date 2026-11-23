@@ -113,6 +113,12 @@ export class LiveHub {
       for (const connection of this.byAccount.get(accountId) ?? []) send(connection, payload);
   }
 
+  /** Sends an event to every signed-in connection. */
+  toEveryone(event: LiveEvent): number {
+    this.toAccounts(this.byAccount.keys(), event);
+    return this.byAccount.size;
+  }
+
   /** Sends an event to every connection watching a channel, except one account's. */
   toChannel(channelId: string, event: LiveEvent, exceptAccountId?: string): void {
     const payload = JSON.stringify(event);

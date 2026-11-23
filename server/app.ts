@@ -10,6 +10,7 @@ import { AccountService, type AuthenticatedAccount } from './account-service.js'
 import { CommunityService } from './community-service.js';
 import { ImageService, imageLimits } from './image-service.js';
 import { HttpError } from './security.js';
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { tagBadges, tagModes, tagTextPattern } from '../src/shared/community.js';
 import { allPermissions, channelScoped, has, Permission } from '../src/shared/permissions.js';
 import { RoleService } from './role-service.js';
@@ -105,6 +106,8 @@ const publicRoutes = new Set([
   '/api/auth/login',
   '/api/auth/recover',
   '/api/auth/registration',
+  // Called by the release workflow with a secret of its own, not an account.
+  '/api/hooks/release',
   // Signs in with its first message: a browser cannot set headers on a socket.
   livePath,
 ]);
@@ -638,6 +641,28 @@ export async function createServer(
     await directs.read(actor(request).id, id(request, 'conversationId'));
     return { ok: true };
   });
+
+  /**
+   * The release workflow calls this once a version is published, and every
+   * open app is told to ask its updater now instead of at its next check.
+   * Without a secret configured the route does not exist.
+   */
+  server.post(
+    '/api/hooks/release',
+    { config: { rateLimit: { max: 10, timeWindow: '10 minutes' } } },
+    async (request) => {
+      const secret = configuration.RELEASE_HOOK_SECRET;
+      if (!secret) throw new HttpError(404, 'Not found.');
+      const digest = (value: string) => createHash('sha256').update(value).digest();
+      const given = request.headers.authorization?.replace(/^Bearer /, '') ?? '';
+      if (!timingSafeEqual(digest(given), digest(secret))) throw new HttpError(401, 'Not allowed.');
+      const { version } = z
+        .object({ version: z.string().regex(/^\d{1,4}\.\d{1,4}\.\d{1,6}$/) })
+        .strict()
+        .parse(request.body);
+      return { ok: true, told: live.toEveryone({ type: 'release', version }) };
+    },
+  );
 
   server.delete('/api/servers/:serverId/invites/:inviteId', async (request) => {
     await communities.revokeInvite(actor(request).id, id(request, 'serverId'), id(request, 'inviteId'));

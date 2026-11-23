@@ -288,6 +288,19 @@ export function CommunityRoot({ apiUrl }: { apiUrl: string }) {
       setDialog(undefined);
     },
   });
+  // A version just published: ask the updater now rather than at its next
+  // check, spread over a few seconds so open apps do not all ask at once.
+  useEffect(
+    () =>
+      live?.listen((event) => {
+        if (event.type !== 'release') return;
+        setTimeout(
+          () => void window.desktop?.updates.check().catch(() => undefined),
+          2_000 + Math.random() * 13_000,
+        );
+      }),
+    [live],
+  );
   // A conversation in front is what is being read; the room behind it is not.
   useEffect(() => {
     notificationStore.showConversation(directsOpen ? directId : undefined);

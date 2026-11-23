@@ -13,6 +13,7 @@ let serverId: string, channelId: string, voiceId: string;
 let base = '';
 let rooms: RoomOccupancy[] = [];
 let address = 1;
+const releaseSecret = 'release-hook-secret-for-the-tests-0123456789';
 const open: WebSocket[] = [];
 const call = (
   method: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE',
@@ -101,6 +102,7 @@ beforeAll(async () => {
       LIVEKIT_URL: 'wss://example.invalid',
       LIVEKIT_API_KEY: 'test',
       LIVEKIT_API_SECRET: 'test',
+      RELEASE_HOOK_SECRET: releaseSecret,
     },
     { read: async () => rooms },
     new TestDatabase(),
@@ -297,6 +299,31 @@ describe('live events', () => {
       conversations: DirectConversation[];
     };
     expect(conversations[0].peer.online).toBe(true);
+  });
+
+  it('tells every open app about a new release, when the workflow holds the secret', async () => {
+    const one = await connect(friend);
+    const other = await connect(outsider);
+    const hook = (token: string, version: unknown) =>
+      app.inject({
+        method: 'POST',
+        url: '/api/hooks/release',
+        payload: { version },
+        headers: { authorization: `Bearer ${token}`, 'x-forwarded-for': `10.40.1.${address++}` },
+      });
+    expect((await hook('guessing', '9.9.9')).statusCode).toBe(401);
+    expect((await hook(owner.token, '9.9.9')).statusCode).toBe(401);
+    expect((await hook(releaseSecret, '9.9.9; rm -rf /')).statusCode).toBe(400);
+    const told = await hook(releaseSecret, '9.9.9');
+    expect(told.statusCode).toBe(200);
+    expect(told.json().told).toBeGreaterThanOrEqual(2);
+    for (const client of [one, other])
+      expect(await client.next((event) => event.type === 'release')).toEqual({
+        type: 'release',
+        version: '9.9.9',
+      });
+    one.socket.close();
+    other.socket.close();
   });
 
   it('closes the connections of a session that signs out', async () => {
