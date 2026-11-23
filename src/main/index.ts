@@ -8,6 +8,8 @@ import { SessionVault } from './application/session-vault';
 // Screen sharing needs media and display capture; the live stage needs the
 // HTML fullscreen permission that Electron asks for separately.
 const allowedPermissions = new Set(['media', 'display-capture', 'fullscreen']);
+const updateCheckEveryMs = 30 * 60_000;
+
 if (process.env.NODE_ENV === 'test' && process.env.PULSE_TEST_USER_DATA) {
   app.setPath('userData', process.env.PULSE_TEST_USER_DATA);
 }
@@ -230,6 +232,8 @@ app.whenReady().then(() => {
 
   if (app.isPackaged) {
     setTimeout(() => void updateService.check(), 5_000);
+    // A window left open for days still hears about a release the same evening.
+    setInterval(() => void updateService.check().catch(() => undefined), updateCheckEveryMs);
   }
 
   app.on('activate', () => {

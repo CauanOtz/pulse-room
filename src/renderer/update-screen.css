@@ -252,3 +252,239 @@
     transition: none;
   }
 }
+
+/* ---------------------------------------------------------- update prompt */
+
+/*
+ * A new version, said from the corner: the running and the new version side
+ * by side, a way to take it now, and a way to put it off.
+ */
+.update-prompt {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 2147482000;
+  display: flex;
+  width: min(340px, calc(100vw - 40px));
+  flex-direction: column;
+  gap: 14px;
+  overflow: hidden;
+  padding: 16px 16px 14px;
+  border-radius: 18px;
+  background: var(--lift-2, var(--popover));
+  color: var(--foreground);
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--ink) / 0.09),
+    0 30px 80px -28px rgb(0 0 0 / 0.75),
+    0 10px 24px -14px rgb(0 0 0 / 0.5);
+  transform-origin: 100% 100%;
+  will-change: transform, opacity;
+  -webkit-app-region: no-drag;
+}
+.theme-light .update-prompt {
+  box-shadow:
+    inset 0 0 0 1px rgb(0 0 0 / 0.08),
+    0 30px 70px -30px rgb(0 0 0 / 0.3),
+    0 8px 20px -14px rgb(0 0 0 / 0.18);
+}
+.update-prompt-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.update-prompt-icon {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+}
+.update-prompt-heading {
+  min-width: 0;
+  flex: 1;
+  padding-top: 1px;
+}
+.update-prompt-heading h2 {
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+.update-prompt-heading p {
+  margin-top: 2px;
+  font-size: 11.5px;
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+.update-prompt-close {
+  display: grid;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  margin: -3px -3px 0 0;
+  place-items: center;
+  border-radius: 999px;
+  color: var(--text-3);
+  transition:
+    color var(--motion-fast) var(--ease-out),
+    background-color var(--motion-fast) var(--ease-out),
+    transform var(--motion-fast) var(--ease-out);
+}
+.update-prompt-close:hover {
+  color: var(--foreground);
+  background: rgb(var(--ink) / 0.07);
+  transform: rotate(90deg);
+}
+.update-prompt-versions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgb(var(--ink) / 0.035);
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.06);
+}
+.update-prompt-version {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  color: var(--muted-foreground);
+}
+.update-prompt-version small {
+  font-family: var(--font-sans, inherit);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-4);
+}
+.update-prompt-version.is-next {
+  margin-left: auto;
+  align-items: flex-end;
+  color: var(--foreground);
+  font-weight: 600;
+}
+.update-prompt-version.is-next small {
+  color: var(--success);
+}
+.update-prompt-arrow {
+  flex: none;
+  color: var(--text-3);
+  animation: update-prompt-nudge 2.4s var(--ease-out) infinite;
+}
+@keyframes update-prompt-nudge {
+  0%,
+  60%,
+  100% {
+    transform: translateX(0);
+  }
+  30% {
+    transform: translateX(3px);
+  }
+}
+.update-prompt-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.update-prompt-later {
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  transition:
+    color var(--motion-fast) var(--ease-out),
+    background-color var(--motion-fast) var(--ease-out);
+}
+.update-prompt-later:hover {
+  color: var(--foreground);
+  background: rgb(var(--ink) / 0.06);
+}
+.update-prompt-confirm {
+  position: relative;
+  display: inline-flex;
+  height: 34px;
+  min-width: 34px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 16px;
+  border-radius: 999px;
+  background: var(--foreground);
+  color: rgb(var(--ground));
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  box-shadow: 0 6px 18px -8px rgb(var(--ink) / 0.45);
+  transition:
+    background-color 260ms var(--ease-out),
+    box-shadow 260ms var(--ease-out);
+}
+.update-prompt-confirm:hover:not(:disabled) {
+  box-shadow: 0 10px 26px -10px rgb(var(--ink) / 0.6);
+}
+.update-prompt-confirm[data-confirmed] {
+  width: 34px;
+  padding: 0;
+  background: var(--success);
+  color: #fff;
+  box-shadow: 0 8px 22px -8px color-mix(in srgb, var(--success) 70%, transparent);
+  cursor: default;
+}
+.update-prompt-confirm:focus-visible,
+.update-prompt-later:focus-visible,
+.update-prompt-close:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+}
+.update-prompt-label {
+  display: inline-block;
+}
+.update-prompt-tick {
+  width: 18px;
+  height: 18px;
+}
+/* One ring leaves the tick as it lands. */
+.update-prompt-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 0 0 2px var(--success);
+  pointer-events: none;
+  animation: update-prompt-ring 700ms var(--ease-out) 120ms both;
+}
+@keyframes update-prompt-ring {
+  from {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.9);
+  }
+}
+.update-prompt-progress {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: rgb(var(--ink) / 0.06);
+}
+.update-prompt-progress > span {
+  display: block;
+  height: 100%;
+  background: var(--foreground);
+  transform-origin: 0 50%;
+  transition: transform 600ms var(--ease-out);
+}
+@media (prefers-reduced-motion: reduce) {
+  .update-prompt-arrow {
+    animation: none;
+  }
+}

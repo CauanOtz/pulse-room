@@ -27,6 +27,11 @@ export class UpdateService {
       return this.setStatus({ state: 'not-available', version: app.getVersion() });
     }
 
+    // A version already on its way is the answer; asking again would trade
+    // a finished download for a "checking" that cannot be installed.
+    const state = this.status.state;
+    if (state === 'available' || state === 'downloading' || state === 'downloaded') return this.status;
+
     this.setStatus({ state: 'checking' });
     await autoUpdater.checkForUpdates();
     return this.status;
