@@ -94,7 +94,7 @@ export class VoiceAccessService {
           await this.client.updateParticipant(room.name, person.identity, undefined, {
             canPublish: sources.length > 0,
             canSubscribe: !access.deafened,
-            canPublishData: false,
+            canPublishData: true,
             canPublishSources: sources,
           });
         } catch (error) {

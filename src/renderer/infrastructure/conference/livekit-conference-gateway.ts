@@ -24,6 +24,13 @@ import type {
   VoiceDelayName,
 } from '../../domain/conference';
 import { voiceDelayPresets } from '../../domain/conference';
+import {
+  parseSending,
+  type StreamHealth,
+  type StreamSample,
+  type StreamSending,
+} from '../../domain/stream-health';
+import { InboundMeter, OutboundMeter } from '../media/stream-stats';
 import { ObservableConference } from './observable-conference';
 import { createDisplayMediaOptions } from '../media/display-media-options';
 import { ParticipantStreamRegistry } from '../media/participant-stream-registry';
@@ -61,6 +68,14 @@ interface PreparedToken {
 const preparedTokenMs = 40_000;
 const connectionSampleMs = 3_000;
 const connectionSamplesKept = 100;
+// The sender's report of its own encoder, published beside the picture.
+const streamHealthTopic = 'pulse.stream-health';
+const streamReportMs = 2_000;
+// A report this old describes a stream that has moved on.
+const streamReportStaleMs = 7_000;
+const streamSamplesKept = 90;
+const encoder = new TextEncoder();
+const decoder = new TextDecoder();
 
 type Stat = Record<string, unknown>;
 
@@ -121,6 +136,15 @@ export class LiveKitConferenceGateway extends ObservableConference {
   private connectionCounters: { sent: number; lost: number }[] = [];
   private connectionTransport?: ConnectionReport['transport'];
   private connectionTimer?: ReturnType<typeof setInterval>;
+  // Why this machine's shared screen looks the way it does, read every couple
+  // of seconds and told to the room, since only the sender can know it.
+  private readonly outboundMeter = new OutboundMeter();
+  private localSending?: StreamSending;
+  private screenTargetFps?: number;
+  private streamReportTimer?: ReturnType<typeof setInterval>;
+  private readonly inboundMeters = new Map<string, InboundMeter>();
+  private readonly remoteSending = new Map<string, { at: number; sending: StreamSending }>();
+  private readonly streamHistory = new Map<string, StreamSample[]>();
   // Decoding a screen is the most expensive thing this client does, so it is
   // asked for by name: the one being watched, and the one under the pointer.
   private readonly watched = new Set<string>();
@@ -542,6 +566,7 @@ export class LiveKitConferenceGateway extends ObservableConference {
 
       this.update({ screenSharing: true, error: undefined });
       this.refreshParticipants();
+      this.startStreamReports(options.frameRate);
     } catch (error) {
       stream?.getTracks().forEach((track) => track.stop());
       await this.stopScreenShare().catch(() => {});
@@ -551,6 +576,7 @@ export class LiveKitConferenceGateway extends ObservableConference {
   }
 
   public async stopScreenShare(): Promise<void> {
+    this.stopStreamReports();
     const publications = [...this.screenPublications];
     this.screenPublications = [];
     await Promise.all(
@@ -576,6 +602,7 @@ export class LiveKitConferenceGateway extends ObservableConference {
       const track = publication?.track;
       if (!(track instanceof LocalVideoTrack)) return;
 
+      this.screenTargetFps = options.frameRate;
       await updateScreenShareTrack(track.mediaStreamTrack, track.sender, options);
     });
     // A rapid second selection waits for the browser's first setParameters;
@@ -596,6 +623,74 @@ export class LiveKitConferenceGateway extends ObservableConference {
 
   public async readConnection(): Promise<ConnectionReport> {
     return summariseConnection(this.connectionSamples, this.connectionCounters, this.connectionTransport);
+  }
+
+  /**
+   * How a shared screen is doing, from wherever this machine can see it: its
+   * own encoder for its own screen, and for anybody else's both what arrived
+   * here and what their encoder last said about itself.
+   */
+  public async readStream(participantId: string): Promise<StreamHealth | undefined> {
+    let sending: StreamSending | undefined;
+    let receiving: StreamHealth['receiving'];
+    if (participantId === this.localIdentity()) {
+      if (this.screenPublications.length === 0) return undefined;
+      sending = this.localSending;
+    } else {
+      const participant = this.room.remoteParticipants.get(participantId);
+      const track = participant
+        ? [...participant.trackPublications.values()].find(
+            (publication) => publication.source === Track.Source.ScreenShare,
+          )?.track
+        : undefined;
+      if (!track) return undefined;
+      let meter = this.inboundMeters.get(participantId);
+      if (!meter) {
+        meter = new InboundMeter();
+        this.inboundMeters.set(participantId, meter);
+      }
+      receiving = meter.read(await track.getRTCStatsReport().catch(() => undefined));
+      const reported = this.remoteSending.get(participantId);
+      if (reported && Date.now() - reported.at < streamReportStaleMs) sending = reported.sending;
+    }
+    const history = this.streamHistory.get(participantId) ?? [];
+    const fps = receiving?.fps ?? sending?.fps;
+    if (fps !== undefined) {
+      history.push({ at: Date.now(), fps });
+      if (history.length > streamSamplesKept) history.shift();
+      this.streamHistory.set(participantId, history);
+    }
+    return { sending, receiving, history: [...history] };
+  }
+
+  private startStreamReports(targetFps: number): void {
+    this.stopStreamReports();
+    this.screenTargetFps = targetFps;
+    this.outboundMeter.reset();
+    const report = async () => {
+      const track = this.screenPublications.find(
+        (publication) => publication.source === Track.Source.ScreenShare,
+      )?.track;
+      const sending = this.outboundMeter.read(
+        await track?.getRTCStatsReport().catch(() => undefined),
+        this.screenTargetFps,
+      );
+      this.localSending = sending;
+      if (!sending || sending.kbps === undefined || !this.streamReportTimer) return;
+      // Unreliable on purpose: a report that is late is already wrong.
+      await this.room.localParticipant
+        .publishData(encoder.encode(JSON.stringify(sending)), { reliable: false, topic: streamHealthTopic })
+        .catch(() => undefined);
+    };
+    this.streamReportTimer = setInterval(() => void report(), streamReportMs);
+    void report();
+  }
+
+  private stopStreamReports(): void {
+    if (this.streamReportTimer) clearInterval(this.streamReportTimer);
+    this.streamReportTimer = undefined;
+    this.localSending = undefined;
+    this.streamHistory.delete(this.localIdentity());
   }
 
   private startConnectionSampling(): void {
@@ -667,6 +762,9 @@ export class LiveKitConferenceGateway extends ObservableConference {
       .on(RoomEvent.ParticipantDisconnected, (participant: RemoteParticipant) => {
         this.activeSpeakers.delete(participant.identity);
         this.streams.forget(participant.identity);
+        this.inboundMeters.delete(participant.identity);
+        this.remoteSending.delete(participant.identity);
+        this.streamHistory.delete(participant.identity);
         this.forgetVanishedScreens();
         this.refreshParticipants();
       })
@@ -694,8 +792,21 @@ export class LiveKitConferenceGateway extends ObservableConference {
       .on(RoomEvent.TrackUnsubscribed, () => this.refreshParticipants())
       .on(RoomEvent.Reconnecting, () => this.update({ connectionState: 'reconnecting' }))
       .on(RoomEvent.Reconnected, () => this.update({ connectionState: 'connected' }))
+      .on(RoomEvent.DataReceived, (payload, participant, _kind, topic) => {
+        if (topic !== streamHealthTopic || !participant) return;
+        try {
+          const sending = parseSending(JSON.parse(decoder.decode(payload)));
+          if (sending) this.remoteSending.set(participant.identity, { at: Date.now(), sending });
+        } catch {
+          // Somebody else's malformed report is simply not believed.
+        }
+      })
       .on(RoomEvent.Disconnected, () => {
         this.stopConnectionSampling();
+        this.stopStreamReports();
+        this.inboundMeters.clear();
+        this.remoteSending.clear();
+        this.streamHistory.clear();
         this.localSpeaking = false;
         this.activeSpeakers.clear();
         this.watched.clear();

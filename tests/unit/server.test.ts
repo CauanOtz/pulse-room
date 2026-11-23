@@ -257,7 +257,7 @@ describe('server and channel isolation', () => {
     expect(jwt.sub).toMatch(new RegExp(`^${wife.user.id}:`));
     expect(jwt.video.room).toBe(voiceRoomName(channel.id));
     expect(jwt.exp - jwt.nbf).toBeLessThanOrEqual(60);
-    expect(jwt.video.canPublishData).toBe(false);
+    expect(jwt.video.canPublishData).toBe(true);
   });
   it('filters presence to accessible channels in the requested server', async () => {
     rooms = [

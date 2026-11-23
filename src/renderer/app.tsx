@@ -140,6 +140,10 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
   // Held still, so the panel that polls it is not restarted on every render.
   const readHealth = useCallback(() => controller.gateway.readHealth(), [controller]);
   const readConnection = useCallback(() => controller.gateway.readConnection(), [controller]);
+  const readStream = useCallback(
+    (participantId: string) => controller.gateway.readStream(participantId),
+    [controller],
+  );
   const prepareChannel = useCallback((channelId: string) => controller.prepareRoom(channelId), [controller]);
   const [sourcePickerOpen, setSourcePickerOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -771,6 +775,7 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
                     onScreenVolume={(participantId, volume) =>
                       setScreenVolumes((volumes) => ({ ...volumes, [participantId]: volume }))
                     }
+                    readStream={readStream}
                   >
                     {joined && (
                       <CallControls

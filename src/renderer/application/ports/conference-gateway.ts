@@ -7,6 +7,7 @@ import type {
   ScreenShareOptions,
   VoiceDelayName,
 } from '../../domain/conference';
+import type { StreamHealth } from '../../domain/stream-health';
 
 export interface ConferenceGateway {
   subscribe(listener: () => void): () => void;
@@ -39,4 +40,6 @@ export interface ConferenceGateway {
   readHealth(): Promise<ParticipantHealth[]>;
   /** This machine's own line to the voice server, over the last few minutes. */
   readConnection(): Promise<ConnectionReport>;
+  /** How somebody's shared screen is doing, and why it looks the way it does. */
+  readStream(participantId: string): Promise<StreamHealth | undefined>;
 }

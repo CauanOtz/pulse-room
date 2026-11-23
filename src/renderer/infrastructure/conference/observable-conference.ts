@@ -62,4 +62,7 @@ export abstract class ObservableConference implements ConferenceGateway {
   public abstract prepare(command: import('../../domain/conference').JoinRoomCommand): void;
   public abstract prepareMicrophone(options: import('../../domain/conference').MicrophoneOptions): void;
   public abstract readConnection(): Promise<import('../../domain/conference').ConnectionReport>;
+  public abstract readStream(
+    participantId: string,
+  ): Promise<import('../../domain/stream-health').StreamHealth | undefined>;
 }

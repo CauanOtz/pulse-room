@@ -17,7 +17,9 @@ import {
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import type { Participant } from '../domain/conference';
+import type { StreamHealth } from '../domain/stream-health';
 import { MediaOutput } from './media-output';
+import { StreamHealthIndicator } from './stream-health';
 import { LiveStreamNavigation, LiveVoicePeers } from './live-stream-navigation';
 import { cn } from './ui/utils';
 import { ParticipantTiles } from './participant-tiles';
@@ -50,6 +52,8 @@ interface StageProps {
   /** The sound of each screen, which plays whether or not it is being watched. */
   screenVolumes?: Record<string, number>;
   onScreenVolume?(participantId: string, volume: number): void;
+  /** How a shared screen is doing, from wherever this machine can see it. */
+  readStream?(participantId: string): Promise<StreamHealth | undefined>;
   /** The call controls, which ride along with the fading overlay. */
   children?: ReactNode;
 }
@@ -65,6 +69,7 @@ export function Stage({
   onOptions,
   screenVolumes,
   onScreenVolume,
+  readStream,
   children,
 }: StageProps) {
   const broadcasts = participants.filter((participant) => participant.isBroadcasting);
@@ -143,7 +148,11 @@ export function Stage({
   const screenVolume = active ? (screenVolumes?.[active.id] ?? 50) : 50;
   // The controls sit over the picture, so they step aside while nobody reaches
   // for them, the way a video player does.
-  const [controlsVisible, setControlsVisible] = useState(true);
+  const [controlsShown, setControlsShown] = useState(true);
+  // Reading the stream's health is reaching for the controls, for as long as it lasts.
+  const [inspecting, setInspecting] = useState(false);
+  const controlsVisible = controlsShown || inspecting;
+  const setControlsVisible = setControlsShown;
   const hideTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const revealControls = useCallback(() => {
@@ -310,8 +319,13 @@ export function Stage({
             </>
           ) : (
             <>
-              <MonitorUp size={15} aria-hidden="true" /> Live from{' '}
-              {active.isLocal ? 'your screen' : active.name}
+              <MonitorUp size={15} aria-hidden="true" />
+              <span className="min-w-0 truncate">
+                Live from {active.isLocal ? 'your screen' : active.name}
+              </span>
+              {readStream && (
+                <StreamHealthIndicator participant={active} read={readStream} onOpenChange={setInspecting} />
+              )}
             </>
           )}
         </div>

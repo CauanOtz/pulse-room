@@ -32,7 +32,8 @@ export class TokenService {
       canPublish: request.sources.length > 0,
       canPublishSources: request.sources,
       canSubscribe: request.canSubscribe ?? true,
-      canPublishData: false,
+      // Only the sender's report of its own stream travels this way.
+      canPublishData: true,
     });
 
     return {

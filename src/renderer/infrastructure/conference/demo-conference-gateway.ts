@@ -219,6 +219,11 @@ export class DemoConferenceGateway extends ObservableConference {
     return { samples: [] };
   }
 
+  public async readStream(): Promise<undefined> {
+    // A screen shown on the machine that captured it never crosses a line.
+    return undefined;
+  }
+
   public setParticipantMuted(participantId: string, muted: boolean): void {
     this.update({
       participants: this.snapshot.participants.map((participant) =>
