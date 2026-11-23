@@ -120,7 +120,9 @@ beforeAll(async () => {
   outsider = await register('outsider');
   guest = await register('guest');
   serverId = ((await call('POST', '/api/servers', owner, { name: 'Friends' })).json() as { id: string }).id;
-  const invite = (await call('POST', `/api/servers/${serverId}/invites`, owner, { hours: 1, maxUses: 5 })).json();
+  const invite = (
+    await call('POST', `/api/servers/${serverId}/invites`, owner, { hours: 1, maxUses: 5 })
+  ).json();
   await call('POST', '/api/invites/join', friend, { code: invite.code });
   const detail = (await call('GET', `/api/servers/${serverId}`, owner)).json() as CommunityDetail;
   channelId = detail.channels.find((channel) => channel.type === 'text')!.id;
@@ -143,9 +145,9 @@ describe('live events', () => {
     watcher.send({ type: 'watch', channelId });
     snoop.send({ type: 'watch', channelId });
     await quiet(200);
-    expect((await call('POST', `/api/channels/${channelId}/messages`, owner, { content: 'hi' })).statusCode).toBe(
-      200,
-    );
+    expect(
+      (await call('POST', `/api/channels/${channelId}/messages`, owner, { content: 'hi' })).statusCode,
+    ).toBe(200);
     expect(await watcher.next((event) => event.type === 'channel')).toEqual({
       type: 'channel',
       channelId,
@@ -176,8 +178,23 @@ describe('live events', () => {
     });
     await call('POST', `/api/channels/${channelId}/messages`, owner, { content: 'nothing for you' });
     expect(await reader.next((event) => event.type === 'message')).toMatchObject({ mentioned: false });
+    // Answering somebody tells them as if they were named.
+    const asked = (
+      (await call('POST', `/api/channels/${channelId}/messages`, friend, { content: 'ready?' })).json() as {
+        id: string;
+      }
+    ).id;
+    await call('POST', `/api/channels/${channelId}/messages`, owner, { content: 'yes', replyTo: asked });
+    expect(
+      await reader.next((event) => event.type === 'message' && event.authorId === owner.user.id),
+    ).toMatchObject({
+      mentioned: true,
+    });
     await quiet();
-    expect(writer.events.filter((event) => event.type === 'message')).toEqual([]);
+    // Never about one's own words.
+    expect(
+      writer.events.filter((event) => event.type === 'message' && event.authorId === owner.user.id),
+    ).toEqual([]);
     expect(snoop.events).toEqual([]);
     for (const client of [reader, writer, snoop]) client.socket.close();
   });
@@ -211,13 +228,17 @@ describe('live events', () => {
     await call('PATCH', `/api/servers/${serverId}`, owner, { name: 'Renamed' });
     expect(await member.next((event) => event.type === 'server')).toEqual({ type: 'server', serverId });
 
-    const invite = (await call('POST', `/api/servers/${serverId}/invites`, owner, { hours: 1, maxUses: 1 })).json();
+    const invite = (
+      await call('POST', `/api/servers/${serverId}/invites`, owner, { hours: 1, maxUses: 1 })
+    ).json();
     const joining = await connect(guest);
     await call('POST', '/api/invites/join', guest, { code: invite.code });
     expect(await joining.next((event) => event.type === 'servers')).toEqual({ type: 'servers' });
     expect(await member.next((event) => event.type === 'server')).toEqual({ type: 'server', serverId });
 
-    expect((await call('DELETE', `/api/servers/${serverId}/members/${guest.user.id}`, owner)).statusCode).toBe(200);
+    expect(
+      (await call('DELETE', `/api/servers/${serverId}/members/${guest.user.id}`, owner)).statusCode,
+    ).toBe(200);
     expect(await joining.next((event) => event.type === 'server')).toEqual({ type: 'server', serverId });
     await quiet();
     expect(snoop.events).toEqual([]);
@@ -280,7 +301,10 @@ describe('live events', () => {
 
   it('closes the connections of a session that signs out', async () => {
     const session = (
-      await call('POST', '/api/auth/login', undefined, { username: 'friend', password: 'Testing live events!' })
+      await call('POST', '/api/auth/login', undefined, {
+        username: 'friend',
+        password: 'Testing live events!',
+      })
     ).json() as AccountSession;
     const client = await connect(session);
     await call('POST', '/api/auth/logout', session);

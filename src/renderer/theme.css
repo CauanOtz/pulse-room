@@ -22,6 +22,7 @@
 @import './update-screen.css';
 @import './live.css';
 @import './notifications.css';
+@import './replies.css';
 
 @theme {
   --font-sans: 'Schibsted Grotesk Variable', 'Segoe UI', system-ui, sans-serif;

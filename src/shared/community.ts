@@ -204,6 +204,20 @@ export interface ChatMessage {
   createdAt: string;
   attachments?: ChatAttachment[];
   reactions?: ChatReaction[];
+  /** The message this one answers; null when that message was deleted since. */
+  replyTo?: ChatReply | null;
+  /** When the author last changed the text; absent if never. */
+  editedAt?: string | null;
+}
+/** Enough of an answered message to quote it above the answer. */
+export interface ChatReply {
+  id: string;
+  authorId: string;
+  authorName: string;
+  /** The start of its text, for the quote. */
+  content: string;
+  /** It had files and no text. */
+  attachments?: boolean;
 }
 export interface ChatAttachment {
   id: string;

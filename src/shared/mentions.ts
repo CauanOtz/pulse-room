@@ -57,3 +57,17 @@ export function mentionQuery(text: string, caret: number): { query: string; star
   if (!match) return undefined;
   return { query: match[2]!, start: caret - match[2]!.length - 1 };
 }
+
+/** Tokens back into `@username`, for editing a message in the composer's own terms. */
+export function decodeMentions(
+  content: string,
+  usernameOf: (accountId: string) => string | undefined,
+): string {
+  return splitMentions(content)
+    .map((part) => {
+      if ('text' in part) return part.text;
+      const username = usernameOf(part.accountId);
+      return username ? `@${username}` : `<@${part.accountId}>`;
+    })
+    .join('');
+}

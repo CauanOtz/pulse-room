@@ -1,4 +1,5 @@
-import { Hash, Paperclip, SendHorizontal, Trash2 } from 'lucide-react';
+import { CornerUpLeft, Hash, Paperclip, Pencil, SendHorizontal, Trash2, X } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
 import { Avatar } from './avatar';
 import { TagChip } from './profile-identity';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -13,7 +14,8 @@ import type {
   CommunityMember,
   WornTag,
 } from '../../shared/community';
-import { encodeMentions, mentionedIds, mentionQuery } from '../../shared/mentions';
+import { decodeMentions, encodeMentions, mentionedIds, mentionQuery } from '../../shared/mentions';
+import { MessageReply } from './message-reply';
 import { MentionSuggestions, suggestionsFor } from './mention-suggestions';
 import type { CommunityClient } from '../infrastructure/community-client';
 import { attachmentLimit, attachmentsPerMessage, attachmentTypes } from '../../shared/chat';
@@ -23,7 +25,14 @@ import { ChatAttachment } from './chat-attachment';
 import { PendingAttachment } from './pending-attachment';
 import { MessageContent } from './message-content';
 import { TypingLine } from './typing-line';
-import { paced, poll, useLive, useLiveSignals, useTypists, type Poller } from '../infrastructure/live-context';
+import {
+  paced,
+  poll,
+  useLive,
+  useLiveSignals,
+  useTypists,
+  type Poller,
+} from '../infrastructure/live-context';
 
 /** One click away under every message; the picker has the rest. */
 const quickReactions = ['👍', '❤️', '😂'];
@@ -49,7 +58,8 @@ export function dayOf(when: Date): string {
  * first one did not.
  */
 export function startsRun(message: ChatMessage, previous: ChatMessage | undefined): boolean {
-  if (!previous || previous.authorId !== message.authorId) return true;
+  // An answer carries its quote above the author, so it always starts afresh.
+  if (!previous || previous.authorId !== message.authorId || message.replyTo !== undefined) return true;
   const gap = new Date(message.createdAt).getTime() - new Date(previous.createdAt).getTime();
   return !(gap >= 0 && gap < 5 * 60_000);
 }
@@ -92,12 +102,66 @@ export function TextChat({
     );
   }, [history, latest]);
   const [draft, setDraft] = useState('');
+  // The message being answered, quoted over the composer until sent or dropped.
+  const [replying, setReplying] = useState<ChatMessage>();
+  // A message of one's own being rewritten in place.
+  const [editing, setEditing] = useState<{ id: string; text: string; saving?: boolean; error?: string }>();
   // A mention being typed: what follows the @, where the @ is, and the pick.
   const [mention, setMention] = useState<{ query: string; start: number; index: number }>();
   const people = useMemo(
     () => new Map((members ?? []).map((member) => [member.id, member.displayName])),
     [members],
   );
+  const usernames = useMemo(
+    () => new Map((members ?? []).map((member) => [member.id, member.username])),
+    [members],
+  );
+  function startReply(message: ChatMessage) {
+    setReplying(message);
+    setEditing(undefined);
+    requestAnimationFrame(() => textarea.current?.focus());
+  }
+  function startEdit(message: ChatMessage) {
+    setEditing({ id: message.id, text: decodeMentions(message.content, (id) => usernames.get(id)) });
+  }
+  async function saveEdit() {
+    if (!editing || editing.saving) return;
+    const content = encodeMentions(editing.text.trim(), members ?? []);
+    const original = messages.find((message) => message.id === editing.id);
+    if (original && content === original.content) {
+      setEditing(undefined);
+      return;
+    }
+    setEditing({ ...editing, saving: true, error: undefined });
+    try {
+      await api.request(`${base}/${editing.id}`, 'PATCH', { content });
+      const changed = (rest: ChatMessage[]) =>
+        rest.map((message) =>
+          message.id === editing.id ? { ...message, content, editedAt: new Date().toISOString() } : message,
+        );
+      setLatest(changed);
+      setHistory(changed);
+      setEditing(undefined);
+      reader.current?.kick();
+    } catch (problem) {
+      setEditing({
+        ...editing,
+        saving: false,
+        error: problem instanceof Error ? problem.message : 'Not saved.',
+      });
+    }
+  }
+  /** Brings an answered message into view and lights it for a moment. */
+  function reveal(messageId: string) {
+    const element = document.getElementById(`message-${messageId}`);
+    if (!element) return;
+    scrollToEnd.current = false;
+    element.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    element.classList.remove('is-revealed');
+    void element.offsetWidth;
+    element.classList.add('is-revealed');
+    setTimeout(() => element.classList.remove('is-revealed'), 1_600);
+  }
   const suggestions = useMemo(
     () => (mention && members ? suggestionsFor(members, mention.query) : []),
     [members, mention],
@@ -144,21 +208,24 @@ export function TextChat({
   const live = useLive();
   const reader = useRef<Poller>(undefined);
   useEffect(() => {
-    const poller = poll(async (signal) => {
-      try {
-        const result = await api.request<{ messages: ChatMessage[] }>(base, 'GET', undefined, signal);
-        if (!signal.aborted) {
-          setLatest(result.messages);
-          setLoadError('');
+    const poller = poll(
+      async (signal) => {
+        try {
+          const result = await api.request<{ messages: ChatMessage[] }>(base, 'GET', undefined, signal);
+          if (!signal.aborted) {
+            setLatest(result.messages);
+            setLoadError('');
+          }
+        } catch (e) {
+          if (!signal.aborted) {
+            setLoadError(e instanceof Error ? e.message : 'Chat is unavailable.');
+            setLatest([]);
+            setHistory([]);
+          }
         }
-      } catch (e) {
-        if (!signal.aborted) {
-          setLoadError(e instanceof Error ? e.message : 'Chat is unavailable.');
-          setLatest([]);
-          setHistory([]);
-        }
-      }
-    }, paced(live, 3_000));
+      },
+      paced(live, 3_000),
+    );
     reader.current = poller;
     return () => {
       reader.current = undefined;
@@ -206,8 +273,10 @@ export function TextChat({
       await api.request(base, 'POST', {
         content: encodeMentions(draft.trim(), members ?? []),
         ...(attachments.length ? { attachmentIds: attachments } : {}),
+        ...(replying ? { replyTo: replying.id } : {}),
       });
       setDraft('');
+      setReplying(undefined);
       setFiles([]);
       live?.stoppedTyping({ channelId: channel.id });
       onChanged?.();
@@ -382,7 +451,11 @@ export function TextChat({
             const dayBreak = !previous || dayOf(new Date(previous.createdAt)) !== dayOf(when);
             const heading = dayBreak || startsRun(message, previous);
             const mine = canManageMessages || message.authorId === user.id;
-            const namesMe = message.authorId !== user.id && mentionedIds(message.content).includes(user.id);
+            const own = message.authorId === user.id;
+            const namesMe =
+              !own &&
+              (mentionedIds(message.content).includes(user.id) || message.replyTo?.authorId === user.id);
+            const isEditing = editing?.id === message.id;
             return (
               <div key={message.id}>
                 {dayBreak && (
@@ -399,9 +472,21 @@ export function TextChat({
                     'chat-message group/message relative flex items-start gap-3 rounded-md px-2 text-sm transition-colors hover:bg-accent/55',
                     heading ? 'mt-4 py-1.5 first:mt-0' : 'py-0.5',
                     namesMe && 'is-mentioning-me',
+                    replying?.id === message.id && 'is-replying',
+                    isEditing && 'is-editing',
+                    message.replyTo !== undefined && 'has-reply',
                   )}
+                  id={`message-${message.id}`}
                   data-hover-scope
                 >
+                  {message.replyTo !== undefined && (
+                    <MessageReply
+                      reply={message.replyTo}
+                      people={people}
+                      avatarId={message.replyTo ? avatars?.get(message.replyTo.authorId) : undefined}
+                      onReveal={reveal}
+                    />
+                  )}
                   {heading ? (
                     <button
                       className="mt-0.5 shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -448,9 +533,62 @@ export function TextChat({
                         </time>
                       </header>
                     )}
-                    <p className="whitespace-pre-wrap break-words text-[14.5px] leading-[1.45] text-foreground/90">
-                      <MessageContent content={message.content} people={people} selfId={user.id} />
-                    </p>
+                    {isEditing && editing ? (
+                      <div className="message-editor">
+                        <textarea
+                          aria-label="Edit message"
+                          autoFocus
+                          rows={Math.min(8, editing.text.split('\n').length)}
+                          maxLength={2000}
+                          value={editing.text}
+                          disabled={editing.saving}
+                          onFocus={(event) =>
+                            event.currentTarget.setSelectionRange(
+                              event.currentTarget.value.length,
+                              event.currentTarget.value.length,
+                            )
+                          }
+                          onChange={(event) => setEditing({ ...editing, text: event.target.value })}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Escape') {
+                              event.preventDefault();
+                              setEditing(undefined);
+                            }
+                            if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
+                              event.preventDefault();
+                              void saveEdit();
+                            }
+                          }}
+                        />
+                        <p className="message-editor-hint">
+                          {editing.error ? (
+                            <span role="alert">{editing.error}</span>
+                          ) : (
+                            <>
+                              <kbd>Esc</kbd> to{' '}
+                              <button type="button" onClick={() => setEditing(undefined)}>
+                                cancel
+                              </button>{' '}
+                              · <kbd>Enter</kbd> to{' '}
+                              <button type="button" onClick={() => void saveEdit()}>
+                                save
+                              </button>
+                            </>
+                          )}
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="whitespace-pre-wrap break-words text-[14.5px] leading-[1.45] text-foreground/90">
+                        <MessageContent content={message.content} people={people} selfId={user.id} />
+                        {message.editedAt && (
+                          <Tooltip label={`Edited ${new Date(message.editedAt).toLocaleString()}`}>
+                            <span className="message-edited" tabIndex={0}>
+                              (edited)
+                            </span>
+                          </Tooltip>
+                        )}
+                      </p>
+                    )}
                     {!!message.attachments?.length && (
                       <div className="message-attachments">
                         {message.attachments.map((file) => (
@@ -510,6 +648,33 @@ export function TextChat({
                           disabled={reacting === message.id}
                           onSelect={(emoji) => void react(message, emoji)}
                         />
+                      )}
+                      {canSend && (
+                        <>
+                          <span className="message-toolbar-rule" aria-hidden="true" />
+                          <Tooltip label="Reply">
+                            <button
+                              className="message-tool"
+                              type="button"
+                              aria-label={`Reply to ${message.authorName}`}
+                              onClick={() => startReply(message)}
+                            >
+                              <CornerUpLeft aria-hidden="true" className="size-4" />
+                            </button>
+                          </Tooltip>
+                          {own && (
+                            <Tooltip label="Edit" shortcut="↑ in an empty box">
+                              <button
+                                className="message-tool"
+                                type="button"
+                                aria-label="Edit message"
+                                onClick={() => startEdit(message)}
+                              >
+                                <Pencil aria-hidden="true" className="size-4" />
+                              </button>
+                            </Tooltip>
+                          )}
+                        </>
                       )}
                       {mine && (
                         <>
@@ -600,6 +765,41 @@ export function TextChat({
         }}
       >
         <TypingLine typists={typists} />
+        <AnimatePresence initial={false}>
+          {replying && (
+            <motion.div
+              key="replying"
+              className="composer-reply"
+              initial={{ opacity: 0, y: 8, height: 0 }}
+              animate={{ opacity: 1, y: 0, height: 'auto' }}
+              exit={{ opacity: 0, y: 6, height: 0 }}
+              transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <div className="composer-reply-inner">
+                <CornerUpLeft aria-hidden="true" size={13} />
+                <span className="min-w-0 truncate">
+                  Replying to <strong>{replying.authorName}</strong>
+                  <span className="composer-reply-quote">
+                    {' '}
+                    {replying.content.trim()
+                      ? decodeMentions(replying.content, (id) => people.get(id))
+                      : 'a file'}
+                  </span>
+                </span>
+                <Tooltip label="Stop replying" shortcut="Esc">
+                  <button
+                    type="button"
+                    className="composer-reply-cancel"
+                    aria-label="Stop replying"
+                    onClick={() => setReplying(undefined)}
+                  >
+                    <X size={13} />
+                  </button>
+                </Tooltip>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
         <MentionSuggestions
           people={suggestions}
           activeIndex={mention?.index ?? 0}
@@ -703,6 +903,20 @@ export function TextChat({
                   if (e.key === 'Escape') {
                     e.preventDefault();
                     setMention(undefined);
+                    return;
+                  }
+                }
+                if (e.key === 'Escape' && replying) {
+                  e.preventDefault();
+                  setReplying(undefined);
+                  return;
+                }
+                // Up in an empty box picks up the last thing you wrote, to fix it.
+                if (e.key === 'ArrowUp' && !draft) {
+                  const last = [...messages].reverse().find((message) => message.authorId === user.id);
+                  if (last) {
+                    e.preventDefault();
+                    startEdit(last);
                     return;
                   }
                 }

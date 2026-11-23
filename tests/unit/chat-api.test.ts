@@ -17,7 +17,7 @@ let owner: AccountSession, friend: AccountSession, outsider: AccountSession;
 let channelId: string, lockedId: string, privateId: string;
 let address = 1;
 const call = (
-  method: 'GET' | 'POST' | 'PUT' | 'DELETE',
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
   url: string,
   session?: AccountSession,
   payload?: unknown,
@@ -229,5 +229,57 @@ describe('passive attachment types and clickable URLs', () => {
       'https://www.example.net/',
     ]);
     expect(messageLinks('WWW.EXAMPLE.COM').map((link) => link.url)).toEqual(['https://www.example.com/']);
+  });
+});
+
+describe('replies and edits', () => {
+  const latest = async (session = owner, channel = channelId) =>
+    ((await call('GET', `/api/channels/${channel}/messages`, session)).json() as { messages: ChatMessage[] })
+      .messages;
+  const say = async (session: AccountSession, content: string, replyTo?: string, channel = channelId) =>
+    call('POST', `/api/channels/${channel}/messages`, session, { content, ...(replyTo ? { replyTo } : {}) });
+
+  it('quotes the answered message, and says so once it is gone', async () => {
+    const asked = ((await say(friend, 'who is up for a match?')).json() as { id: string }).id;
+    const answered = await say(owner, 'me!', asked);
+    expect(answered.statusCode).toBe(200);
+    const reply = (await latest()).find((message) => message.content === 'me!')!;
+    expect(reply.replyTo).toEqual({
+      id: asked,
+      authorId: friend.user.id,
+      authorName: 'friend',
+      content: 'who is up for a match?',
+    });
+    expect((await call('DELETE', `/api/channels/${channelId}/messages/${asked}`, friend)).statusCode).toBe(
+      200,
+    );
+    expect((await latest()).find((message) => message.id === reply.id)?.replyTo).toBeNull();
+  });
+
+  it('answers only messages of the same channel', async () => {
+    const elsewhere = ((await say(owner, 'private note', undefined, privateId)).json() as { id: string }).id;
+    expect((await say(owner, 'answer', elsewhere)).statusCode).toBe(400);
+  });
+
+  it('lets the author alone change the text, and marks it edited', async () => {
+    const id = ((await say(friend, 'gg wp')).json() as { id: string }).id;
+    expect(
+      (await call('PATCH', `/api/channels/${channelId}/messages/${id}`, owner, { content: 'mine now' }))
+        .statusCode,
+    ).toBe(403);
+    expect(
+      (await call('PATCH', `/api/channels/${channelId}/messages/${id}`, friend, { content: '' })).statusCode,
+    ).toBe(400);
+    expect(
+      (
+        await call('PATCH', `/api/channels/${channelId}/messages/${id}`, friend, {
+          content: 'gg, well played',
+        })
+      ).statusCode,
+    ).toBe(200);
+    const edited = (await latest()).find((message) => message.id === id)!;
+    expect(edited.content).toBe('gg, well played');
+    expect(edited.editedAt).toEqual(expect.any(String));
+    expect((await latest()).find((message) => message.content === 'me!')?.editedAt).toBeUndefined();
   });
 });

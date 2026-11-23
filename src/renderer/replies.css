@@ -1,0 +1,219 @@
+/* ------------------------------------------------------------ replies */
+
+/* The quote takes a line of its own above the picture and the name. */
+.chat-message.has-reply {
+  flex-wrap: wrap;
+  row-gap: 0.25rem;
+}
+.message-reply {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  flex-basis: 100%;
+  align-items: center;
+  gap: 0.375rem;
+  height: 1.25rem;
+  padding-left: 3.25rem;
+  font-size: 0.75rem;
+  text-align: left;
+  color: var(--muted-foreground);
+}
+button.message-reply {
+  cursor: pointer;
+}
+/* A hairline from the answer's picture, curving up into the quote. */
+.message-reply-spine {
+  position: absolute;
+  top: 50%;
+  left: 1.25rem;
+  width: 1.625rem;
+  height: calc(50% + 0.375rem);
+  border-top: 1.5px solid rgb(var(--ink) / 0.22);
+  border-left: 1.5px solid rgb(var(--ink) / 0.22);
+  border-top-left-radius: 0.4375rem;
+  transition: border-color var(--motion-fast) var(--ease-out);
+}
+.message-reply-avatar {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 1rem;
+  height: 1rem;
+  overflow: hidden;
+  border-radius: 999px;
+  font-size: 0.4375rem;
+  font-weight: 700;
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+}
+.message-reply-author {
+  flex: none;
+  font-weight: 600;
+  color: var(--text-2);
+  transition: color var(--motion-fast) var(--ease-out);
+}
+.message-reply-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: color var(--motion-fast) var(--ease-out);
+}
+button.message-reply:hover .message-reply-text,
+button.message-reply:hover .message-reply-author {
+  color: var(--foreground);
+}
+button.message-reply:hover .message-reply-spine {
+  border-color: rgb(var(--ink) / 0.45);
+}
+button.message-reply:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+  border-radius: 0.375rem;
+}
+.message-reply.is-gone .message-reply-text {
+  font-style: italic;
+  color: var(--text-3);
+}
+
+/* The message a quote was clicked from lights up where it lands. */
+.chat-message.is-revealed {
+  animation: message-reveal 1.6s var(--ease-out);
+}
+@keyframes message-reveal {
+  0%,
+  30% {
+    background: rgb(var(--ink) / 0.1);
+    box-shadow: inset 2px 0 0 var(--foreground);
+  }
+  100% {
+    background: transparent;
+    box-shadow: inset 2px 0 0 transparent;
+  }
+}
+/* The one being answered keeps a quiet mark while the reply is written. */
+.chat-message.is-replying {
+  background: rgb(var(--ink) / 0.045);
+  box-shadow: inset 2px 0 0 rgb(var(--ink) / 0.5);
+}
+
+.message-edited {
+  margin-left: 0.3125rem;
+  font-size: 0.6875rem;
+  color: var(--text-3);
+  cursor: default;
+  outline: none;
+}
+.message-edited:focus-visible {
+  text-decoration: underline;
+}
+
+/* -------------------------------------------------------------- editing */
+
+.message-editor {
+  margin-top: 0.25rem;
+}
+.message-editor textarea {
+  display: block;
+  width: 100%;
+  min-height: 2.5rem;
+  max-height: 12rem;
+  padding: 0.5625rem 0.75rem;
+  resize: vertical;
+  border: 0;
+  border-radius: 0.75rem;
+  font-size: 14.5px;
+  line-height: 1.45;
+  color: var(--foreground);
+  background: rgb(var(--ink) / 0.05);
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.16);
+  outline: none;
+  transition: box-shadow var(--motion-fast) var(--ease-out);
+}
+.message-editor textarea:focus {
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--ink) / 0.4),
+    0 0 0 4px rgb(var(--ink) / 0.05);
+}
+.chat-message .message-editor-hint {
+  margin-top: 0.375rem;
+  font-size: 0.6875rem;
+  line-height: 1.4;
+  color: var(--text-3);
+}
+.chat-message .message-editor-hint button {
+  font-size: inherit;
+  color: var(--foreground);
+  font-weight: 500;
+}
+.message-editor-hint button:hover {
+  text-decoration: underline;
+}
+.message-editor-hint [role='alert'] {
+  color: var(--destructive);
+}
+.message-editor-hint kbd {
+  padding: 0 0.25rem;
+  border-radius: 0.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.14);
+}
+.chat-message.is-editing .message-toolbar {
+  display: none;
+}
+
+/* --------------------------------------------------- replying, composer */
+
+.composer-reply {
+  overflow: hidden;
+}
+.composer-reply-inner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.5rem;
+  padding: 0.4375rem 0.5rem 0.4375rem 0.75rem;
+  border-radius: 0.75rem;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  background: rgb(var(--ink) / 0.04);
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.08);
+}
+.composer-reply-inner > svg {
+  flex: none;
+  color: var(--text-3);
+}
+.composer-reply-inner strong {
+  font-weight: 600;
+  color: var(--foreground);
+}
+.composer-reply-quote {
+  color: var(--text-3);
+}
+.composer-reply-cancel {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 1.375rem;
+  height: 1.375rem;
+  margin-left: auto;
+  border-radius: 999px;
+  color: var(--text-3);
+  transition:
+    color var(--motion-fast) var(--ease-out),
+    background-color var(--motion-fast) var(--ease-out),
+    transform var(--motion-panel) var(--ease-spring);
+}
+.composer-reply-cancel:hover {
+  color: var(--foreground);
+  background: rgb(var(--ink) / 0.08);
+  transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-message.is-revealed {
+    animation: none;
+    background: rgb(var(--ink) / 0.08);
+  }
+}

@@ -318,6 +318,14 @@ export async function migrate(database: Database): Promise<void> {
         ON direct_messages(conversation_id, created_at DESC, id DESC);
       INSERT INTO schema_migrations(version) VALUES(12) ON CONFLICT DO NOTHING;
     `);
+    // A message may answer another in its channel, and says when it was last
+    // changed. An answer outlives what it answered: the link is simply lost.
+    await db.query(`
+      ALTER TABLE messages ADD COLUMN IF NOT EXISTS reply_to uuid REFERENCES messages(id) ON DELETE SET NULL;
+      ALTER TABLE messages ADD COLUMN IF NOT EXISTS edited_at timestamptz;
+      ALTER TABLE messages ADD COLUMN IF NOT EXISTS was_reply boolean NOT NULL DEFAULT false;
+      INSERT INTO schema_migrations(version) VALUES(13) ON CONFLICT DO NOTHING;
+    `);
   });
 }
 

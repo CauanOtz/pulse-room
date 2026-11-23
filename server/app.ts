@@ -655,17 +655,19 @@ export async function createServer(
         .object({
           content: z.string().trim().max(2000).default(''),
           attachmentIds: z.array(z.uuid()).max(attachmentsPerMessage).default([]),
+          replyTo: z.uuid().optional(),
         })
         .strict()
         .refine((body) => body.content.length > 0 || body.attachmentIds.length > 0)
         .parse(request.body);
       const author = actor(request).id;
       const channelId = id(request, 'channelId');
-      const { messageId, serverId } = await communities.sendMessage(
+      const { messageId, serverId, repliedTo } = await communities.sendMessage(
         author,
         channelId,
         body.content,
         body.attachmentIds,
+        body.replyTo,
       );
       // Announced without holding up the reply; a failure only costs a notification.
       void announceMessage(live, db, {
@@ -674,8 +676,23 @@ export async function createServer(
         messageId,
         authorId: author,
         content: body.content,
+        repliedTo,
       }).catch((error) => request.log.warn({ error }, 'Could not announce a message'));
       return { ok: true, id: messageId };
+    },
+  );
+  server.patch(
+    '/api/channels/:channelId/messages/:messageId',
+    { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
+    async (request) => {
+      const { content } = z.object({ content: z.string().trim().max(2000) }).strict().parse(request.body);
+      await communities.editMessage(
+        actor(request).id,
+        id(request, 'channelId'),
+        id(request, 'messageId'),
+        content,
+      );
+      return { ok: true };
     },
   );
   server.delete('/api/channels/:channelId/messages/:messageId', async (request) => {

@@ -281,10 +281,19 @@ export function watchPresence(
 export async function announceMessage(
   hub: LiveHub,
   db: Database,
-  message: { serverId: string; channelId: string; messageId: string; authorId: string; content: string },
+  message: {
+    serverId: string;
+    channelId: string;
+    messageId: string;
+    authorId: string;
+    content: string;
+    /** The author of the message this one answers, who is told as if named. */
+    repliedTo?: string;
+  },
 ): Promise<void> {
   if (!hub.size) return;
   const named = new Set(mentionedIds(message.content));
+  if (message.repliedTo) named.add(message.repliedTo);
   const { rows } = await db.query<{ id: string }>(
     'SELECT account_id AS id FROM memberships WHERE server_id=$1 AND account_id<>$2',
     [message.serverId, message.authorId],

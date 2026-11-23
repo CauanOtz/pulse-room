@@ -957,16 +957,47 @@ export class CommunityService {
   async messages(userId: string, channelId: string, before?: string): Promise<ChatMessage[]> {
     const { channel } = await this.channel(userId, channelId);
     if (channel.type !== 'text') throw new HttpError(400, 'Messages belong to text channels.');
-    return (
-      await this.db.query<ChatMessage>(
-        `SELECT m.id,m.channel_id AS "channelId",m.author_id AS "authorId",
-      a.display_name AS "authorName",m.content,m.created_at AS "createdAt" FROM messages m JOIN accounts a ON a.id=m.author_id
+    const { rows } = await this.db.query<
+      Omit<ChatMessage, 'replyTo'> & {
+        replyId: string | null;
+        wasReply: boolean;
+        replyAuthorId: string | null;
+        replyAuthorName: string | null;
+        replyContent: string | null;
+        replyFiles: boolean | null;
+      }
+    >(
+      `SELECT m.id,m.channel_id AS "channelId",m.author_id AS "authorId",
+      a.display_name AS "authorName",m.content,m.created_at AS "createdAt",m.edited_at AS "editedAt",
+      r.id AS "replyId",m.reply_to IS NOT NULL OR m.was_reply AS "wasReply",r.author_id AS "replyAuthorId",
+      ra.display_name AS "replyAuthorName",left(r.content,200) AS "replyContent",
+      EXISTS(SELECT 1 FROM chat_attachments f WHERE f.message_id=r.id) AS "replyFiles"
+      FROM messages m JOIN accounts a ON a.id=m.author_id
+      LEFT JOIN messages r ON r.id=m.reply_to LEFT JOIN accounts ra ON ra.id=r.author_id
       WHERE m.channel_id=$1 AND ($2::uuid IS NULL OR (m.created_at,m.id)<(
         SELECT created_at,id FROM messages WHERE id=$2 AND channel_id=$1))
       ORDER BY m.created_at DESC,m.id DESC LIMIT 50`,
-        [channelId, before ?? null],
-      )
-    ).rows.reverse();
+      [channelId, before ?? null],
+    );
+    return rows.reverse().map(
+      ({ replyId, wasReply, replyAuthorId, replyAuthorName, replyContent, replyFiles, editedAt, ...message }) => ({
+        ...message,
+        ...(editedAt ? { editedAt } : {}),
+        ...(replyId
+          ? {
+              replyTo: {
+                id: replyId,
+                authorId: replyAuthorId!,
+                authorName: replyAuthorName!,
+                content: replyContent ?? '',
+                ...(replyFiles ? { attachments: true } : {}),
+              },
+            }
+          : wasReply
+            ? { replyTo: null }
+            : {}),
+      }),
+    );
   }
 
   async sendMessage(
@@ -974,9 +1005,11 @@ export class CommunityService {
     channelId: string,
     content: string,
     attachmentIds: string[] = [],
-  ): Promise<{ messageId: string; serverId: string }> {
+    replyTo?: string,
+  ): Promise<{ messageId: string; serverId: string; repliedTo?: string }> {
     const { channel } = await this.channel(userId, channelId);
     const messageId = randomUUID();
+    let repliedTo: string | undefined;
     await withServer(this.db, userId, channel.serverId, async (db, access) => {
       const { channel: current, permissions } = await this.channel(userId, channelId, db);
       if (current.type !== 'text' || !has(permissions, Permission.SendMessages))
@@ -1001,19 +1034,57 @@ export class CommunityService {
         if (rows.length !== attachmentIds.length)
           throw new HttpError(400, 'An attachment is unavailable. Choose the file again.');
       }
-      await db.query('INSERT INTO messages(id,channel_id,author_id,content) VALUES($1,$2,$3,$4)', [
-        messageId,
-        channelId,
-        userId,
-        content,
-      ]);
+      if (replyTo) {
+        const {
+          rows: [answered],
+        } = await db.query<{ authorId: string }>(
+          'SELECT author_id AS "authorId" FROM messages WHERE id=$1 AND channel_id=$2',
+          [replyTo, channelId],
+        );
+        if (!answered) throw new HttpError(400, 'That message is no longer here to reply to.');
+        repliedTo = answered.authorId;
+      }
+      await db.query(
+        'INSERT INTO messages(id,channel_id,author_id,content,reply_to,was_reply) VALUES($1,$2,$3,$4,$5,$6)',
+        [messageId, channelId, userId, content, replyTo ?? null, Boolean(replyTo)],
+      );
       if (attachmentIds.length)
         await db.query('UPDATE chat_attachments SET message_id=$1 WHERE id=ANY($2::uuid[])', [
           messageId,
           attachmentIds,
         ]);
     });
-    return { messageId, serverId: channel.serverId };
+    return { messageId, serverId: channel.serverId, ...(repliedTo ? { repliedTo } : {}) };
+  }
+
+  /**
+   * Changes the text of one's own message. Only the author may, and only
+   * while still allowed to write here; files stay as they were.
+   */
+  async editMessage(userId: string, channelId: string, messageId: string, content: string): Promise<void> {
+    const { channel } = await this.channel(userId, channelId);
+    await withServer(this.db, userId, channel.serverId, async (db, access) => {
+      const { permissions } = await this.channel(userId, channelId, db);
+      if (!has(permissions, Permission.SendMessages))
+        throw new HttpError(
+          403,
+          access.timedOut ? 'You are in a timeout and cannot write yet.' : 'You cannot write in this channel.',
+        );
+      const {
+        rows: [message],
+      } = await db.query<{ authorId: string; content: string; files: boolean }>(
+        `SELECT author_id AS "authorId",content,
+        EXISTS(SELECT 1 FROM chat_attachments WHERE message_id=$1) AS files
+        FROM messages WHERE id=$1 AND channel_id=$2 FOR UPDATE`,
+        [messageId, channelId],
+      );
+      if (!message) throw new HttpError(404, 'That message is gone.');
+      if (message.authorId !== userId) throw new HttpError(403, 'Only the author can edit a message.');
+      if (content.length > 2000) throw new HttpError(400, 'Messages can have up to 2000 characters.');
+      if (!content.trim() && !message.files) throw new HttpError(400, 'A message needs text or a file.');
+      if (content === message.content) return;
+      await db.query('UPDATE messages SET content=$1, edited_at=now() WHERE id=$2', [content, messageId]);
+    });
   }
 
   async deleteMessage(userId: string, channelId: string, messageId: string): Promise<void> {
