@@ -91,6 +91,14 @@ test('mentions are written with @, light up, leave badges and follow the server 
     await expect(window.getByRole('button', { name: /^Studio, \d+ mentions/ })).toBeVisible();
     await window.waitForTimeout(500);
     await window.screenshot({ path: 'test-results/notifications-badges.png' });
+    // The notification the system would show, kept by the main process in tests.
+    await expect
+      .poll(() => application.evaluate(() => (globalThis as { pulseNotices?: unknown[] }).pulseNotices ?? []))
+      .toContainEqual({
+        title: 'Ana Clara (#memes, Studio)',
+        body: '@Owner you have to see this',
+        tag: `channel:${server.id}:${memesId}`,
+      });
 
     // A click on the notification opens its channel, which clears the badge.
     await application.evaluate(

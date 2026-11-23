@@ -21,8 +21,12 @@ import { SessionVault } from './application/session-vault';
 // HTML fullscreen permission that Electron asks for separately.
 const allowedPermissions = new Set(['media', 'display-capture', 'fullscreen']);
 const updateCheckEveryMs = 30 * 60_000;
-// Windows names the sender of a notification by this id; it is the installer's own.
-const appUserModelId = 'com.pulseroom.desktop';
+const isTest = process.env.NODE_ENV === 'test';
+// Windows names the sender of a notification by this id; the installed app
+// uses the installer's own. A copy run from the project uses another, or the
+// shortcut Electron makes for its notifications would take the installed
+// app's place, name and icon in the Start menu.
+const appUserModelId = app.isPackaged ? 'com.pulseroom.desktop' : 'com.pulseroom.desktop.dev';
 // Shown notifications, held so that a click still reaches its handler.
 const notices = new Set<Notification>();
 
@@ -187,10 +191,17 @@ function registerIpcHandlers(): void {
     screenCaptureService.selectSource(sourceId);
   });
   ipcMain.handle('notifications:show', (event, notice: DesktopNotice) => {
-    if (!Notification.isSupported() || event.sender !== mainWindow?.webContents) return;
+    if (event.sender !== mainWindow?.webContents) return;
     const title = String(notice?.title ?? '').slice(0, 120);
     const body = String(notice?.body ?? '').slice(0, 300);
     const tag = String(notice?.tag ?? '').slice(0, 200);
+    // Tests read what would have been shown, and nothing reaches the system.
+    if (isTest) {
+      const shown = ((globalThis as { pulseNotices?: DesktopNotice[] }).pulseNotices ??= []);
+      shown.push({ title, body, tag });
+      return;
+    }
+    if (!Notification.isSupported()) return;
     const shown = new Notification({
       title,
       body,
