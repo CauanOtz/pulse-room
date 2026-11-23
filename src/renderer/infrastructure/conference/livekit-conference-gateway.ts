@@ -433,14 +433,14 @@ export class LiveKitConferenceGateway extends ObservableConference {
   public watchScreen(participantId: string, watching: boolean): void {
     if (watching) this.watched.add(participantId);
     else this.watched.delete(participantId);
-    this.applyScreenSubscriptions();
+    this.applySubscriptions();
     this.update({ watching: [...this.watched] });
     this.refreshParticipants();
   }
 
   public previewScreen(participantId?: string): void {
     this.previewed = participantId;
-    this.applyScreenSubscriptions();
+    this.applySubscriptions();
     this.refreshParticipants();
   }
 
@@ -452,8 +452,12 @@ export class LiveKitConferenceGateway extends ObservableConference {
    * A glance borrows the picture alone. A preview that started playing sound
    * would mean passing the pointer over a name fills the room with somebody's
    * game.
+   *
+   * Voices follow the deafen button, and this runs again whenever somebody
+   * joins or publishes, so it holds for people who were not there when it was
+   * pressed.
    */
-  private applyScreenSubscriptions(): void {
+  private applySubscriptions(): void {
     this.room.remoteParticipants.forEach((participant) => {
       const watching = this.watched.has(participant.identity);
       const glancing = participant.identity === this.previewed;
@@ -464,6 +468,12 @@ export class LiveKitConferenceGateway extends ObservableConference {
           if (remote.isDesired !== wanted) remote.setSubscribed(wanted);
         } else if (publication.source === Track.Source.ScreenShareAudio) {
           const wanted = watching && !this.deafened;
+          if (remote.isDesired !== wanted) remote.setSubscribed(wanted);
+        } else if (publication.source === Track.Source.Microphone) {
+          // Deafened means everybody, including whoever joins or comes back
+          // after the button was pressed: their voice is otherwise taken the
+          // moment it is published.
+          const wanted = !this.deafened;
           if (remote.isDesired !== wanted) remote.setSubscribed(wanted);
         }
       });
@@ -499,7 +509,7 @@ export class LiveKitConferenceGateway extends ObservableConference {
         publication.setSubscribed(!deafened);
       });
     });
-    this.applyScreenSubscriptions();
+    this.applySubscriptions();
     this.update({ deafened });
   }
 
@@ -756,7 +766,7 @@ export class LiveKitConferenceGateway extends ObservableConference {
   private registerRoomEvents(): void {
     this.room
       .on(RoomEvent.ParticipantConnected, () => {
-        this.applyScreenSubscriptions();
+        this.applySubscriptions();
         this.refreshParticipants();
       })
       .on(RoomEvent.ParticipantDisconnected, (participant: RemoteParticipant) => {
@@ -775,7 +785,7 @@ export class LiveKitConferenceGateway extends ObservableConference {
       })
       .on(RoomEvent.ConnectionQualityChanged, () => this.refreshParticipants())
       .on(RoomEvent.TrackPublished, () => {
-        this.applyScreenSubscriptions();
+        this.applySubscriptions();
         this.refreshParticipants();
       })
       .on(RoomEvent.TrackUnpublished, () => {

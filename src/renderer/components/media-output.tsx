@@ -26,6 +26,8 @@ export function MediaOutput({
   const playbackRef = useRef<PlaybackHandle>(undefined);
   const speakingListenerRef = useRef(onSpeakingChange);
   speakingListenerRef.current = onSpeakingChange;
+  const volumeRef = useRef(volume);
+  volumeRef.current = volume;
   const [boosted, setBoosted] = useState(false);
 
   // Each concern gets its own effect: reassigning srcObject restarts playback,
@@ -42,6 +44,10 @@ export function MediaOutput({
     if (!stream || muted) return undefined;
 
     const handle = audioPlayback.attach(stream, (speaking) => speakingListenerRef.current?.(speaking));
+    // A new stream for the same person, as when they leave and come back, is
+    // a new graph at full gain: it starts at the level already chosen for
+    // them, or somebody muted here would be heard until the slider moved.
+    handle?.setVolume(volumeRef.current);
     playbackRef.current = handle;
     setBoosted(Boolean(handle));
 
