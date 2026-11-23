@@ -25,6 +25,8 @@ import { DirectPane, DirectSidebar } from './components/directs/direct-messages'
 import { useDirects, type DirectsState } from './infrastructure/use-directs';
 import { LiveConnection } from './infrastructure/live-connection';
 import { LiveProvider, paced, poll } from './infrastructure/live-context';
+import { useNotificationCenter } from './infrastructure/use-notification-center';
+import { notificationStore } from './infrastructure/notification-store';
 
 /** Direct messages, owned by the root so the list keeps polling anywhere. */
 export interface DirectsBindings extends DirectsState {
@@ -269,6 +271,28 @@ export function CommunityRoot({ apiUrl }: { apiUrl: string }) {
       setDialog(undefined);
     }
   };
+  useNotificationCenter({
+    api,
+    userId: user?.id,
+    live,
+    servers,
+    detail,
+    openChannel: (id, channelId) => {
+      setDirectsOpen(false);
+      notificationStore.open(id, channelId);
+      selectServer(id);
+    },
+    openConversation: (id) => {
+      setDirectId(id);
+      setDirectsOpen(true);
+      setDialog(undefined);
+    },
+  });
+  // A conversation in front is what is being read; the room behind it is not.
+  useEffect(() => {
+    notificationStore.showConversation(directsOpen ? directId : undefined);
+    if (directsOpen || !detail) notificationStore.showChannel(undefined);
+  }, [directsOpen, directId, detail]);
   if (restoring)
     return (
       <main className="account-loading flex h-full flex-col items-center justify-center gap-4 text-sm text-muted-foreground">

@@ -4,6 +4,7 @@ import appIconUrl from '../../../assets/app-icon.png';
 import type { Community } from '../../shared/community';
 import { Avatar } from './avatar';
 import { cn } from './ui/utils';
+import { useNotificationStore } from '../infrastructure/notification-store';
 
 interface RailItem {
   id: string;
@@ -45,6 +46,7 @@ export function ServerRail({
   /** Absent where there are no direct messages to open. */
   onDirects?(): void;
 }) {
+  const notifications = useNotificationStore();
   const items: RailItem[] =
     servers?.map((s) => ({
       id: s.id,
@@ -111,7 +113,11 @@ export function ServerRail({
           )}
           key={server.id}
           type="button"
-          aria-label={server.label}
+          aria-label={
+            notifications.mentionsInServer(server.id)
+              ? `${server.label}, ${notifications.mentionsInServer(server.id)} mentions`
+              : server.label
+          }
           title={server.label}
           aria-current={server.active}
           aria-busy={server.id === loadingId || undefined}
@@ -132,6 +138,7 @@ export function ServerRail({
             initials={server.mark}
             imageId={server.iconId}
           />
+          <MentionBadge count={notifications.mentionsInServer(server.id)} />
         </button>
       ))}
       <button
@@ -163,5 +170,22 @@ export function ServerRail({
         </button>
       )}
     </nav>
+  );
+}
+
+/** Mentions not yet seen in a server, on the corner of its icon. */
+function MentionBadge({ count }: { count: number }) {
+  if (count <= 0) return null;
+  return (
+    <motion.b
+      key={count}
+      className="direct-badge mention-badge"
+      initial={{ scale: 0.3 }}
+      animate={{ scale: 1 }}
+      transition={{ type: 'spring', stiffness: 600, damping: 20 }}
+      aria-hidden="true"
+    >
+      {count > 9 ? '9+' : count}
+    </motion.b>
   );
 }

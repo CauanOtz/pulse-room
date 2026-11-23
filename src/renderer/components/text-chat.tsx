@@ -10,8 +10,11 @@ import type {
   ChatMessage,
   ChatReaction,
   CommunityChannel,
+  CommunityMember,
   WornTag,
 } from '../../shared/community';
+import { encodeMentions, mentionedIds, mentionQuery } from '../../shared/mentions';
+import { MentionSuggestions, suggestionsFor } from './mention-suggestions';
 import type { CommunityClient } from '../infrastructure/community-client';
 import { attachmentLimit, attachmentsPerMessage, attachmentTypes } from '../../shared/chat';
 import { EmojiPicker } from './emoji-picker';
@@ -62,6 +65,7 @@ export function TextChat({
   tags,
   onOpenProfile,
   onChanged,
+  members,
 }: {
   api: CommunityClient;
   channel: CommunityChannel;
@@ -76,6 +80,8 @@ export function TextChat({
   tags?: ReadonlyMap<string, WornTag>;
   onOpenProfile?(authorId: string, position: { x: number; y: number }): void;
   onChanged?(): void;
+  /** The people of this server: who may be named with @, and how. */
+  members?: readonly CommunityMember[];
 }) {
   const [latest, setLatest] = useState<ChatMessage[]>([]);
   const [history, setHistory] = useState<ChatMessage[]>([]);
@@ -86,6 +92,38 @@ export function TextChat({
     );
   }, [history, latest]);
   const [draft, setDraft] = useState('');
+  // A mention being typed: what follows the @, where the @ is, and the pick.
+  const [mention, setMention] = useState<{ query: string; start: number; index: number }>();
+  const people = useMemo(
+    () => new Map((members ?? []).map((member) => [member.id, member.displayName])),
+    [members],
+  );
+  const suggestions = useMemo(
+    () => (mention && members ? suggestionsFor(members, mention.query) : []),
+    [members, mention],
+  );
+  const followCaret = (element: HTMLTextAreaElement) => {
+    const found = mentionQuery(element.value, element.selectionStart);
+    setMention((current) =>
+      found
+        ? { ...found, index: current?.start === found.start ? Math.min(current.index, 5) : 0 }
+        : undefined,
+    );
+  };
+  function chooseMention(member: CommunityMember) {
+    if (!mention) return;
+    const caret = textarea.current?.selectionStart ?? draft.length;
+    const inserted = `@${member.username} `;
+    const next = draft.slice(0, mention.start) + inserted + draft.slice(caret);
+    if (next.length > 2000) return;
+    setDraft(next);
+    setMention(undefined);
+    const at = mention.start + inserted.length;
+    requestAnimationFrame(() => {
+      textarea.current?.focus();
+      textarea.current?.setSelectionRange(at, at);
+    });
+  }
   const [error, setError] = useState('');
   const [confirmDelete, setConfirmDelete] = useState<ChatMessage>();
   const [deleting, setDeleting] = useState(false);
@@ -166,7 +204,7 @@ export function TextChat({
       }
       setUploadStatus('Sending message…');
       await api.request(base, 'POST', {
-        content: draft.trim(),
+        content: encodeMentions(draft.trim(), members ?? []),
         ...(attachments.length ? { attachmentIds: attachments } : {}),
       });
       setDraft('');
@@ -344,6 +382,7 @@ export function TextChat({
             const dayBreak = !previous || dayOf(new Date(previous.createdAt)) !== dayOf(when);
             const heading = dayBreak || startsRun(message, previous);
             const mine = canManageMessages || message.authorId === user.id;
+            const namesMe = message.authorId !== user.id && mentionedIds(message.content).includes(user.id);
             return (
               <div key={message.id}>
                 {dayBreak && (
@@ -359,6 +398,7 @@ export function TextChat({
                   className={cn(
                     'chat-message group/message relative flex items-start gap-3 rounded-md px-2 text-sm transition-colors hover:bg-accent/55',
                     heading ? 'mt-4 py-1.5 first:mt-0' : 'py-0.5',
+                    namesMe && 'is-mentioning-me',
                   )}
                   data-hover-scope
                 >
@@ -409,7 +449,7 @@ export function TextChat({
                       </header>
                     )}
                     <p className="whitespace-pre-wrap break-words text-[14.5px] leading-[1.45] text-foreground/90">
-                      <MessageContent content={message.content} />
+                      <MessageContent content={message.content} people={people} selfId={user.id} />
                     </p>
                     {!!message.attachments?.length && (
                       <div className="message-attachments">
@@ -560,6 +600,13 @@ export function TextChat({
         }}
       >
         <TypingLine typists={typists} />
+        <MentionSuggestions
+          people={suggestions}
+          activeIndex={mention?.index ?? 0}
+          avatars={avatars}
+          onPick={chooseMention}
+          onHover={(index) => setMention((current) => current && { ...current, index })}
+        />
         {!!files.length && (
           <div className="pending-attachments">
             {files.map((pending) => (
@@ -620,10 +667,19 @@ export function TextChat({
               disabled={!canSend || busy}
               maxLength={2000}
               value={draft}
+              aria-autocomplete="list"
+              aria-expanded={suggestions.length > 0}
+              aria-controls={suggestions.length ? 'mention-suggestions' : undefined}
+              aria-activedescendant={
+                suggestions.length ? `mention-option-${suggestions[mention?.index ?? 0]?.id}` : undefined
+              }
               onChange={(e) => {
                 setDraft(e.target.value);
+                followCaret(e.target);
                 if (e.target.value.trim()) live?.typing({ channelId: channel.id });
               }}
+              onSelect={(e) => followCaret(e.currentTarget)}
+              onBlur={() => setMention(undefined)}
               onPaste={(event) => {
                 if (event.clipboardData.files.length) {
                   event.preventDefault();
@@ -631,6 +687,25 @@ export function TextChat({
                 }
               }}
               onKeyDown={(e) => {
+                if (suggestions.length && mention) {
+                  const count = suggestions.length;
+                  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    const step = e.key === 'ArrowDown' ? 1 : -1;
+                    setMention({ ...mention, index: (mention.index + step + count) % count });
+                    return;
+                  }
+                  if ((e.key === 'Enter' || e.key === 'Tab') && !e.shiftKey) {
+                    e.preventDefault();
+                    chooseMention(suggestions[Math.min(mention.index, count - 1)]!);
+                    return;
+                  }
+                  if (e.key === 'Escape') {
+                    e.preventDefault();
+                    setMention(undefined);
+                    return;
+                  }
+                }
                 if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
                   e.preventDefault();
                   void send();

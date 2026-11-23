@@ -157,6 +157,31 @@ describe('live events', () => {
     snoop.socket.close();
   });
 
+  it('tells every reader of a channel about a new message, and whether it names them', async () => {
+    // Nobody here is watching the channel: the event reaches them anyway.
+    const reader = await connect(friend);
+    const writer = await connect(owner);
+    const snoop = await connect(outsider);
+    const sent = await call('POST', `/api/channels/${channelId}/messages`, owner, {
+      content: `look <@${friend.user.id}>`,
+    });
+    const { id: messageId } = sent.json() as { id: string };
+    expect(await reader.next((event) => event.type === 'message')).toEqual({
+      type: 'message',
+      serverId,
+      channelId,
+      messageId,
+      authorId: owner.user.id,
+      mentioned: true,
+    });
+    await call('POST', `/api/channels/${channelId}/messages`, owner, { content: 'nothing for you' });
+    expect(await reader.next((event) => event.type === 'message')).toMatchObject({ mentioned: false });
+    await quiet();
+    expect(writer.events.filter((event) => event.type === 'message')).toEqual([]);
+    expect(snoop.events).toEqual([]);
+    for (const client of [reader, writer, snoop]) client.socket.close();
+  });
+
   it('passes typing on to the others in the channel, never back to the writer', async () => {
     const writer = await connect(friend);
     const reader = await connect(owner);

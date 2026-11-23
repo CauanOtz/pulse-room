@@ -1,4 +1,12 @@
-export type RoomSound = 'join' | 'leave' | 'mute' | 'unmute' | 'live-start' | 'live-stop';
+export type RoomSound =
+  | 'join'
+  | 'leave'
+  | 'mute'
+  | 'unmute'
+  | 'live-start'
+  | 'live-stop'
+  | 'message'
+  | 'mention';
 
 interface Cue {
   notes: number[];
@@ -17,6 +25,9 @@ const cues: Record<RoomSound, Cue> = {
   unmute: { notes: [440, 660], step: 0.055, hold: 0.1, peak: 0.075 },
   'live-start': { notes: [523.25, 659.25, 784], step: 0.07, hold: 0.14, peak: 0.1 },
   'live-stop': { notes: [784, 659.25, 523.25], step: 0.07, hold: 0.14, peak: 0.1 },
+  // A message is a soft single tap; being named rises, so it is told apart unseen.
+  message: { notes: [987.77, 1318.51], step: 0.06, hold: 0.12, peak: 0.07 },
+  mention: { notes: [783.99, 1046.5, 1318.51], step: 0.075, hold: 0.16, peak: 0.1 },
 };
 
 /**

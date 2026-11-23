@@ -21,7 +21,7 @@ import { attachmentLimit, attachmentsPerMessage, reactionEmojis } from '../src/s
 import { TagService, type TagInput } from './tag-service.js';
 import { LiveHub } from './live-hub.js';
 import { StatusTracker } from './status-tracker.js';
-import { publishChanges, watchPresence } from './live-effects.js';
+import { announceMessage, publishChanges, watchPresence } from './live-effects.js';
 import { livePath } from '../src/shared/live.js';
 import {
   publishSources,
@@ -659,13 +659,23 @@ export async function createServer(
         .strict()
         .refine((body) => body.content.length > 0 || body.attachmentIds.length > 0)
         .parse(request.body);
-      await communities.sendMessage(
-        actor(request).id,
-        id(request, 'channelId'),
+      const author = actor(request).id;
+      const channelId = id(request, 'channelId');
+      const { messageId, serverId } = await communities.sendMessage(
+        author,
+        channelId,
         body.content,
         body.attachmentIds,
       );
-      return { ok: true };
+      // Announced without holding up the reply; a failure only costs a notification.
+      void announceMessage(live, db, {
+        serverId,
+        channelId,
+        messageId,
+        authorId: author,
+        content: body.content,
+      }).catch((error) => request.log.warn({ error }, 'Could not announce a message'));
+      return { ok: true, id: messageId };
     },
   );
   server.delete('/api/channels/:channelId/messages/:messageId', async (request) => {

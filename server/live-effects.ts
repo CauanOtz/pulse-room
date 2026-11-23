@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { Database } from './database.js';
 import type { LiveHub } from './live-hub.js';
 import type { PresenceSource } from './presence-service.js';
+import { mentionedIds } from '../src/shared/mentions.js';
 
 const uuid = z.uuid();
 const reading = new Set(['GET', 'HEAD', 'OPTIONS']);
@@ -269,4 +270,35 @@ export function watchPresence(
   server.addHook('onClose', async () => {
     if (timer) clearInterval(timer);
   });
+}
+
+/**
+ * Tells everybody who can read a channel that something was written there,
+ * whether or not they are looking at it, and tells each one whether it names
+ * them. Their client decides, by their own settings, whether that is worth a
+ * notification; the words themselves are read through the API.
+ */
+export async function announceMessage(
+  hub: LiveHub,
+  db: Database,
+  message: { serverId: string; channelId: string; messageId: string; authorId: string; content: string },
+): Promise<void> {
+  if (!hub.size) return;
+  const named = new Set(mentionedIds(message.content));
+  const { rows } = await db.query<{ id: string }>(
+    'SELECT account_id AS id FROM memberships WHERE server_id=$1 AND account_id<>$2',
+    [message.serverId, message.authorId],
+  );
+  await hub.toReaders(
+    rows.map((row) => row.id),
+    message.channelId,
+    (accountId) => ({
+      type: 'message',
+      serverId: message.serverId,
+      channelId: message.channelId,
+      messageId: message.messageId,
+      authorId: message.authorId,
+      mentioned: named.has(accountId),
+    }),
+  );
 }

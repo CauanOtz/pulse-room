@@ -974,8 +974,9 @@ export class CommunityService {
     channelId: string,
     content: string,
     attachmentIds: string[] = [],
-  ): Promise<void> {
+  ): Promise<{ messageId: string; serverId: string }> {
     const { channel } = await this.channel(userId, channelId);
+    const messageId = randomUUID();
     await withServer(this.db, userId, channel.serverId, async (db, access) => {
       const { channel: current, permissions } = await this.channel(userId, channelId, db);
       if (current.type !== 'text' || !has(permissions, Permission.SendMessages))
@@ -1000,7 +1001,6 @@ export class CommunityService {
         if (rows.length !== attachmentIds.length)
           throw new HttpError(400, 'An attachment is unavailable. Choose the file again.');
       }
-      const messageId = randomUUID();
       await db.query('INSERT INTO messages(id,channel_id,author_id,content) VALUES($1,$2,$3,$4)', [
         messageId,
         channelId,
@@ -1013,6 +1013,7 @@ export class CommunityService {
           attachmentIds,
         ]);
     });
+    return { messageId, serverId: channel.serverId };
   }
 
   async deleteMessage(userId: string, channelId: string, messageId: string): Promise<void> {

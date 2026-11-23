@@ -42,6 +42,7 @@ import { landingChannel } from './domain/landing-channel';
 import { MemberActionsSection, type VoiceSeat } from './components/member-actions';
 import { keysOf } from '../shared/shortcuts';
 import { paced, poll, useLive, useLiveSignals, type Poller } from './infrastructure/live-context';
+import { useNotificationStore } from './infrastructure/notification-store';
 
 const mediaDevicesService = new MediaDevicesService();
 const roomSoundPlayer = new RoomSoundPlayer();
@@ -127,6 +128,20 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
       : !viewedChannel && workspace
         ? landingChannel(workspace.detail)
         : undefined;
+  // Notifications skip the channel being read, and a notification that was
+  // clicked opens its channel once its server is the one in the room.
+  const notifications = useNotificationStore();
+  const shownChannelId = workspace?.directs?.open ? undefined : textChannel?.id;
+  useEffect(() => {
+    notifications.showChannel(shownChannelId);
+  }, [notifications, shownChannelId]);
+  useEffect(() => () => notifications.showChannel(undefined), [notifications]);
+  const roomServerId = workspace?.detail.server.id;
+  const notificationVersion = notifications.snapshot();
+  useEffect(() => {
+    const wanted = roomServerId ? notifications.take(roomServerId) : undefined;
+    if (wanted) setViewId(wanted);
+  }, [notifications, roomServerId, notificationVersion]);
   const snapshot = useSyncExternalStore(
     controller.gateway.subscribe.bind(controller.gateway),
     controller.gateway.getSnapshot.bind(controller.gateway),
@@ -616,6 +631,7 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
           connectionState={snapshot.connectionState}
           channels={channels}
           serverName={workspace?.detail.server.name}
+          serverId={workspace?.detail.server.id}
           textChannels={workspace?.detail.channels.filter((c) => c.type === 'text')}
           categories={workspace?.detail.categories}
           selectedTextId={textChannel?.id}
@@ -812,6 +828,7 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
                   tags={tags}
                   onOpenProfile={(id, position) => setOpenProfile({ id, position })}
                   onChanged={() => setResourcesRevision((value) => value + 1)}
+                  members={workspace.detail.members}
                 />
               )}
               {joined && !canSpeak && (

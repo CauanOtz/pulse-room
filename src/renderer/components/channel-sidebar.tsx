@@ -30,10 +30,14 @@ import { Button } from './ui/button';
 import { Tooltip } from './ui/tooltip';
 import { cn } from './ui/utils';
 import { VoicePanel } from './voice-panel';
+import { NotificationMenu } from './notification-menu';
+import { useNotificationStore } from '../infrastructure/notification-store';
 import type { CommunityChannel, WornTag } from '../../shared/community';
 
 interface ChannelSidebarProps {
   serverName?: string;
+  /** The server open, for its notification settings; absent in the demo room. */
+  serverId?: string;
   /** A voice channel under the pointer, which is probably the next one joined. */
   onPrepareChannel?(id: string): void;
   /** Your own line to the voice server, for the panel at the foot. */
@@ -79,6 +83,7 @@ interface ChannelSidebarProps {
 }
 
 export function ChannelSidebar(props: ChannelSidebarProps) {
+  const notifications = useNotificationStore();
   const isConnected = props.connectionState === 'connected' || props.connectionState === 'reconnecting';
   const activeChannel = props.channels.find((channel) => channel.id === props.activeChannelId);
   const rosterOf = (channelId: string) =>
@@ -104,6 +109,7 @@ export function ChannelSidebar(props: ChannelSidebarProps) {
       detail="Text channel"
       isPrivate={channel.private}
       selected={props.selectedTextId === channel.id}
+      mentions={notifications.mentionsIn(channel.id)}
       onSelect={() => props.onSelectText?.(channel.id)}
       onEdit={props.onEditChannel && (() => props.onEditChannel?.(channel.id))}
     />
@@ -137,29 +143,40 @@ export function ChannelSidebar(props: ChannelSidebarProps) {
 
   return (
     <aside className="channel-sidebar relative flex min-w-0 flex-col bg-sidebar text-sidebar-foreground">
-      <button
-        className="server-heading flex h-13 flex-none items-center justify-between gap-2 border-b border-border px-3.5 text-sm font-semibold transition-colors hover:bg-accent"
-        type="button"
-        onClick={props.onManage}
-        aria-label={props.serverName ? 'Server settings and members' : undefined}
-      >
-        <span className="flex min-w-0 flex-col gap-1 text-left">
-          <span className="text-[15px] font-semibold tracking-tight">Pulse Room</span>
-          <span className="server-name truncate text-xs font-normal text-muted-foreground">
-            {props.serverName ?? 'After hours'}
+      {/* The name opens the server; the bell and the invite sit beside it, not over it. */}
+      <div className="server-heading-row">
+        <button
+          className="server-heading flex h-13 min-w-0 flex-1 items-center justify-between gap-2 border-b border-border px-3.5 text-sm font-semibold transition-colors hover:bg-accent"
+          type="button"
+          onClick={props.onManage}
+          aria-label={props.serverName ? 'Server settings and members' : undefined}
+        >
+          <span className="flex min-w-0 flex-col gap-1 text-left">
+            <span className="text-[15px] font-semibold tracking-tight">Pulse Room</span>
+            <span className="server-name truncate text-xs font-normal text-muted-foreground">
+              {props.serverName ?? 'After hours'}
+            </span>
           </span>
-        </span>
-        <i className="grid size-6 place-items-center rounded-md text-muted-foreground not-italic transition-colors">
-          <ChevronDown size={14} />
-        </i>
-      </button>
-      {props.onInvite && (
-        <Tooltip label="Invite people">
-          <button className="server-invite" type="button" aria-label="Invite people" onClick={props.onInvite}>
-            <UserPlus size={15} />
-          </button>
-        </Tooltip>
-      )}
+          <i className="grid size-6 place-items-center rounded-md text-muted-foreground not-italic transition-colors">
+            <ChevronDown size={14} />
+          </i>
+        </button>
+        <div className="server-heading-tools">
+          {props.serverId && <NotificationMenu serverId={props.serverId} serverName={props.serverName} />}
+          {props.onInvite && (
+            <Tooltip label="Invite people">
+              <button
+                className="server-invite"
+                type="button"
+                aria-label="Invite people"
+                onClick={props.onInvite}
+              >
+                <UserPlus size={15} />
+              </button>
+            </Tooltip>
+          )}
+        </div>
+      </div>
 
       <div className="channel-scroll flex-1 overflow-y-auto px-2 py-3">
         <section className="channel-group mb-5 flex flex-col gap-0.5">
@@ -391,6 +408,7 @@ function ChannelRow({
   selected,
   current,
   disabled,
+  mentions = 0,
   onSelect,
   onIntent,
   onEdit,
@@ -402,6 +420,8 @@ function ChannelRow({
   selected?: boolean;
   current?: boolean;
   disabled?: boolean;
+  /** Mentions of you here not yet seen. */
+  mentions?: number;
   onSelect(): void;
   /** The pointer or the keyboard came to rest here. */
   onIntent?: false | undefined | (() => void);
@@ -420,7 +440,7 @@ function ChannelRow({
           selected && 'is-selected bg-accent/60 text-foreground',
         )}
         type="button"
-        aria-label={name}
+        aria-label={mentions ? `${name}, ${mentions} mentions` : name}
         aria-current={current || selected ? true : undefined}
         disabled={disabled}
         onClick={onSelect}
@@ -443,6 +463,18 @@ function ChannelRow({
           {detail && <span className="channel-detail block truncate">{detail}</span>}
         </span>
         {isPrivate && <LockKeyhole aria-label="Private" className="size-3.5 shrink-0" />}
+        {mentions > 0 && (
+          <motion.b
+            key={mentions}
+            className="channel-mentions"
+            initial={{ scale: 0.4, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', stiffness: 600, damping: 22 }}
+            aria-hidden="true"
+          >
+            @{mentions > 9 ? '9+' : mentions}
+          </motion.b>
+        )}
         {!onEdit && <ChevronRight className="channel-go" aria-hidden="true" />}
       </button>
       {onEdit && (

@@ -1,5 +1,17 @@
 import path from 'node:path';
-import { app, BrowserWindow, globalShortcut, ipcMain, Menu, nativeImage, session, shell, Tray } from 'electron';
+import {
+  app,
+  BrowserWindow,
+  globalShortcut,
+  ipcMain,
+  Menu,
+  nativeImage,
+  Notification,
+  session,
+  shell,
+  Tray,
+} from 'electron';
+import type { DesktopNotice } from '../shared/desktop-api';
 import { shortcuts, type ShortcutAction } from '../shared/shortcuts';
 import { ScreenCaptureService } from './application/screen-capture-service';
 import { UpdateService } from './application/update-service';
@@ -9,6 +21,10 @@ import { SessionVault } from './application/session-vault';
 // HTML fullscreen permission that Electron asks for separately.
 const allowedPermissions = new Set(['media', 'display-capture', 'fullscreen']);
 const updateCheckEveryMs = 30 * 60_000;
+// Windows names the sender of a notification by this id; it is the installer's own.
+const appUserModelId = 'com.pulseroom.desktop';
+// Shown notifications, held so that a click still reaches its handler.
+const notices = new Set<Notification>();
 
 if (process.env.NODE_ENV === 'test' && process.env.PULSE_TEST_USER_DATA) {
   app.setPath('userData', process.env.PULSE_TEST_USER_DATA);
@@ -57,6 +73,7 @@ function createMainWindow(): BrowserWindow {
   });
 
   window.once('ready-to-show', () => window.show());
+  window.on('focus', () => window.flashFrame(false));
   window.on('close', (event) => {
     if (quitting) return;
     event.preventDefault();
@@ -169,6 +186,30 @@ function registerIpcHandlers(): void {
   ipcMain.handle('capture:select-source', (_event, sourceId: string) => {
     screenCaptureService.selectSource(sourceId);
   });
+  ipcMain.handle('notifications:show', (event, notice: DesktopNotice) => {
+    if (!Notification.isSupported() || event.sender !== mainWindow?.webContents) return;
+    const title = String(notice?.title ?? '').slice(0, 120);
+    const body = String(notice?.body ?? '').slice(0, 300);
+    const tag = String(notice?.tag ?? '').slice(0, 200);
+    const shown = new Notification({
+      title,
+      body,
+      icon: path.join(__dirname, '../../assets/app-icon.png'),
+      // The app plays its own chime, by its own setting.
+      silent: true,
+    });
+    const forget = () => notices.delete(shown);
+    shown.on('click', () => {
+      forget();
+      revealWindow();
+      mainWindow?.webContents.send('notifications:open', tag);
+    });
+    shown.on('close', forget);
+    notices.add(shown);
+    shown.show();
+    // The taskbar button blinks until somebody comes back to the window.
+    if (mainWindow && !mainWindow.isFocused()) mainWindow.flashFrame(true);
+  });
   ipcMain.handle('updates:check', () => updateService.check());
   ipcMain.handle('updates:install', () => updateService.install());
   ipcMain.handle('updates:current', () => updateService.current());
@@ -209,6 +250,8 @@ app.on('second-instance', () => revealWindow());
 app.on('before-quit', () => {
   quitting = true;
 });
+
+if (process.platform === 'win32') app.setAppUserModelId(appUserModelId);
 
 app.whenReady().then(() => {
   // The window is the whole application; a File, Edit, View and Window bar

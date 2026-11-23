@@ -120,6 +120,28 @@ export class LiveHub {
       if (connection.account?.id !== exceptAccountId) send(connection, payload);
   }
 
+  /**
+   * Sends each connected account an event of its own, if it may read the
+   * channel. Everybody else is skipped without being asked about.
+   */
+  async toReaders(
+    accountIds: Iterable<string>,
+    channelId: string,
+    eventFor: (accountId: string) => LiveEvent,
+  ): Promise<void> {
+    const present = [...new Set(accountIds)].filter((accountId) => this.byAccount.has(accountId));
+    await Promise.all(
+      present.map(async (accountId) => {
+        try {
+          await this.access.canRead(accountId, channelId);
+        } catch {
+          return;
+        }
+        this.toAccounts([accountId], eventFor(accountId));
+      }),
+    );
+  }
+
   /** Whether this account has a connection open. */
   connected(accountId: string): boolean {
     return this.byAccount.has(accountId);

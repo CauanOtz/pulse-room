@@ -25,6 +25,18 @@ export type LiveEvent =
   | { type: 'presence'; serverId: string }
   /** Messages in a watched channel changed; `authorId` when one was written. */
   | { type: 'channel'; channelId: string; authorId?: string }
+  /**
+   * A message was written in a channel you can read, wherever you are looking.
+   * It says where and whether it names you; the words are read from the API.
+   */
+  | {
+      type: 'message';
+      serverId: string;
+      channelId: string;
+      messageId: string;
+      authorId: string;
+      mentioned: boolean;
+    }
   /** Somebody you share a server or a conversation with came or went. */
   | { type: 'status'; userId: string; online: boolean }
   /** Your conversations changed; `conversationId` when one in particular did. */

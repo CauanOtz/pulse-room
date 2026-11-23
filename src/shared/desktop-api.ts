@@ -29,6 +29,14 @@ export interface FinishedUpdate {
 
 import type { ShortcutAction } from './shortcuts';
 
+/** A message worth interrupting for, shown by the system outside the window. */
+export interface DesktopNotice {
+  title: string;
+  body: string;
+  /** Said back when it is clicked, so the app knows what to open. */
+  tag: string;
+}
+
 export interface DesktopApi {
   session: {
     read(): Promise<string | null>;
@@ -55,5 +63,10 @@ export interface DesktopApi {
     /** The update this launch finished, once; null on every other launch. */
     finished?(): Promise<FinishedUpdate | null>;
     onStatus(listener: (status: UpdateStatus) => void): () => void;
+  };
+  notifications?: {
+    show(notice: DesktopNotice): Promise<void>;
+    /** A notification was clicked; the window is already in front. */
+    onOpen(listener: (tag: string) => void): () => void;
   };
 }
