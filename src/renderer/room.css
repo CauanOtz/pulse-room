@@ -1015,8 +1015,10 @@
     color var(--motion-fast) var(--ease-out),
     transform var(--motion-panel) var(--ease-spring);
 }
+/* Centring comes from the translate property; repeating it here lifted the
+   gear half its height away from the pointer reaching for it. */
 .channel-sidebar .channel-edit:hover {
-  transform: translateY(-50%) rotate(60deg);
+  transform: rotate(60deg);
 }
 
 /* The roster hangs from its channel on a hairline, faces in one column. */
