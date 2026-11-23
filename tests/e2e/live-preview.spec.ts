@@ -77,6 +77,9 @@ test('live offers remain visible and screen previews stay usable in the room', a
     await window.locator('.stage-live').screenshot({
       path: path.join(artifacts, `live-player-${process.env.PULSE_PLAYER_PHASE ?? 'after'}.png`),
     });
+    // The bars fade after a few still seconds, and a slow screenshot is enough
+    // of them; a viewer reaches for them by moving the pointer first.
+    await window.locator('.stage-live').hover();
     await window.getByRole('button', { name: 'Back to the room', exact: true }).click();
     await expect(window.locator('.tile-video')).toBeVisible();
     await window.locator('.stage-room').screenshot({
