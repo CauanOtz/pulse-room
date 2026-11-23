@@ -31,7 +31,7 @@
 }
 .member-directory .directory-search:focus-within > svg {
   color: var(--foreground);
-  transform: scale(1.1) rotate(-8deg);
+  transform: scale(1.1);
 }
 .member-directory .directory-search > button {
   display: grid;
@@ -93,7 +93,7 @@
 }
 .pulse-menu-item[data-highlighted] > svg:first-child {
   color: var(--foreground);
-  transform: scale(1.12) rotate(-6deg);
+  transform: scale(1.12);
 }
 /* Destructive items stay red, and warn rather than shout on hover. */
 .pulse-menu-item.text-destructive,

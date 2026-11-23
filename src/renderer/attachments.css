@@ -146,7 +146,7 @@
   > .attachment-file-icon {
   color: var(--primary-foreground);
   background: var(--primary);
-  transform: rotate(-6deg) scale(1.04);
+  transform: scale(1.04);
 }
 .message-attachments .chat-attachment:has(> .attachment-file-icon):not(.is-compact) > .attachment-caption {
   padding: 0 0 0 0.75rem;

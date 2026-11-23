@@ -567,7 +567,7 @@
 .connection-info:hover {
   color: var(--foreground);
   background: rgb(var(--ink) / 0.06);
-  transform: rotate(-10deg) scale(1.08);
+  transform: scale(1.08);
 }
 .connection-hero {
   display: flex;
@@ -889,7 +889,7 @@
   color: var(--foreground);
 }
 .settings-tab:hover svg {
-  transform: scale(1.12) rotate(-6deg);
+  transform: scale(1.12);
 }
 .settings-tab svg {
   transition: transform var(--motion-panel) var(--ease-spring);

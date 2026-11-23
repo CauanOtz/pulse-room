@@ -51,7 +51,7 @@
   color: var(--primary-foreground);
   background: var(--primary);
   box-shadow: 0 6px 18px -6px rgb(var(--ink) / 0.5);
-  transform: translateY(-1px) rotate(-4deg);
+  transform: translateY(-1px);
 }
 
 /* ------------------------------------------------------- the list side */
@@ -229,7 +229,7 @@
   transition: transform var(--motion-panel) var(--ease-spring);
 }
 .direct-row:hover .direct-row-avatar {
-  transform: scale(1.05) rotate(-2deg);
+  transform: scale(1.05);
 }
 .direct-row-copy {
   display: flex;

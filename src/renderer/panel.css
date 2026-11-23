@@ -124,7 +124,7 @@
     box-shadow var(--motion-panel) var(--ease-out);
 }
 .member-sidebar .member-entry:hover .member-identity .avatar {
-  transform: scale(1.05) rotate(-2deg);
+  transform: scale(1.05);
 }
 .member-sidebar .member-presence {
   right: -2px;

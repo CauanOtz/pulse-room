@@ -160,7 +160,7 @@
   transition: transform var(--motion-panel) var(--ease-spring);
 }
 .profile-sheet-face:hover .profile-sheet-avatar {
-  transform: rotate(-3deg) scale(1.03);
+  transform: scale(1.03);
 }
 .profile-sheet-badge {
   position: absolute;
@@ -729,7 +729,7 @@
   transition: transform var(--motion-panel) var(--ease-spring);
 }
 .direct-pane-person:hover .direct-pane-avatar {
-  transform: scale(1.08) rotate(-3deg);
+  transform: scale(1.08);
 }
 .direct-pane-face-hint {
   position: absolute;
@@ -786,7 +786,7 @@
   transition: transform var(--motion-panel) var(--ease-spring);
 }
 .direct-message-face:not(:disabled):hover .direct-message-avatar {
-  transform: scale(1.06) rotate(-3deg);
+  transform: scale(1.06);
 }
 
 @media (prefers-reduced-motion: reduce) {

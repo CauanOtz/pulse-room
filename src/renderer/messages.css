@@ -65,7 +65,7 @@
   transition: transform var(--motion-panel) var(--ease-spring);
 }
 .message-toolbar .emoji-trigger:hover svg {
-  transform: rotate(-12deg) scale(1.12);
+  transform: scale(1.12);
 }
 
 /* Quick reactions lift like they are about to be thrown. */
