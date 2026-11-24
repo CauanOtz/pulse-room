@@ -31,7 +31,10 @@
 .member-sidebar .sidebar-tab-heading [role='tab']::after {
   display: none;
 }
-.member-sidebar .sidebar-tab-heading [aria-selected='true'] {
+.member-sidebar .sidebar-tab-heading [aria-selected='true'],
+/* The open tab sits on the filled pill, so it keeps its colour under the
+   pointer; the general tab hover would light it into the pill. */
+.member-sidebar .sidebar-tab-heading [role='tab'][aria-selected='true']:hover {
   color: var(--primary-foreground);
 }
 .member-sidebar .sidebar-tab-heading {

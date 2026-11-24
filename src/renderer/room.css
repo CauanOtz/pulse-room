@@ -957,10 +957,15 @@
   width: 0.875rem;
   height: 0.875rem;
 }
-.channel-sidebar .channel-row:hover .channel-icon,
-.channel-sidebar .channel-item:hover .channel-row .channel-icon {
+/* The selected channel keeps its filled tile under the pointer: lighting the
+   glyph there made it the colour of the tile and it vanished. */
+.channel-sidebar .channel-row:not(.is-selected, [aria-current='true']):hover .channel-icon,
+.channel-sidebar .channel-item:hover .channel-row:not(.is-selected, [aria-current='true']) .channel-icon {
   color: var(--foreground);
   box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.2);
+}
+.channel-sidebar .channel-row:hover .channel-icon,
+.channel-sidebar .channel-item:hover .channel-row .channel-icon {
   transform: scale(1.06);
 }
 .channel-sidebar .channel-row .channel-identity {
