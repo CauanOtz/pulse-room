@@ -26,7 +26,28 @@ export const accountOf = (identity: string): string => identity.split(':')[0];
 
 export interface ChannelOccupancy {
   roomId: string;
-  occupants: { identity: string; name: string }[];
+  occupants: { identity: string; name: string; joinedAt?: number }[];
+}
+
+/**
+ * When the call in a room began, as far as anybody still there can tell: the
+ * moment the person who has been in it longest joined. Empty rooms have none.
+ */
+export function callStartedAt(room: ChannelOccupancy | undefined): number | undefined {
+  const times = (room?.occupants ?? [])
+    .map((occupant) => occupant.joinedAt)
+    .filter((time): time is number => typeof time === 'number' && time > 0);
+  return times.length ? Math.min(...times) : undefined;
+}
+
+/** Elapsed time the way a call timer reads it: 4:07, or 1:02:09 past an hour. */
+export function formatElapsed(milliseconds: number): string {
+  const total = Math.max(0, Math.floor(milliseconds / 1000));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = total % 60;
+  const two = (value: number) => String(value).padStart(2, '0');
+  return hours ? `${hours}:${two(minutes)}:${two(seconds)}` : `${minutes}:${two(seconds)}`;
 }
 
 // Faces are told apart by value, not by hue: the room keeps its one colour for

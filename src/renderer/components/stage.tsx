@@ -20,6 +20,7 @@ import type { Participant } from '../domain/conference';
 import type { StreamHealth } from '../domain/stream-health';
 import { MediaOutput } from './media-output';
 import { StreamHealthIndicator } from './stream-health';
+import { CallTimer } from './call-timer';
 import { LiveStreamNavigation, LiveVoicePeers } from './live-stream-navigation';
 import { cn } from './ui/utils';
 import { ParticipantTiles } from './participant-tiles';
@@ -54,6 +55,8 @@ interface StageProps {
   onScreenVolume?(participantId: string, volume: number): void;
   /** How a shared screen is doing, from wherever this machine can see it. */
   readStream?(participantId: string): Promise<StreamHealth | undefined>;
+  /** When the call in this room began, for the timer at the top of the room. */
+  callSince?: number;
   /** The call controls, which ride along with the fading overlay. */
   children?: ReactNode;
 }
@@ -70,6 +73,7 @@ export function Stage({
   screenVolumes,
   onScreenVolume,
   readStream,
+  callSince,
   children,
 }: StageProps) {
   const broadcasts = participants.filter((participant) => participant.isBroadcasting);
@@ -247,7 +251,15 @@ export function Stage({
           <span>
             <Radio size={13} aria-hidden="true" /> Voice room
           </span>
-          <span>{participants.length} connected</span>
+          <span className="voice-session-count">
+            {participants.length} connected
+            {callSince && (
+              <>
+                <i aria-hidden="true" />
+                <CallTimer since={callSince} className="voice-session-timer" />
+              </>
+            )}
+          </span>
         </div>
         <button
           className="voice-expand"

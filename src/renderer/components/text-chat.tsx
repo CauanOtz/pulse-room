@@ -277,6 +277,8 @@ export function TextChat({
       });
       setDraft('');
       setReplying(undefined);
+      // Sent with the button or with Enter, the next message is typed straight away.
+      requestAnimationFrame(() => textarea.current?.focus());
       setFiles([]);
       live?.stoppedTyping({ channelId: channel.id });
       onChanged?.();
@@ -864,7 +866,10 @@ export function TextChat({
               rows={1}
               aria-label="Message"
               placeholder={canSend ? `Message #${channel.name}` : (sendHint ?? 'This channel is read-only.')}
-              disabled={!canSend || busy}
+              // Read-only while a message goes out, not disabled: a disabled box
+              // gives the keyboard away, and the next message needed a click.
+              disabled={!canSend}
+              readOnly={busy}
               maxLength={2000}
               value={draft}
               aria-autocomplete="list"

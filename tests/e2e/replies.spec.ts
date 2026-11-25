@@ -92,6 +92,9 @@ test('a message can be answered with a quote and its own text corrected in place
     await window.waitForTimeout(400);
     await window.screenshot({ path: 'test-results/replies-composing.png' });
     await composer.press('Enter');
+    // The box keeps the keyboard after a message goes out.
+    await expect(composer).toHaveValue('');
+    await expect(composer).toBeFocused();
     await expect(window.locator('.composer-reply')).toHaveCount(0);
     await expect
       .poll(async () =>
@@ -130,6 +133,11 @@ test('a message can be answered with a quote and its own text corrected in place
     // The quote under Ana's answer follows the new words.
     await expect(back.locator('.message-reply')).toContainText('10 instead', { timeout: 10_000 });
 
+    // Sent with the button too, the next message needs no click.
+    await composer.pressSequentially('and with the button');
+    await window.getByRole('button', { name: 'Send', exact: true }).click();
+    await expect(window.locator('.chat-message', { hasText: 'and with the button' })).toBeVisible();
+    await expect(composer).toBeFocused();
     // The quote goes back to what it answers.
     await answer.locator('.message-reply').click();
     await expect(question).toHaveClass(/is-revealed/);

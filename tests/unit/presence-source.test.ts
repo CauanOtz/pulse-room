@@ -73,3 +73,22 @@ describe('concurrent voice presence reads', () => {
     expect(listRooms).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('when somebody joined', () => {
+  it('is carried from whichever field LiveKit fills, in milliseconds', async () => {
+    const source = new LiveKitPresenceSource(configuration, {
+      listRooms: async () => [{ name: 'voice-room' }],
+      listParticipants: async () => [
+        { identity: 'precise', name: 'Precise', joinedAtMs: 1_700_000_000_123n, joinedAt: 1_700_000_000n },
+        { identity: 'seconds', name: 'Seconds', joinedAt: 1_700_000_100n },
+        { identity: 'unknown', name: 'Unknown' },
+      ],
+    });
+    const [room] = await source.read();
+    expect(room!.occupants).toEqual([
+      { identity: 'precise', name: 'Precise', joinedAt: 1_700_000_000_123 },
+      { identity: 'seconds', name: 'Seconds', joinedAt: 1_700_000_100_000 },
+      { identity: 'unknown', name: 'Unknown' },
+    ]);
+  });
+});

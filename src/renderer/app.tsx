@@ -5,7 +5,7 @@ import { updateFlow } from './components/update-screen';
 import { ConferenceController } from './application/conference-controller';
 import { emptyPresence, presenceSounds, type RoomPresence } from './application/room-presence';
 import { voiceChannels, type Participant } from './domain/conference';
-import { accountOf, type ChannelOccupancy, type RosterEntry } from './domain/roster';
+import { accountOf, callStartedAt, type ChannelOccupancy, type RosterEntry } from './domain/roster';
 import { RoomSoundPlayer } from './infrastructure/media/room-sound-player';
 import { CallControls } from './components/call-controls';
 import { ChannelSidebar } from './components/channel-sidebar';
@@ -792,6 +792,9 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
                       setScreenVolumes((volumes) => ({ ...volumes, [participantId]: volume }))
                     }
                     readStream={readStream}
+                    callSince={
+                      joined ? callStartedAt(occupancy.find((room) => room.roomId === settings.roomId)) : undefined
+                    }
                   >
                     {joined && (
                       <CallControls

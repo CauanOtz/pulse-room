@@ -18,7 +18,8 @@ import {
   VolumeX,
 } from 'lucide-react';
 import type { ConnectionReport, ConnectionState, Participant, VoiceChannel } from '../domain/conference';
-import { accountOf, channelRoster, type ChannelOccupancy, type RosterEntry } from '../domain/roster';
+import { accountOf, callStartedAt, channelRoster, type ChannelOccupancy, type RosterEntry } from '../domain/roster';
+import { CallTimer } from './call-timer';
 import { Avatar } from './avatar';
 import { TagChip } from './profile-identity';
 import { SignalBars } from './signal-bars';
@@ -119,7 +120,21 @@ export function ChannelSidebar(props: ChannelSidebarProps) {
       <ChannelRow
         icon={icon}
         name={channel.name}
-        detail={`${rosterOf(channel.id).length} in voice`}
+        detail={
+          <>
+            {rosterOf(channel.id).length} in voice
+            {/* How long the call has been going, while anybody is in it. */}
+            {rosterOf(channel.id).length > 0 && callStartedAt(props.occupancy.find((room) => room.roomId === channel.id)) && (
+              <>
+                {' · '}
+                <CallTimer
+                  className="channel-call-timer"
+                  since={callStartedAt(props.occupancy.find((room) => room.roomId === channel.id))!}
+                />
+              </>
+            )}
+          </>
+        }
         isPrivate={channel.private}
         selected={isConnected && channel.id === props.activeChannelId}
         current={isConnected && channel.id === props.activeChannelId}
@@ -415,7 +430,7 @@ function ChannelRow({
 }: {
   icon: ReactNode;
   name: string;
-  detail?: string;
+  detail?: ReactNode;
   isPrivate?: boolean;
   selected?: boolean;
   current?: boolean;

@@ -4,6 +4,8 @@ import { selectLiveKitConnection, type ServerConfiguration } from './config.js';
 export interface RoomOccupant {
   identity: string;
   name: string;
+  /** When they joined, in milliseconds since the epoch, as the voice server saw it. */
+  joinedAt?: number;
 }
 
 export interface RoomOccupancy {
@@ -18,7 +20,9 @@ export interface PresenceSource {
 /** The slice of the LiveKit admin API this needs, so it can be substituted. */
 export interface RoomAdminClient {
   listRooms(): Promise<{ name: string }[]>;
-  listParticipants(room: string): Promise<{ identity: string; name: string }[]>;
+  listParticipants(
+    room: string,
+  ): Promise<{ identity: string; name: string; joinedAt?: bigint | number; joinedAtMs?: bigint | number }[]>;
 }
 
 /**
@@ -72,6 +76,7 @@ export class LiveKitPresenceSource implements PresenceSource {
             occupants: participants.map((participant) => ({
               identity: participant.identity,
               name: participant.name || participant.identity,
+              ...joinedOf(participant),
             })),
           };
         } catch {
@@ -85,4 +90,12 @@ export class LiveKitPresenceSource implements PresenceSource {
     this.cached = { at: this.now(), rooms: occupancy };
     return occupancy;
   }
+}
+
+/** The moment somebody joined, from whichever field this LiveKit version fills. */
+function joinedOf(participant: { joinedAt?: bigint | number; joinedAtMs?: bigint | number }): {
+  joinedAt?: number;
+} {
+  const milliseconds = Number(participant.joinedAtMs ?? 0) || Number(participant.joinedAt ?? 0) * 1000;
+  return milliseconds > 0 ? { joinedAt: milliseconds } : {};
 }

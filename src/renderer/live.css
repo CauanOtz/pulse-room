@@ -373,3 +373,30 @@
     animation: none !important;
   }
 }
+
+/* ---------------------------------------------------------- call timers */
+
+/* How long a call has been going: a mono reading that turns over each second. */
+.channel-sidebar .channel-call-timer {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-2);
+}
+.voice-session-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.voice-session-count > i {
+  width: 3px;
+  height: 3px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.6;
+}
+.voice-session-timer {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  color: rgb(var(--ink) / 0.88);
+}
