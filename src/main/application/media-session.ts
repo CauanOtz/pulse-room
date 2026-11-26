@@ -9,7 +9,12 @@
  * Kept here rather than as a file beside the app, which the installer would
  * not carry; it runs through -EncodedCommand.
  */
+// Windows PowerShell writes in the old code page of the system unless told
+// otherwise, which turns "Depressão" into "Depress�o" on the way to the app.
+export const utf8Output = '[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding $false';
+
 const script = String.raw`$ErrorActionPreference = 'Stop'
+${utf8Output}
 try {
   Add-Type -AssemblyName System.Runtime.WindowsRuntime
   $methods = [System.WindowsRuntimeSystemExtensions].GetMethods()

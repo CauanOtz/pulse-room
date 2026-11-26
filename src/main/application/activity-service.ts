@@ -3,7 +3,7 @@ import { nativeImage, type BrowserWindow } from 'electron';
 import type { DesktopActivity } from '../../shared/desktop-api';
 import { findGame, musicOf, type RunningProcess } from './activity-detection';
 import { gameArt, shrink } from './game-art';
-import { mediaSessionCommand } from './media-session';
+import { mediaSessionCommand, utf8Output } from './media-session';
 
 /** Often enough to catch a game being opened, rare enough to cost nothing. */
 const everyMs = 20_000;
@@ -13,7 +13,7 @@ const listing = [
   '-NoProfile',
   '-NonInteractive',
   '-Command',
-  'Get-Process | Where-Object { $_.MainWindowTitle -or $_.Path } | Select-Object ProcessName,Path,MainWindowTitle | ConvertTo-Json -Compress',
+  `${utf8Output}; Get-Process | Where-Object { $_.MainWindowTitle -or $_.Path } | Select-Object ProcessName,Path,MainWindowTitle | ConvertTo-Json -Compress`,
 ];
 
 interface MediaReading {
@@ -142,7 +142,7 @@ function run<Result>(args: string[]): Promise<Result> {
       (error, stdout) => {
         if (error) return reject(error);
         try {
-          resolve(JSON.parse(stdout.trim() || 'null') as Result);
+          resolve(JSON.parse(stdout.replace(/^\uFEFF/, '').trim() || 'null') as Result);
         } catch (problem) {
           reject(problem);
         }

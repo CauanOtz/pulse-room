@@ -96,3 +96,14 @@ describe('finding a game in a store by its name', () => {
     );
   });
 });
+
+describe('reading the media controls', () => {
+  it('asks PowerShell for UTF-8, so accented titles arrive whole', async () => {
+    const { mediaSessionCommand, utf8Output } = await import('../../src/main/application/media-session');
+    const args = mediaSessionCommand('Coração|Diva Depressão');
+    const script = Buffer.from(args[args.length - 1]!, 'base64').toString('utf16le');
+    expect(script).toContain(utf8Output);
+    expect(script.indexOf(utf8Output)).toBeLessThan(script.indexOf('ConvertTo-Json'));
+    expect(script).toContain("$Known = 'Coração|Diva Depressão'");
+  });
+});
