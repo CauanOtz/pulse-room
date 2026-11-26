@@ -15,6 +15,7 @@ import type { DesktopNotice } from '../shared/desktop-api';
 import { shortcuts, type ShortcutAction } from '../shared/shortcuts';
 import { ScreenCaptureService } from './application/screen-capture-service';
 import { UpdateService } from './application/update-service';
+import { ActivityService } from './application/activity-service';
 import { SessionVault } from './application/session-vault';
 
 // Screen sharing needs media and display capture; the live stage needs the
@@ -57,6 +58,8 @@ let tray: Tray | null = null;
 let quitting = false;
 const screenCaptureService = new ScreenCaptureService();
 const updateService = new UpdateService(() => mainWindow);
+// Not while testing: the test machine's own programs are nobody's activity.
+const activityService = new ActivityService(() => mainWindow);
 
 function createMainWindow(): BrowserWindow {
   const window = new BrowserWindow({
@@ -227,6 +230,7 @@ function registerIpcHandlers(): void {
     // The taskbar button blinks until somebody comes back to the window.
     if (mainWindow && !mainWindow.isFocused()) mainWindow.flashFrame(true);
   });
+  ipcMain.handle('activity:current', () => activityService.now());
   ipcMain.handle('updates:check', () => updateService.check());
   ipcMain.handle('updates:install', () => updateService.install());
   ipcMain.handle('updates:current', () => updateService.current());
@@ -282,6 +286,7 @@ app.whenReady().then(() => {
   registerIpcHandlers();
   mainWindow = createMainWindow();
   createTray();
+  if (!isTest) activityService.start();
 
   session.defaultSession.setPermissionCheckHandler((_webContents, permission) =>
     allowedPermissions.has(permission),

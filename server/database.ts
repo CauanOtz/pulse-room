@@ -326,6 +326,27 @@ export async function migrate(database: Database): Promise<void> {
       ALTER TABLE messages ADD COLUMN IF NOT EXISTS was_reply boolean NOT NULL DEFAULT false;
       INSERT INTO schema_migrations(version) VALUES(13) ON CONFLICT DO NOTHING;
     `);
+    // The games people played, as sessions, for "played lately" on a profile.
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS game_sessions (
+        id uuid PRIMARY KEY,
+        account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        name text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 80),
+        started_at timestamptz NOT NULL,
+        last_seen_at timestamptz NOT NULL,
+        ended_at timestamptz
+      );
+      CREATE INDEX IF NOT EXISTS game_sessions_account_idx ON game_sessions(account_id, started_at DESC);
+      CREATE TABLE IF NOT EXISTS game_art (
+        account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        name text NOT NULL,
+        art text NOT NULL CHECK (char_length(art) <= 80000),
+        PRIMARY KEY (account_id, name)
+      );
+      -- Somebody who stops sharing their games stops sharing what they played too.
+      ALTER TABLE accounts ADD COLUMN IF NOT EXISTS shares_games boolean NOT NULL DEFAULT true;
+      INSERT INTO schema_migrations(version) VALUES(14) ON CONFLICT DO NOTHING;
+    `);
   });
 }
 

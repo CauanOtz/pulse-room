@@ -22,6 +22,7 @@ import { attachmentLimit, attachmentsPerMessage, reactionEmojis } from '../src/s
 import { TagService, type TagInput } from './tag-service.js';
 import { LiveHub } from './live-hub.js';
 import { StatusTracker } from './status-tracker.js';
+import { ActivityTracker } from './activity-tracker.js';
 import { announceMessage, publishChanges, watchPresence } from './live-effects.js';
 import { livePath } from '../src/shared/live.js';
 import {
@@ -196,6 +197,9 @@ export async function createServer(
   live.onAccountChange = (accountId) => status.changed(accountId);
   server.addHook('onListen', async () => status.start());
   server.addHook('onClose', async () => status.stop());
+  const activity = new ActivityTracker(live, db);
+  server.addHook('onListen', async () => activity.start());
+  server.addHook('onClose', async () => activity.stop());
   server.addHook('onRequest', async (request, reply) => {
     reply.header('Cache-Control', 'no-store');
     if (request.method === 'OPTIONS' || publicRoutes.has(request.routeOptions.url ?? '')) return;
@@ -292,6 +296,51 @@ export async function createServer(
     return { ok: true };
   });
 
+  // What this desktop is playing and listening to; repeated while it goes on.
+  const plain = (limit: number) =>
+    z
+      .string()
+      .transform((value) => value.replace(/[\u0000-\u001f\u007f\u202a-\u202e\u2066-\u2069]/g, '').trim())
+      .pipe(z.string().min(1).max(limit));
+  // Pictures travel inline and small: an image a few kilobytes long, nothing else.
+  const picture = z
+    .string()
+    .max(80_000)
+    .regex(/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+=*$/);
+  server.put(
+    '/api/account/activity',
+    // Two pictures of up to 80,000 characters each travel with the names.
+    { bodyLimit: 2 * 80_000 + 4_096, config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
+    async (request) => {
+      const body = z
+        .object({
+          game: plain(80).nullable(),
+          gameArt: picture.nullable().optional(),
+          sharesGames: z.boolean().optional(),
+          music: z
+            .object({
+              title: plain(200),
+              artist: plain(200),
+              art: picture.nullable().optional(),
+              spotify: z.boolean().optional(),
+              length: z.number().int().positive().max(86_400).optional(),
+              startedAt: z.string().datetime().optional(),
+            })
+            .strict()
+            .nullable(),
+        })
+        .strict()
+        .parse(request.body);
+      await activity.report(actor(request).id, body);
+      return { ok: true };
+    },
+  );
+  // The games somebody played lately, for people who share a server or a conversation with them.
+  server.get('/api/accounts/:accountId/games', async (request) => {
+    const accountId = id(request, 'accountId');
+    if (!(await activity.canSee(actor(request).id, accountId))) throw new HttpError(404, 'Not found.');
+    return { games: await activity.recent(accountId) };
+  });
   server.patch('/api/account/profile', async (request) => {
     const { bio } = z
       .object({ bio: z.string().trim().max(200) })
@@ -317,7 +366,10 @@ export async function createServer(
     const detail = await communities.detail(actor(request).id, id(request, 'serverId'));
     return {
       ...detail,
-      members: detail.members.map((member) => ({ ...member, online: status.isOnline(member.id) })),
+      members: detail.members.map((member) => {
+        const now = activity.get(member.id);
+        return { ...member, online: status.isOnline(member.id), ...(now ? { activity: now } : {}) };
+      }),
     };
   });
   server.patch('/api/servers/:serverId', async (request) => {
@@ -710,7 +762,10 @@ export async function createServer(
     '/api/channels/:channelId/messages/:messageId',
     { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
     async (request) => {
-      const { content } = z.object({ content: z.string().trim().max(2000) }).strict().parse(request.body);
+      const { content } = z
+        .object({ content: z.string().trim().max(2000) })
+        .strict()
+        .parse(request.body);
       await communities.editMessage(
         actor(request).id,
         id(request, 'channelId'),

@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { DesktopApi, DesktopNotice, UpdateStatus } from '../shared/desktop-api';
+import type { DesktopActivity, DesktopApi, DesktopNotice, UpdateStatus } from '../shared/desktop-api';
 import type { ShortcutAction } from '../shared/shortcuts';
 
 const desktopApi: DesktopApi = {
@@ -32,6 +32,14 @@ const desktopApi: DesktopApi = {
       const handler = (_event: Electron.IpcRendererEvent, status: UpdateStatus) => listener(status);
       ipcRenderer.on('updates:status', handler);
       return () => ipcRenderer.removeListener('updates:status', handler);
+    },
+  },
+  activity: {
+    current: () => ipcRenderer.invoke('activity:current'),
+    onChange: (listener) => {
+      const handler = (_event: Electron.IpcRendererEvent, activity: DesktopActivity) => listener(activity);
+      ipcRenderer.on('activity:changed', handler);
+      return () => ipcRenderer.removeListener('activity:changed', handler);
     },
   },
   notifications: {

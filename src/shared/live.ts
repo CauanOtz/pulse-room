@@ -37,6 +37,8 @@ export type LiveEvent =
       authorId: string;
       mentioned: boolean;
     }
+  /** What somebody is playing or listening to changed; null once they stop. */
+  | { type: 'activity'; userId: string; activity: import('./community').MemberActivity | null }
   /** A new version of the app was published; worth asking the updater now. */
   | { type: 'release'; version: string }
   /** Somebody you share a server or a conversation with came or went. */

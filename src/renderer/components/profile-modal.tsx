@@ -8,6 +8,7 @@ import { MemberActionsSection, type VoiceSeat } from './member-actions';
 import { TagChip } from './profile-identity';
 import { ProfileBlock, ProfileShell } from './profile-shell';
 import { cn } from './ui/utils';
+import { ActivityBlock } from './profile-activity';
 
 const day = (value?: string | null) =>
   value
@@ -130,6 +131,7 @@ export function ProfileModal({
         )
       }
     >
+      <ActivityBlock api={api} accountId={member.id} activity={member.activity} />
       {member.bio?.trim() && (
         <ProfileBlock title="About me">
           <p className="profile-bio">{member.bio.trim()}</p>

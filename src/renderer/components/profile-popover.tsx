@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Crown, Expand, Mic, Settings2, Shield, UserRound } from 'lucide-react';
-import type { MemberRole, ProfileTheme, Role, WornTag } from '../../shared/community';
+import type { MemberActivity, MemberRole, ProfileTheme, Role, WornTag } from '../../shared/community';
+import { ActivityLines } from './profile-activity';
 import { RoleMark } from './role-appearance';
 import { Avatar } from './avatar';
 import { ProfileBanner, TagChip, themedCard } from './profile-identity';
@@ -21,6 +22,8 @@ export interface ProfileSummary {
   roles?: Role[];
   voiceChannelName?: string;
   isYou?: boolean;
+  /** What they are playing and listening to right now. */
+  activity?: MemberActivity;
 }
 
 export function ProfilePopover({
@@ -52,8 +55,10 @@ export function ProfilePopover({
   // A banner is drawn at its own shape, two and a half times as wide as tall;
   // without one the strip stays short, as it always was.
   const bannerHeight = profile.bannerId ? width / 2.5 : 56;
+  const activityLines = (profile.activity?.game ? 1 : 0) + (profile.activity?.music ? 1 : 0);
   const height =
     (onAudioOptions ? 250 : 218) +
+    (activityLines ? 14 + activityLines * 30 : 0) +
     (profile.bio?.trim() ? 80 : 0) +
     (profile.roles?.length ? 56 : 0) +
     (bannerHeight - 56);
@@ -165,6 +170,7 @@ export function ProfilePopover({
               </>
             )}
           </div>
+          <ActivityLines activity={profile.activity} />
           {profile.bio?.trim() && (
             <p className="mt-3 whitespace-pre-wrap break-words text-xs leading-relaxed text-foreground/85">
               {profile.bio}

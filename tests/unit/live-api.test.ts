@@ -326,6 +326,107 @@ describe('live events', () => {
     other.socket.close();
   });
 
+  it('tells people who share a server what somebody plays, and keeps what they played', async () => {
+    const cover = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ==';
+    const startedAt = new Date(Math.floor(Date.now() / 1000) * 1000 - 52_000).toISOString();
+    const watcher = await connect(friend);
+    const snoop = await connect(outsider);
+    expect(
+      (
+        await call('PUT', '/api/account/activity', owner, {
+          game: 'VALORANT',
+          gameArt: cover,
+          music: {
+            title: 'Nights',
+            artist: 'Frank Ocean',
+            art: cover,
+            spotify: true,
+            length: 307,
+            startedAt,
+          },
+        })
+      ).statusCode,
+    ).toBe(200);
+    const told = await watcher.next((event) => event.type === 'activity');
+    expect(told).toMatchObject({
+      type: 'activity',
+      userId: owner.user.id,
+      activity: {
+        game: { name: 'VALORANT', art: cover },
+        music: { title: 'Nights', artist: 'Frank Ocean', art: cover, spotify: true, length: 307, startedAt },
+      },
+    });
+    const detail = (await call('GET', `/api/servers/${serverId}`, friend)).json() as CommunityDetail;
+    expect(detail.members.find((member) => member.id === owner.user.id)?.activity?.game?.name).toBe(
+      'VALORANT',
+    );
+
+    // The same game again is the same session, not news.
+    await call('PUT', '/api/account/activity', owner, { game: 'VALORANT', music: null });
+    await call('PUT', '/api/account/activity', owner, { game: 'Rocket League', music: null });
+    await call('PUT', '/api/account/activity', owner, { game: null, music: null });
+    expect(await watcher.next((event) => event.type === 'activity' && event.activity === null)).toMatchObject(
+      {
+        userId: owner.user.id,
+      },
+    );
+    const { games } = (await call('GET', `/api/accounts/${owner.user.id}/games`, friend)).json() as {
+      games: { name: string; playing: boolean; art?: string }[];
+    };
+    expect(games.map((game) => game.name).sort()).toEqual(['Rocket League', 'VALORANT']);
+    // The cover stays with the game for the history, even after it closes.
+    expect(games.find((game) => game.name === 'VALORANT')?.art).toBe(cover);
+    expect(games.every((game) => !game.playing)).toBe(true);
+    // Keeping games private keeps what was played private too, until shared again.
+    const lately = async () =>
+      ((await call('GET', `/api/accounts/${owner.user.id}/games`, friend)).json() as { games: unknown[] })
+        .games;
+    await call('PUT', '/api/account/activity', owner, { game: null, music: null, sharesGames: false });
+    expect(await lately()).toEqual([]);
+    await call('PUT', '/api/account/activity', owner, { game: null, music: null, sharesGames: true });
+    expect(await lately()).toHaveLength(2);
+    // Somebody who shares nothing with them learns nothing.
+    expect((await call('GET', `/api/accounts/${owner.user.id}/games`, outsider)).statusCode).toBe(404);
+    expect(snoop.events.filter((event) => event.type === 'activity')).toEqual([]);
+    expect(
+      (await call('PUT', '/api/account/activity', owner, { game: 'x'.repeat(81), music: null })).statusCode,
+    ).toBe(400);
+    // A song that claims to start in the future has no place in time, and loses it.
+    await call('PUT', '/api/account/activity', owner, {
+      game: null,
+      music: {
+        title: 'Ivy',
+        artist: 'Frank Ocean',
+        length: 249,
+        startedAt: new Date(Date.now() + 3_600_000).toISOString(),
+      },
+    });
+    const ivy = await watcher.next(
+      (event) => event.type === 'activity' && event.activity?.music?.title === 'Ivy',
+    );
+    expect(ivy.type === 'activity' && ivy.activity?.music).not.toHaveProperty('startedAt');
+    expect(
+      (
+        await call('PUT', '/api/account/activity', owner, {
+          game: null,
+          music: { title: 'x', artist: 'y', length: -1 },
+        })
+      ).statusCode,
+    ).toBe(400);
+    // A picture is a small inline image and nothing else: no links, no scripts.
+    for (const gameArt of [
+      'https://example.com/cover.jpg',
+      'data:image/svg+xml;base64,PHN2Zz4=',
+      `data:image/jpeg;base64,${'A'.repeat(80_000)}`,
+    ])
+      expect(
+        (await call('PUT', '/api/account/activity', owner, { game: 'VALORANT', gameArt, music: null }))
+          .statusCode,
+      ).toBe(400);
+    watcher.socket.close();
+    snoop.socket.close();
+  });
+
   it('closes the connections of a session that signs out', async () => {
     const session = (
       await call('POST', '/api/auth/login', undefined, {

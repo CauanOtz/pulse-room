@@ -154,6 +154,34 @@ export interface Community {
   /** The server's first tag, for clients that knew only one. */
   tag?: ServerTag | null;
 }
+/** What somebody is doing right now, as their desktop says. */
+export interface MemberActivity {
+  /** `art` is a small picture as a data URL: the game's cover or its icon. */
+  game?: { name: string; since: string; art?: string };
+  /** `art` is the album cover; `spotify` says where it plays. */
+  music?: {
+    title: string;
+    artist: string;
+    since: string;
+    art?: string;
+    spotify?: boolean;
+    /** The song's length in seconds, and when it would have begun: together, how far in they are. */
+    length?: number;
+    startedAt?: string;
+  };
+}
+
+/** A game somebody played lately: how long in all, and when last. */
+export interface RecentGame {
+  name: string;
+  minutes: number;
+  lastPlayedAt: string;
+  /** Being played right now. */
+  playing: boolean;
+  /** The picture last seen for it. */
+  art?: string;
+}
+
 export interface CommunityMember extends Account {
   role: MemberRole;
   /** Their roles here, @everyone left out since everybody holds it. */
@@ -171,6 +199,8 @@ export interface CommunityMember extends Account {
   moveTo?: string;
   /** Here right now; absent from a server that does not know. */
   online?: boolean;
+  /** Playing or listening to something; absent when nothing is shared. */
+  activity?: MemberActivity;
 }
 export interface CommunityChannel {
   id: string;

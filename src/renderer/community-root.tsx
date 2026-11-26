@@ -225,6 +225,19 @@ export function CommunityRoot({ apiUrl }: { apiUrl: string }) {
               }
             : current,
         );
+      if (event.type === 'activity')
+        setDetail((current) =>
+          current?.members.some((member) => member.id === event.userId)
+            ? {
+                ...current,
+                members: current.members.map((member) => {
+                  if (member.id !== event.userId) return member;
+                  const { activity: _gone, ...rest } = member;
+                  return event.activity ? { ...rest, activity: event.activity } : rest;
+                }),
+              }
+            : current,
+        );
     });
     return () => {
       unlisten?.();

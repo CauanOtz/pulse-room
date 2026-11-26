@@ -29,6 +29,23 @@ export interface FinishedUpdate {
 
 import type { ShortcutAction } from './shortcuts';
 
+/** The game being played and the song on Spotify, as this computer sees them. */
+export interface DesktopActivity {
+  game: string | null;
+  /** A small picture of the game, as a data URL: its store cover or its icon. */
+  gameArt?: string | null;
+  music: {
+    title: string;
+    artist: string;
+    art?: string | null;
+    spotify?: boolean;
+    /** The song's length in seconds, when the player tells it. */
+    length?: number;
+    /** When the song would have begun had it played straight through. */
+    startedAt?: string;
+  } | null;
+}
+
 /** A message worth interrupting for, shown by the system outside the window. */
 export interface DesktopNotice {
   title: string;
@@ -63,6 +80,11 @@ export interface DesktopApi {
     /** The update this launch finished, once; null on every other launch. */
     finished?(): Promise<FinishedUpdate | null>;
     onStatus(listener: (status: UpdateStatus) => void): () => void;
+  };
+  /** What this computer is playing and listening to; Windows only. */
+  activity?: {
+    current(): Promise<DesktopActivity>;
+    onChange(listener: (activity: DesktopActivity) => void): () => void;
   };
   notifications?: {
     show(notice: DesktopNotice): Promise<void>;

@@ -1,0 +1,339 @@
+/* ------------------------------------------------------------- activity */
+
+/*
+ * What somebody is playing and listening to sits with the rest of who they
+ * are: in the small card, a line each under the voice line; in the profile, a
+ * block of its own above "About me", the live part first and the history
+ * after it, in the same hairline language as every other block.
+ */
+
+/* The small card: one quiet line per activity. */
+.activity-lines {
+  display: grid;
+  gap: 0.375rem;
+  margin: 0.625rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+.activity-lines li {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--foreground);
+}
+.activity-lines strong {
+  font-weight: 600;
+}
+.activity-verb {
+  color: var(--muted-foreground);
+}
+.activity-mark {
+  display: grid;
+  flex: none;
+  width: 1.5rem;
+  height: 1.5rem;
+  place-items: center;
+  border-radius: 0.4375rem;
+}
+.activity-mark.is-game {
+  color: var(--foreground);
+  background: rgb(var(--ink) / 0.07);
+}
+.activity-mark.is-music {
+  color: var(--success);
+  background: color-mix(in srgb, var(--success) 12%, transparent);
+}
+.activity-time {
+  flex: none;
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-3);
+}
+
+/* Three bars that keep time while a song plays. */
+.activity-equalizer {
+  display: inline-flex;
+  height: 0.75rem;
+  align-items: flex-end;
+  gap: 2px;
+}
+.activity-equalizer i {
+  width: 2px;
+  height: 100%;
+  border-radius: 1px;
+  background: currentColor;
+  transform-origin: 50% 100%;
+  animation: activity-bar 1.1s ease-in-out infinite;
+}
+.activity-equalizer i:nth-child(2) {
+  animation-delay: -0.45s;
+}
+.activity-equalizer i:nth-child(3) {
+  animation-delay: -0.8s;
+}
+@keyframes activity-bar {
+  0%,
+  100% {
+    transform: scaleY(0.3);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+/* The profile: what is happening now, then what happened lately. */
+.profile-activity {
+  display: grid;
+  gap: 0.5rem;
+}
+.profile-activity > header {
+  margin-bottom: 0.25rem !important;
+}
+.activity-now {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 0.75rem;
+  border-radius: 1rem;
+  background: rgb(var(--ink) / 0.035);
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.07);
+}
+.activity-now-art {
+  position: relative;
+  display: grid;
+  flex: none;
+  width: 3rem;
+  height: 3rem;
+  place-items: center;
+  border-radius: 0.75rem;
+  color: var(--foreground);
+  background: linear-gradient(140deg, rgb(var(--ink) / 0.14), rgb(var(--ink) / 0.04));
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.1);
+}
+.activity-now.is-music .activity-now-art {
+  color: var(--success);
+  background: linear-gradient(
+    140deg,
+    color-mix(in srgb, var(--success) 24%, transparent),
+    color-mix(in srgb, var(--success) 6%, transparent)
+  );
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--success) 25%, transparent);
+}
+.activity-now-art .activity-equalizer {
+  position: absolute;
+  right: 0.375rem;
+  bottom: 0.375rem;
+  height: 0.5rem;
+}
+.activity-now-art .activity-equalizer i {
+  width: 1.5px;
+}
+.activity-now-text {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.0625rem;
+}
+.activity-now-text small {
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.activity-now.is-music .activity-now-text small {
+  color: var(--success);
+}
+.activity-now-text strong {
+  overflow: hidden;
+  font-size: 0.875rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.activity-now-text > span {
+  overflow: hidden;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.activity-now-text .activity-time {
+  margin-left: 0;
+  font-size: 0.75rem;
+  color: var(--text-2);
+}
+.activity-lately {
+  margin-top: 0.375rem;
+}
+.activity-lately h4 {
+  margin-bottom: 0.375rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--text-3);
+}
+.activity-lately ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.activity-lately li {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.4375rem 0;
+  border-top: 1px solid rgb(var(--ink) / 0.06);
+}
+.activity-lately-mark {
+  display: grid;
+  flex: none;
+  width: 1.75rem;
+  height: 1.75rem;
+  place-items: center;
+  border-radius: 0.5rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--text-2);
+  background: rgb(var(--ink) / 0.06);
+}
+.activity-lately-name {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  font-size: 0.8125rem;
+  font-weight: 560;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.activity-lately-meta {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-3);
+}
+
+/*
+ * Pictures. A store cover or an album fills its tile edge to edge with a fine
+ * inner line so a dark cover still has an edge on black; a program's icon sits
+ * small in the middle of the usual tile. Box art is tall, so its tile is too.
+ */
+.activity-cover {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+}
+.activity-icon {
+  width: 62%;
+  height: 62%;
+  object-fit: contain;
+}
+.has-art {
+  overflow: hidden;
+}
+.has-art:has(> .activity-cover) {
+  background: rgb(var(--ink) / 0.06) !important;
+}
+.has-art:has(> .activity-cover)::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.1);
+  pointer-events: none;
+}
+.activity-mark,
+.activity-lately-mark {
+  position: relative;
+}
+.activity-now-art.has-art:has(> .activity-cover) {
+  box-shadow: 0 6px 18px -8px rgb(0 0 0 / 0.55);
+}
+.activity-now-art.is-tall {
+  width: 2.75rem;
+  height: 3.625rem;
+  border-radius: 0.5rem;
+}
+.activity-lately-mark.is-tall {
+  width: 1.375rem;
+  height: 1.8125rem;
+  margin-inline: 0.1875rem;
+  border-radius: 0.3125rem;
+}
+.activity-mark.has-art {
+  border-radius: 0.375rem;
+}
+
+/* Over an album cover the bars sit on a small dark chip so they always read. */
+.activity-now.is-music .has-art .activity-equalizer {
+  right: 0.25rem;
+  bottom: 0.25rem;
+  height: 0.875rem;
+  padding: 0.1875rem 0.25rem;
+  align-items: flex-end;
+  border-radius: 0.3125rem;
+  color: #fff;
+  background: rgb(0 0 0 / 0.55);
+  backdrop-filter: blur(6px);
+}
+.activity-time.is-playing {
+  color: var(--success);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .activity-equalizer i {
+    animation: none;
+    transform: scaleY(0.7);
+  }
+}
+
+/* Where the song is: a hairline that fills, between where it is and its length. */
+.activity-now.is-music .activity-now-text {
+  flex: 1;
+}
+.activity-song {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.375rem;
+}
+.activity-song-time {
+  flex: none;
+  min-width: 2rem;
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-3);
+}
+.activity-song-time:last-child {
+  text-align: right;
+}
+.activity-song-track {
+  position: relative;
+  flex: 1;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(var(--ink) / 0.1);
+}
+.activity-song-track > span {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--foreground);
+  transform-origin: 0 50%;
+  transition: transform 1s linear;
+}
+@media (prefers-reduced-motion: reduce) {
+  .activity-song-track > span {
+    transition: none;
+  }
+}

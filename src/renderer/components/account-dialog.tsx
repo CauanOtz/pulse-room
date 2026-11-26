@@ -1,16 +1,19 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { LogOut, Palette, ShieldCheck, UserRound, type LucideIcon } from 'lucide-react';
+import { Gamepad2, LogOut, Palette, ShieldCheck, UserRound, type LucideIcon } from 'lucide-react';
 import type { Account, ProfileTheme } from '../../shared/community';
 import type { CommunityClient } from '../infrastructure/community-client';
+import { useActivitySharing } from '../infrastructure/activity-sharing';
 import { ConfirmDialog, type Confirmation } from './confirm-dialog';
 import { SettingsHeading, SettingsNavButton, SettingsScreen } from './settings-screen';
 import { PictureField } from './picture-field';
 import { BannerField, ProfilePreview, sameTheme, TagWearer, ThemeEditor } from './profile-editors';
 import { cn } from './ui/utils';
+import { PanelGroup, PanelRow } from './ui/panel-dialog';
+import { Switch } from './ui/switch';
 
 const errorMessage = (error: unknown) => (error instanceof Error ? error.message : 'Something went wrong.');
 
-type Section = 'profile' | 'personalization' | 'security';
+type Section = 'profile' | 'personalization' | 'activity' | 'security';
 
 const sections: { id: Section; label: string; icon: LucideIcon; description: string }[] = [
   { id: 'profile', label: 'Profile', icon: UserRound, description: 'How you appear to the people in your servers.' },
@@ -20,8 +23,38 @@ const sections: { id: Section; label: string; icon: LucideIcon; description: str
     icon: Palette,
     description: 'The colours your profile card is painted in.',
   },
+  {
+    id: 'activity',
+    label: 'Activity',
+    icon: Gamepad2,
+    description: 'What the people in your servers and conversations see you doing.',
+  },
   { id: 'security', label: 'Security', icon: ShieldCheck, description: 'Your password, and this device.' },
 ];
+
+/** One kind of activity, shared or kept to yourself. Takes effect at once. */
+function ShareRow({
+  id,
+  label,
+  detail,
+  checked,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  detail: string;
+  checked: boolean;
+  onChange(value: boolean): void;
+}) {
+  return (
+    <PanelRow
+      label={label}
+      htmlFor={id}
+      detail={detail}
+      control={<Switch id={id} checked={checked} onCheckedChange={onChange} aria-label={label} />}
+    />
+  );
+}
 
 const primaryClass =
   'primary-action inline-flex h-9 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50';
@@ -84,6 +117,7 @@ export function AccountDialog({
   onProfileChanged(): Promise<void>;
 }) {
   const [section, setSection] = useState<Section>('profile');
+  const [sharing, setSharing] = useActivitySharing(user.id);
   const [confirmation, setConfirmation] = useState<Confirmation>();
 
   // ---------------------------------------------------------- pending changes
@@ -236,6 +270,31 @@ export function AccountDialog({
                     }}
                   />
                 </EditorWithPreview>
+              )}
+
+              {section === 'activity' && (
+                <div className="max-w-xl">
+                  <PanelGroup title="Sharing">
+                    <ShareRow
+                      id="share-games"
+                      label="Share the game you are playing"
+                      detail="Shown on your profile with how long you have been playing, its cover, and the games you played in the last two weeks."
+                      checked={sharing.games}
+                      onChange={(games) => setSharing({ games })}
+                    />
+                    <ShareRow
+                      id="share-music"
+                      label="Share what you are listening to"
+                      detail="The song playing on this computer, from Spotify or any player Windows knows about, with its cover and how far into it you are."
+                      checked={sharing.music}
+                      onChange={(music) => setSharing({ music })}
+                    />
+                  </PanelGroup>
+                  <p className="mt-3 text-xs text-muted-foreground">
+                    Turning one off hides it from everyone straight away. Only people who share a server or a
+                    conversation with you ever see either.
+                  </p>
+                </div>
               )}
 
               {section === 'security' && (

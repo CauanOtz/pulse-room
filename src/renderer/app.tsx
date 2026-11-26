@@ -43,6 +43,8 @@ import { MemberActionsSection, type VoiceSeat } from './components/member-action
 import { keysOf } from '../shared/shortcuts';
 import { paced, poll, useLive, useLiveSignals, type Poller } from './infrastructure/live-context';
 import { useNotificationStore } from './infrastructure/notification-store';
+import { useActivityReporter } from './infrastructure/use-activity-reporter';
+import { useActivitySharing } from './infrastructure/activity-sharing';
 
 const mediaDevicesService = new MediaDevicesService();
 const roomSoundPlayer = new RoomSoundPlayer();
@@ -148,6 +150,8 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
   );
   const [settings, setSettings] = useState(controller.getSettings());
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [sharing] = useActivitySharing(workspace?.user.id);
+  useActivityReporter(workspace?.api, sharing);
   // The list of people beside a channel is the first thing to go on a narrow
   // window, so it is something the reader can put away.
   const [membersOpen, setMembersOpen] = useState(true);
@@ -355,7 +359,12 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
     const poller = poll(
       (signal) =>
         workspace.api
-          .request<{ rooms: ChannelOccupancy[] }>(`/api/presence?serverId=${presenceServerId}`, 'GET', undefined, signal)
+          .request<{ rooms: ChannelOccupancy[] }>(
+            `/api/presence?serverId=${presenceServerId}`,
+            'GET',
+            undefined,
+            signal,
+          )
           .then(({ rooms }) => {
             if (!signal.aborted) setOccupancy(rooms);
           })
@@ -439,6 +448,7 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
       roles: member && workspace ? rolesOf(workspace.detail, member) : undefined,
       voiceChannelName: voiceChannel?.name ?? (isCurrentCall ? activeCall?.channelName : undefined),
       isYou: accountId === workspace?.user.id || Boolean(participant?.isLocal),
+      activity: member?.activity,
     };
   }, [activeCall, avatars, occupancy, openProfile, tags, visibleParticipants, workspace]);
 
@@ -793,7 +803,9 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
                     }
                     readStream={readStream}
                     callSince={
-                      joined ? callStartedAt(occupancy.find((room) => room.roomId === settings.roomId)) : undefined
+                      joined
+                        ? callStartedAt(occupancy.find((room) => room.roomId === settings.roomId))
+                        : undefined
                     }
                   >
                     {joined && (
