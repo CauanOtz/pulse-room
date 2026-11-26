@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; img-src 'self' file:; style-src 'unsafe-inline'; script-src 'unsafe-inline'"
+    />
+    <title>Pulse Room</title>
+    <style>
+      /*
+       * The first thing the app shows, while it makes sure it is up to date.
+       * Black, one mark, one line of words and a hairline that fills: nothing
+       * here asks for anything, it only says what is happening.
+       */
+      :root {
+        color-scheme: dark;
+        --ink: 255 255 255;
+        --text: #f5f5f5;
+        --text-2: rgb(255 255 255 / 0.62);
+        --text-3: rgb(255 255 255 / 0.38);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+        background: #000;
+        color: var(--text);
+        font-family: 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        user-select: none;
+        cursor: default;
+      }
+      body {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        /* The whole window can be dragged, as it has no title bar. */
+        -webkit-app-region: drag;
+        background:
+          radial-gradient(120% 70% at 50% 0%, rgb(var(--ink) / 0.06), transparent 60%),
+          #000;
+        box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.08);
+      }
+
+      .mark {
+        position: relative;
+        display: grid;
+        width: 88px;
+        height: 88px;
+        place-items: center;
+        animation: arrive 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+      }
+      .mark img {
+        width: 64px;
+        height: 64px;
+        border-radius: 18px;
+        animation: breathe 2.8s ease-in-out infinite;
+      }
+      /* A thin arc that turns while the app is waiting on something. */
+      .mark::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: 26px;
+        padding: 1px;
+        background: conic-gradient(from var(--turn, 0deg), transparent 0 70%, rgb(var(--ink) / 0.75) 92%, transparent);
+        -webkit-mask:
+          linear-gradient(#000 0 0) content-box,
+          linear-gradient(#000 0 0);
+        -webkit-mask-composite: xor;
+        mask-composite: exclude;
+        animation: turn 1.4s linear infinite;
+        transition: opacity 0.4s ease;
+      }
+      .mark::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: 26px;
+        box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.08);
+      }
+      body[data-phase='starting'] .mark::before,
+      body[data-phase='installing'] .mark::before {
+        opacity: 0;
+      }
+
+      .words {
+        display: flex;
+        min-height: 54px;
+        margin-top: 26px;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        animation: arrive 0.7s 0.08s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+      }
+      .status {
+        font-size: 13.5px;
+        font-weight: 600;
+        letter-spacing: -0.005em;
+        transition: opacity 0.25s ease;
+      }
+      .detail {
+        min-height: 15px;
+        font-family: 'Cascadia Mono', Consolas, monospace;
+        font-size: 10.5px;
+        font-variant-numeric: tabular-nums;
+        color: var(--text-3);
+      }
+
+      .track {
+        position: relative;
+        width: 168px;
+        height: 2px;
+        margin-top: 14px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: rgb(var(--ink) / 0.1);
+        opacity: 0;
+        transition: opacity 0.35s ease;
+      }
+      body[data-phase='downloading'] .track,
+      body[data-phase='installing'] .track {
+        opacity: 1;
+      }
+      .fill {
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        background: var(--text);
+        transform: scaleX(0);
+        transform-origin: 0 50%;
+        transition: transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+      }
+      body[data-phase='installing'] .fill {
+        transform: scaleX(1) !important;
+      }
+
+      .skip {
+        position: absolute;
+        bottom: 34px;
+        padding: 4px 8px;
+        border: 0;
+        border-radius: 6px;
+        background: none;
+        color: var(--text-2);
+        font: inherit;
+        font-size: 11.5px;
+        cursor: pointer;
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(4px);
+        transition:
+          opacity 0.35s ease,
+          transform 0.35s ease,
+          color 0.15s ease,
+          background-color 0.15s ease;
+        -webkit-app-region: no-drag;
+      }
+      .skip.is-shown {
+        opacity: 1;
+        pointer-events: auto;
+        transform: none;
+      }
+      .skip:hover {
+        color: var(--text);
+        background: rgb(var(--ink) / 0.06);
+      }
+      .skip:focus-visible {
+        outline: 1px solid rgb(var(--ink) / 0.5);
+        outline-offset: 2px;
+      }
+
+      .version {
+        position: absolute;
+        bottom: 14px;
+        font-family: 'Cascadia Mono', Consolas, monospace;
+        font-size: 10px;
+        color: var(--text-3);
+        letter-spacing: 0.02em;
+      }
+
+      @property --turn {
+        syntax: '<angle>';
+        inherits: false;
+        initial-value: 0deg;
+      }
+      @keyframes turn {
+        to {
+          --turn: 360deg;
+        }
+      }
+      @keyframes breathe {
+        0%,
+        100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(0.965);
+        }
+      }
+      @keyframes arrive {
+        from {
+          opacity: 0;
+          transform: translateY(6px) scale(0.98);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before {
+          animation: none !important;
+          transition: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body data-phase="checking">
+    <div class="mark"><img src="app-icon.png" alt="" draggable="false" /></div>
+    <div class="words" role="status" aria-live="polite">
+      <span class="status" id="status">Checking for updates</span>
+      <span class="detail" id="detail"></span>
+    </div>
+    <div class="track" aria-hidden="true"><div class="fill" id="fill"></div></div>
+    <button class="skip" id="skip" type="button">Open without updating</button>
+    <span class="version" id="version"></span>
+
+    <script>
+      const status = document.getElementById('status');
+      const detail = document.getElementById('detail');
+      const fill = document.getElementById('fill');
+      const skip = document.getElementById('skip');
+      document.getElementById('version').textContent =
+        'v' + (new URLSearchParams(location.search).get('version') || '');
+
+      const megabytes = (bytes) => (bytes / 1048576).toFixed(1);
+      const say = (main, small) => {
+        if (status.textContent !== main) status.textContent = main;
+        detail.textContent = small || '';
+      };
+
+      // The main process calls this with each moment of the update.
+      window.pulseLaunch = (screen) => {
+        document.body.dataset.phase = screen.phase;
+        if (screen.phase === 'checking') say('Checking for updates');
+        if (screen.phase === 'starting') say('Starting Pulse Room');
+        if (screen.phase === 'installing')
+          say('Installing update', screen.version ? 'v' + screen.version : '');
+        if (screen.phase === 'downloading') {
+          const percent = Math.max(0, Math.min(100, Math.round(screen.percent || 0)));
+          fill.style.transform = 'scaleX(' + percent / 100 + ')';
+          const parts = [];
+          if (screen.total) parts.push(megabytes(screen.transferred || 0) + ' of ' + megabytes(screen.total) + ' MB');
+          if (screen.bytesPerSecond) parts.push(megabytes(screen.bytesPerSecond) + ' MB/s');
+          say(
+            'Downloading update' + (screen.version ? ' ' + screen.version : '') + ' · ' + percent + '%',
+            parts.join(' · '),
+          );
+        }
+        skip.classList.toggle('is-shown', screen.phase === 'downloading' && Boolean(screen.canSkip));
+      };
+
+      // The one answer the window gives: open now, the download carries on behind.
+      skip.addEventListener('click', () => {
+        skip.disabled = true;
+        location.hash = 'open';
+      });
+    </script>
+  </body>
+</html>

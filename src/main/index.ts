@@ -15,6 +15,8 @@ import type { DesktopNotice } from '../shared/desktop-api';
 import { shortcuts, type ShortcutAction } from '../shared/shortcuts';
 import { ScreenCaptureService } from './application/screen-capture-service';
 import { UpdateService } from './application/update-service';
+import { updateBeforeLaunch } from './application/launch-update';
+import { openLaunchWindow } from './application/launch-window';
 import { ActivityService } from './application/activity-service';
 import { SessionVault } from './application/session-vault';
 
@@ -52,6 +54,8 @@ if (process.env.NODE_ENV === 'test' && process.env.PULSE_TEST_USER_DATA) {
 app.commandLine.appendSwitch('disable-features', 'AudioServiceOutOfProcess');
 
 let mainWindow: BrowserWindow | null = null;
+/** The small window that makes sure the app is up to date before it opens. */
+let launchWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 // Closing the window would end a call the room is still in, so the application
 // steps into the tray instead and only leaves when it is asked to.
@@ -154,6 +158,12 @@ function announceTray(): void {
 }
 
 function revealWindow(): void {
+  // Still updating: the launch window is the app for now.
+  if (launchWindow && !launchWindow.isDestroyed()) {
+    launchWindow.show();
+    launchWindow.focus();
+    return;
+  }
   const window = mainWindow ?? (mainWindow = createMainWindow());
   if (window.isMinimized()) window.restore();
   window.show();
@@ -274,7 +284,31 @@ app.on('before-quit', () => {
 
 if (process.platform === 'win32') app.setAppUserModelId(appUserModelId);
 
-app.whenReady().then(() => {
+/**
+ * The installed app updates itself before it opens, the way Discord does, so
+ * nobody walks into a room on an old version. Not while developing or testing,
+ * where there is no installer to update.
+ */
+async function launchUpToDate(): Promise<boolean> {
+  if (!app.isPackaged || isTest) return true;
+  const launch = openLaunchWindow();
+  launchWindow = launch.window;
+  const outcome = await updateBeforeLaunch(updateService, launch.view);
+  if (outcome === 'installing') {
+    // The installer closes the app and opens it again. Should that not happen,
+    // the app opens as it is rather than staying on the launch window.
+    await new Promise((resolve) => setTimeout(resolve, 20_000));
+  }
+  return true;
+}
+
+function closeLaunchWindow(): void {
+  const window = launchWindow;
+  launchWindow = null;
+  if (window && !window.isDestroyed()) window.destroy();
+}
+
+app.whenReady().then(async () => {
   // The window is the whole application; a File, Edit, View and Window bar
   // above it belongs to a document editor. Editing shortcuts are the browser's
   // own and survive this, which the end-to-end test holds to.
@@ -284,7 +318,11 @@ app.whenReady().then(() => {
   session.defaultSession.setSpellCheckerEnabled(false);
   screenCaptureService.install(session.defaultSession);
   registerIpcHandlers();
+  await launchUpToDate();
   mainWindow = createMainWindow();
+  // The launch window gives way once the room has drawn, so nothing flashes between them.
+  mainWindow.once('ready-to-show', closeLaunchWindow);
+  setTimeout(closeLaunchWindow, 15_000);
   createTray();
   if (!isTest) activityService.start();
 
@@ -296,7 +334,8 @@ app.whenReady().then(() => {
   });
 
   if (app.isPackaged) {
-    setTimeout(() => void updateService.check(), 5_000);
+    // The launch already asked; this is for a launch that could not reach the feed.
+    setTimeout(() => void updateService.checkIfStale(60_000), 5_000);
     // A window left open for days still hears about a release the same evening.
     setInterval(() => void updateService.check().catch(() => undefined), updateCheckEveryMs);
   }

@@ -7,6 +7,7 @@ import type { FinishedUpdate, UpdateStatus } from '../../shared/desktop-api';
 export class UpdateService {
   private status: UpdateStatus = { state: 'idle' };
   private checkedAt = 0;
+  private readonly listeners = new Set<(status: UpdateStatus) => void>();
 
   public constructor(private readonly getWindow: () => BrowserWindow | null) {
     autoUpdater.autoDownload = true;
@@ -21,6 +22,12 @@ export class UpdateService {
 
   public current(): UpdateStatus {
     return this.status;
+  }
+
+  /** Every change of status, for whatever is waiting on it besides the window: the launch screen. */
+  public onStatus(listener: (status: UpdateStatus) => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
   }
 
   public async check(): Promise<UpdateStatus> {
@@ -91,9 +98,10 @@ export class UpdateService {
       this.setStatus({
         state: 'downloading',
         percent: Math.round(progress.percent),
-        version: this.status.state === 'available' || this.status.state === 'downloading'
-          ? this.status.version
-          : undefined,
+        version:
+          this.status.state === 'available' || this.status.state === 'downloading'
+            ? this.status.version
+            : undefined,
         bytesPerSecond: progress.bytesPerSecond,
         transferred: progress.transferred,
         total: progress.total,
@@ -102,14 +110,13 @@ export class UpdateService {
     autoUpdater.on('update-downloaded', (info) =>
       this.setStatus({ state: 'downloaded', version: info.version }),
     );
-    autoUpdater.on('error', (error) =>
-      this.setStatus({ state: 'error', message: error.message }),
-    );
+    autoUpdater.on('error', (error) => this.setStatus({ state: 'error', message: error.message }));
   }
 
   private setStatus(status: UpdateStatus): UpdateStatus {
     this.status = status;
     this.getWindow()?.webContents.send('updates:status', status);
+    for (const listener of this.listeners) listener(status);
     return status;
   }
 }
