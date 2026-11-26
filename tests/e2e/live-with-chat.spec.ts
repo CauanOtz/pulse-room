@@ -1,4 +1,5 @@
 import { _electron as electron, expect, test } from '@playwright/test';
+import { reachLiveControl } from '../helpers/live-controls';
 import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -131,8 +132,7 @@ test('a live above the conversation keeps its frame and its volume', async () =>
     await window.getByRole('button', { name: /^Watch/ }).first().click();
     const stage = window.locator('.voice-surface-compact .stage-live');
     await expect(stage).toBeVisible();
-    await stage.hover();
-    const volume = window.getByRole('slider', { name: /screen volume/ });
+    const volume = await reachLiveControl(window, window.getByRole('slider', { name: /screen volume/ }));
     await expect(volume).toBeVisible();
     await volume.fill('120');
     await expect(stage.locator('.live-volume')).toContainText('120%');

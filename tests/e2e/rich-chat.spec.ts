@@ -95,33 +95,57 @@ test('uploads media, inserts emojis, reacts, browses shared tabs and removes att
     );
 
     // A genuine WebM made by Chromium; no fabricated file that only has a header.
+    // Each frame is asked for by hand rather than left to a timer, which a busy
+    // machine can starve until the file holds no picture at all, and the file is
+    // only used once Chromium itself has opened it.
     const video = Buffer.from(
       await window.evaluate(async () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = 160;
-        canvas.height = 90;
-        const context = canvas.getContext('2d')!;
-        context.fillStyle = '#30373b';
-        context.fillRect(0, 0, 160, 90);
-        const stream = canvas.captureStream(20);
-        const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp8' });
-        const chunks: BlobPart[] = [];
-        const result = new Promise<number[]>((resolve) => {
-          recorder.ondataavailable = (event) => chunks.push(event.data);
-          recorder.onstop = async () => {
-            stream.getTracks().forEach((track) => track.stop());
-            resolve(Array.from(new Uint8Array(await new Blob(chunks).arrayBuffer())));
-          };
-        });
-        recorder.start();
-        const draw = setInterval(() => {
-          context.fillStyle = `rgb(${Math.floor(Math.random() * 80)}, 55, 60)`;
-          context.fillRect(0, 0, 160, 90);
-        }, 50);
-        await new Promise((resolve) => setTimeout(resolve, 650));
-        clearInterval(draw);
-        recorder.stop();
-        return result;
+        const record = async () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = 160;
+          canvas.height = 90;
+          const context = canvas.getContext('2d')!;
+          const stream = canvas.captureStream(0);
+          const [track] = stream.getVideoTracks() as CanvasCaptureMediaStreamTrack[];
+          const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp8' });
+          const chunks: BlobPart[] = [];
+          const done = new Promise<Blob>((resolve) => {
+            recorder.ondataavailable = (event) => chunks.push(event.data);
+            recorder.onstop = () => resolve(new Blob(chunks, { type: 'video/webm' }));
+          });
+          recorder.start();
+          for (let frame = 0; frame < 16; frame += 1) {
+            context.fillStyle = `rgb(${30 + frame * 4}, 55, 60)`;
+            context.fillRect(0, 0, 160, 90);
+            track!.requestFrame();
+            await new Promise((resolve) => setTimeout(resolve, 40));
+          }
+          recorder.stop();
+          const blob = await done;
+          track!.stop();
+          return blob;
+        };
+        const opens = (blob: Blob) =>
+          new Promise<boolean>((resolve) => {
+            const probe = document.createElement('video');
+            const address = URL.createObjectURL(blob);
+            const settle = (ok: boolean) => {
+              clearTimeout(timer);
+              URL.revokeObjectURL(address);
+              resolve(ok);
+            };
+            const timer = setTimeout(() => settle(false), 5_000);
+            probe.muted = true;
+            probe.preload = 'auto';
+            probe.onloadeddata = () => settle(true);
+            probe.onerror = () => settle(false);
+            probe.src = address;
+          });
+        for (let attempt = 0; attempt < 4; attempt += 1) {
+          const blob = await record();
+          if (await opens(blob)) return Array.from(new Uint8Array(await blob.arrayBuffer()));
+        }
+        throw new Error('Chromium could not record a playable WebM');
       }),
     );
     await window

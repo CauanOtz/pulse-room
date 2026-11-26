@@ -1,4 +1,5 @@
 import { _electron as electron, expect, test } from '@playwright/test';
+import { reachLiveControl } from '../helpers/live-controls';
 import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -114,8 +115,7 @@ test('a live in full screen fills the screen and keeps its controls reachable', 
     const stage = window.locator('.stage-live');
     await expect(stage).toBeVisible();
 
-    await stage.hover();
-    await window.getByRole('button', { name: 'Enter full screen', exact: true }).click();
+    await (await reachLiveControl(window, window.getByRole('button', { name: 'Enter full screen', exact: true }))).click();
     await expect(stage).toHaveClass(/is-fullscreen/);
     expect(await window.evaluate(() => document.fullscreenElement?.classList.contains('stage-live'))).toBe(true);
     // The window itself is full screen, and the stage and the picture cover all of it.
@@ -137,10 +137,7 @@ test('a live in full screen fills the screen and keeps its controls reachable', 
 
     // A tooltip still shows over a full screen live.
     // The bars may already have stepped aside, so the pointer wakes them first.
-    await window.mouse.move(700, 400);
-    await window.mouse.move(720, 420);
-    await expect(window.locator('.stage-live .live-toolbar')).not.toHaveClass(/is-hidden/);
-    await window.getByRole('button', { name: 'Exit full screen', exact: true }).hover();
+    await (await reachLiveControl(window, window.getByRole('button', { name: 'Exit full screen', exact: true }))).hover();
     await expect(window.getByRole('tooltip').first()).toBeVisible();
     await window.screenshot({ path: 'test-results/live-fullscreen-controls.png' });
 
@@ -162,9 +159,7 @@ test('a live in full screen fills the screen and keeps its controls reachable', 
 
     // Escape is handled by the window outside the page, out of reach of a
     // synthetic key, so the way back is the button.
-    await window.mouse.move(700, 400);
-    await window.mouse.move(720, 420);
-    await window.getByRole('button', { name: 'Exit full screen', exact: true }).click();
+    await (await reachLiveControl(window, window.getByRole('button', { name: 'Exit full screen', exact: true }))).click();
     await expect(stage).not.toHaveClass(/is-fullscreen/);
     await expect
       .poll(() => application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].isFullScreen()))

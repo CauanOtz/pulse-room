@@ -1,4 +1,5 @@
 import { _electron as electron, expect, test } from '@playwright/test';
+import { resizeWindow } from '../helpers/window-size';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -294,16 +295,8 @@ test('role workspace edits identity, permissions, hierarchy and members through 
         [760, 700],
         [1920, 1080],
       ]) {
-        // The desktop can maximise or minimise the window while the test runs,
-        // and a window in either state ignores a new size, so it is brought
-        // back to a normal one first and the page is given time to see it.
-        await application.evaluate(({ BrowserWindow }, size) => {
-          const current = BrowserWindow.getAllWindows()[0];
-          if (current.isMinimized()) current.restore();
-          if (current.isMaximized()) current.unmaximize();
-          current.setContentSize(size[0], size[1]);
-        }, [width, height]);
-        await expect.poll(() => window.evaluate(() => innerWidth)).toBe(width);
+        // The desktop can maximise or minimise the window while the test runs.
+        await resizeWindow(application, window, width, height);
         await expect(window.getByLabel('Role name', { exact: true })).toBeVisible();
         expect(
           await window

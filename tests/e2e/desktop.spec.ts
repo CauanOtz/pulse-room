@@ -3,6 +3,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { _electron as electron, expect, test } from '@playwright/test';
+import { reachLiveControl } from '../helpers/live-controls';
 
 const { version } = JSON.parse(readFileSync(path.resolve('package.json'), 'utf8')) as { version: string };
 
@@ -163,40 +164,37 @@ test('launches the secured desktop shell and completes the join flow', async () 
     await window.locator('.stage-live').hover();
     await expect(toolbar).not.toHaveClass(/is-hidden/);
 
-    await window.getByRole('button', { name: 'Enter full screen' }).click();
+    await (await reachLiveControl(window, window.getByRole('button', { name: 'Enter full screen' }))).click();
     await expect(window.getByRole('button', { name: 'Exit full screen' })).toBeVisible();
-    await window.locator('.stage-live').hover();
-    await window
-      .locator('.call-dock')
-      .getByRole('button', { name: 'Open audio settings', exact: true })
-      .click();
+    await (
+      await reachLiveControl(
+        window,
+        window.locator('.call-dock').getByRole('button', { name: 'Open audio settings', exact: true }),
+      )
+    ).click();
     const fullscreenSettings = window
       .locator('.stage:fullscreen')
       .getByRole('dialog', { name: 'Voice and video' });
     await fullscreenSettings.getByRole('button', { name: 'Close', exact: true }).click();
-    await window.locator('.stage-live').hover();
-    await window.locator('.call-dock').getByRole('button', { name: 'Stream options' }).click();
+    await (await reachLiveControl(window, window.locator('.call-dock').getByRole('button', { name: 'Stream options' }))).click();
     await window
       .locator('.stage:fullscreen')
       .getByRole('menuitemradio', { name: /1080p . 30 fps/ })
       .click();
-    await window.locator('.stage-live').hover();
-    await window.getByRole('button', { name: 'Exit full screen' }).click();
+    await (await reachLiveControl(window, window.getByRole('button', { name: 'Exit full screen' }))).click();
     await expect(window.getByRole('button', { name: 'Enter full screen' })).toBeVisible();
 
     // Putting the picture away is not leaving the stream: the room comes back
     // and the tile keeps it running. The controls have to be woken first, since
     // they step aside while nobody reaches for them.
-    await window.locator('.stage-live').hover();
-    await window.getByRole('button', { name: 'Back to the room' }).click();
+    await (await reachLiveControl(window, window.getByRole('button', { name: 'Back to the room' }))).click();
     await expect(window.getByLabel('Shared screen')).toHaveCount(0);
     await expect(window.locator('.tile-video')).toBeVisible();
     await window.getByRole('button', { name: /^Watch / }).click();
     await expect(window.getByLabel('Shared screen')).toBeVisible();
 
     // The stream quality menu rides on the caret beside the share button.
-    await window.locator('.stage-live').hover();
-    await window.locator('.call-dock').getByRole('button', { name: 'Stream options' }).click();
+    await (await reachLiveControl(window, window.locator('.call-dock').getByRole('button', { name: 'Stream options' }))).click();
     const streamMenu = window.getByRole('menu', { name: 'Stream options' });
     await expect(streamMenu.getByRole('menuitemradio', { name: /1080p . 30 fps/ })).toHaveAttribute(
       'aria-checked',
@@ -206,7 +204,9 @@ test('launches the secured desktop shell and completes the join flow', async () 
     // Changing quality keeps the same live visible instead of tearing it down
     // and asking Chromium to capture the monitor again.
     await expect(window.getByLabel('Shared screen')).toBeVisible();
-    await window.locator('.call-dock').getByRole('button', { name: 'Stream options' }).click();
+    // The menu that was just used has to be gone before it is opened again.
+    await expect(window.getByRole('menu', { name: 'Stream options' })).toHaveCount(0);
+    await (await reachLiveControl(window, window.locator('.call-dock').getByRole('button', { name: 'Stream options' }))).click();
     await expect(
       window.getByRole('menu', { name: 'Stream options' }).getByRole('menuitemradio', {
         name: /1080p . 60 fps/,
@@ -214,8 +214,7 @@ test('launches the secured desktop shell and completes the join flow', async () 
     ).toHaveAttribute('aria-checked', 'true');
     await window.keyboard.press('Escape');
 
-    await window.locator('.stage-live').hover();
-    await window.locator('.call-dock').getByRole('button', { name: 'Stop sharing' }).click();
+    await (await reachLiveControl(window, window.locator('.call-dock').getByRole('button', { name: 'Stop sharing' }))).click();
     await expect(
       window.locator('.voice-panel').getByRole('button', { name: 'Share full screen' }),
     ).toBeVisible();

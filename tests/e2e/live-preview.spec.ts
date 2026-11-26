@@ -1,4 +1,5 @@
 import { _electron as electron, expect, test } from '@playwright/test';
+import { reachLiveControl } from '../helpers/live-controls';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -79,8 +80,7 @@ test('live offers remain visible and screen previews stay usable in the room', a
     });
     // The bars fade after a few still seconds, and a slow screenshot is enough
     // of them; a viewer reaches for them by moving the pointer first.
-    await window.locator('.stage-live').hover();
-    await window.getByRole('button', { name: 'Back to the room', exact: true }).click();
+    await (await reachLiveControl(window, window.getByRole('button', { name: 'Back to the room', exact: true }))).click();
     await expect(window.locator('.tile-video')).toBeVisible();
     await window.locator('.stage-room').screenshot({
       path: path.join(artifacts, `live-preview-${process.env.PULSE_LIVE_PHASE ?? 'after'}.png`),
@@ -146,13 +146,11 @@ test('live offers remain visible and screen previews stay usable in the room', a
       );
       await expect(window.getByRole('button', { name: 'Watch Jules', exact: true })).toBeVisible();
       expect(await window.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-      await window.locator('.stage-live').hover();
-      await window.locator('.live-toolbar').hover();
+      await reachLiveControl(window, window.locator('.live-toolbar'));
       await window.screenshot({ path: path.join(artifacts, `live-player-mixed-${width}.png`) });
     }
     await window.getByRole('button', { name: 'Toggle compact layout', exact: true }).click();
-    await window.locator('.stage-live').hover();
-    await window.locator('.live-toolbar').hover();
+    await reachLiveControl(window, window.locator('.live-toolbar'));
     await window.screenshot({ path: path.join(artifacts, 'live-player-mixed-compact.png') });
     await expect(window.locator('.screen-video')).toBeInViewport();
     await application.evaluate(({ BrowserWindow }) =>
@@ -160,8 +158,7 @@ test('live offers remain visible and screen previews stay usable in the room', a
     );
     await window.getByRole('button', { name: 'Toggle compact layout', exact: true }).click();
     await window.getByRole('button', { name: 'Toggle compact layout', exact: true }).click();
-    await window.locator('.stage-live').hover();
-    await window.locator('.live-toolbar').hover();
+    await reachLiveControl(window, window.locator('.live-toolbar'));
     expect(
       await window.locator('.live-surface').evaluate((element) => element.clientHeight),
     ).toBeGreaterThanOrEqual(70);
@@ -182,7 +179,7 @@ test('live offers remain visible and screen previews stay usable in the room', a
     await window.getByRole('button', { name: 'Stop watching babi', exact: true }).click();
     expect(await window.locator('video').count()).toBe(1);
     await window.getByRole('button', { name: 'Watch babi', exact: true }).click();
-    await window.getByRole('button', { name: 'Back to the room', exact: true }).click();
+    await (await reachLiveControl(window, window.getByRole('button', { name: 'Back to the room', exact: true }))).click();
     await expect(window.locator('.broadcast-watching')).toHaveCount(2);
     await window.locator('.stage-room').screenshot({ path: path.join(artifacts, 'live-room-mixed.png') });
     await window.getByRole('button', { name: 'Stop receiving', exact: true }).click();

@@ -1,4 +1,5 @@
 import { _electron as electron, expect, test } from '@playwright/test';
+import { reachLiveControl } from '../helpers/live-controls';
 import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -116,8 +117,7 @@ test('in full screen the list of streams stays clear of the bars and can be clic
     const stage = window.locator('.stage-live');
     await expect(stage).toBeVisible();
 
-    await stage.hover();
-    await window.getByRole('button', { name: 'Enter full screen', exact: true }).click();
+    await (await reachLiveControl(window, window.getByRole('button', { name: 'Enter full screen', exact: true }))).click();
     await expect(stage).toHaveClass(/is-fullscreen/);
     // The bars are awake, as they are whenever the pointer moves.
     await window.mouse.move(700, 400);
