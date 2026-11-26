@@ -69,9 +69,15 @@ export class ActivityService {
         run<MediaReading | null>(mediaSessionCommand(this.song?.key ?? '')).catch(() => null),
       ]);
       const found = findGame(processes);
+      // The game is told at once; a cover still being fetched follows when it arrives.
+      const art = found ? await Promise.race([gameArt(found), wait(1_500)]) : null;
+      if (found && art === undefined)
+        void gameArt(found).then((picture) => {
+          if (picture) void this.read();
+        });
       const next: DesktopActivity = {
         game: found?.name ?? null,
-        gameArt: found ? await gameArt(found) : null,
+        gameArt: art ?? null,
         music: this.music(media) ?? musicOf(processes),
       };
       if (JSON.stringify(next) === JSON.stringify(this.current)) return;
@@ -124,6 +130,8 @@ export class ActivityService {
     return { length: Math.round(length), startedAt: new Date(this.song.startedAt).toISOString() };
   }
 }
+
+const wait = (ms: number) => new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), ms));
 
 function run<Result>(args: string[]): Promise<Result> {
   return new Promise((resolve, reject) => {

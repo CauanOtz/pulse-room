@@ -79,3 +79,20 @@ describe('the song clock', () => {
     ]);
   });
 });
+
+describe('finding a game in a store by its name', () => {
+  it('takes the game itself, not its coins, its sequel or its spin-off', async () => {
+    const { sameGame } = await import('../../src/main/application/game-art');
+    expect(sameGame("Tom Clancy's Rainbow Six® Siege", 'Rainbow Six Siege')).toBe(true);
+    expect(sameGame('Roblox - Xbox', 'Roblox')).toBe(true);
+    expect(sameGame('Roblox - Windows', 'Roblox')).toBe(true);
+    expect(sameGame('VALORANT PC', 'VALORANT')).toBe(true);
+    expect(sameGame('Hades II', 'Hades II')).toBe(true);
+    expect(sameGame('22,500 Robux for Xbox', 'Roblox')).toBe(false);
+    expect(sameGame('Minecraft Legends', 'Minecraft')).toBe(false);
+    expect(sameGame('Hades', 'Hades II')).toBe(false);
+    expect(sameGame("Tom Clancy's Rainbow Six® Siege - Ultra HD Texture Pack", 'Rainbow Six Siege')).toBe(
+      false,
+    );
+  });
+});
