@@ -112,6 +112,14 @@ test('hovering a server shows who is in its voice channels', async () => {
     await expect(card).toBeHidden();
     await expect(window.getByRole('button', { name: 'Server settings and members' })).toContainText('Beta');
 
+    // Focus handed over by code, as a closing dialog does, is not a request
+    // to look: only the keyboard opens it that way.
+    await rail.getByRole('button', { name: 'Alpha', exact: true }).evaluate((button) => {
+      (button as HTMLElement).focus();
+    });
+    await window.waitForTimeout(500);
+    await expect(window.locator('.server-peek')).toHaveCount(0);
+
     // Another server answers for itself.
     await window.mouse.move(900, 500);
     await rail.getByRole('button', { name: 'Alpha', exact: true }).hover();

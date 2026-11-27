@@ -85,24 +85,35 @@ export function ServerPresenceCard({
   // A click focuses the button, and focus would open the card again at once;
   // having chosen the server, the card stays away until the pointer leaves.
   const chosen = useRef(false);
+  // Radix types the trigger as a link; here it is always the server button.
+  const trigger = useRef<HTMLAnchorElement>(null);
   const container = useOverlayContainer();
   return (
     <HoverCard.Root
       open={open}
       onOpenChange={(next) => {
-        if (!next || !chosen.current) setOpen(next);
+        // A modal dialog hides everything behind it, the rail included; a card
+        // opened then would sit above the dialog and take its clicks.
+        const behindDialog = Boolean(trigger.current?.closest('[aria-hidden="true"]'));
+        if (!next || (!chosen.current && !behindDialog)) setOpen(next);
       }}
       openDelay={260}
       closeDelay={110}
     >
       <HoverCard.Trigger
         asChild
+        ref={trigger}
         onClick={() => {
           chosen.current = true;
           setOpen(false);
         }}
         onPointerLeave={() => {
           chosen.current = false;
+        }}
+        onFocus={(event) => {
+          // Reached with the keyboard it opens; focus handed back by a closing
+          // dialog or menu does not.
+          if (!event.currentTarget.matches(':focus-visible')) event.preventDefault();
         }}
       >
         {children}

@@ -29,10 +29,16 @@
   will-change: transform, opacity;
 }
 /* A glance: the pointer goes straight through to the channels underneath. */
+/* Important: an open modal writes pointer-events: auto onto the layers above it. */
 [data-radix-popper-content-wrapper]:has(> .server-peek),
 .server-peek,
 .server-peek * {
-  pointer-events: none;
+  pointer-events: none !important;
+}
+/* A dialog opening hides what was behind it, and that includes this card. */
+[aria-hidden='true'] .server-peek,
+[aria-hidden='true'] > .server-peek {
+  visibility: hidden;
 }
 .server-peek[data-state='open'] {
   animation: peek-in var(--peek-open) var(--peek-ease) both;
