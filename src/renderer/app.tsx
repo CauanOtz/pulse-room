@@ -14,6 +14,7 @@ import { ParticipantPopover } from './components/participant-popover';
 import { RoomAudio } from './components/room-audio';
 import { MediaOutput } from './components/media-output';
 import { ServerRail } from './components/server-rail';
+import type { PresenceReader } from './components/server-presence-card';
 import { SettingsDialog } from './components/settings-dialog';
 import { DirectPane, DirectSidebar } from './components/directs/direct-messages';
 import { InvitePeopleDialog } from './components/directs/invite-people-dialog';
@@ -354,6 +355,21 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
   const live = useLive();
   const presenceServerId = workspace?.detail.server.id;
   const occupancyReader = useRef<Poller>(undefined);
+  // Any server's voice rooms, for the card beside its icon in the rail.
+  const workspaceApi = workspace?.api;
+  const readPresence = useCallback<PresenceReader>(
+    async (serverId, signal) => {
+      if (!workspaceApi) return [];
+      const { rooms } = await workspaceApi.request<{ rooms: ChannelOccupancy[] }>(
+        `/api/presence?serverId=${serverId}`,
+        'GET',
+        undefined,
+        signal,
+      );
+      return rooms;
+    },
+    [workspaceApi],
+  );
   useEffect(() => {
     if (!workspace) return undefined;
     const poller = poll(
@@ -603,6 +619,7 @@ export function App({ workspace }: { workspace?: WorkspaceBindings }) {
         onDirects={directs?.supported ? () => directs.setOpen(!directs.open) : undefined}
         onAdd={workspace?.onAddServer}
         onAccount={workspace?.onAccount}
+        readPresence={workspaceApi ? readPresence : undefined}
       />
       {inDirects && workspace && directs ? (
         <DirectSidebar

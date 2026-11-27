@@ -272,6 +272,8 @@ describe('server and channel isolation', () => {
     ];
     const response = await request('GET', `/api/presence?serverId=${couple.id}`, wife);
     expect(response.json().rooms).toHaveLength(1);
+    expect(response.json().rooms[0].name).toBe(coupleDetail.channels.find((c) => c.type === 'voice')!.name);
+    expect(response.json().rooms[0].occupants[0]).toMatchObject({ name: 'Wife', avatarId: null });
     expect(response.body).not.toContain('Friend');
     presenceDown = true;
     expect((await request('GET', `/api/presence?serverId=${couple.id}`, wife)).statusCode).toBe(502);

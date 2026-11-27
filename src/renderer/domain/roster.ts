@@ -26,7 +26,9 @@ export const accountOf = (identity: string): string => identity.split(':')[0];
 
 export interface ChannelOccupancy {
   roomId: string;
-  occupants: { identity: string; name: string; joinedAt?: number }[];
+  /** The channel's name; absent from a service older than the server hover card. */
+  name?: string;
+  occupants: { identity: string; name: string; joinedAt?: number; avatarId?: string | null }[];
 }
 
 /**

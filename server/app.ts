@@ -941,15 +941,24 @@ export async function createServer(
 
   server.get('/api/presence', async (request) => {
     const { serverId } = z.object({ serverId: z.uuid() }).parse(request.query);
-    const { channels } = await communities.detail(actor(request).id, serverId);
+    const { channels, members } = await communities.detail(actor(request).id, serverId);
     try {
       const rooms = await presenceSource.read();
+      // The voice server only knows the name somebody joined with; the picture
+      // comes from the members list the person asking can already read.
+      const pictures = new Map(members.map((member) => [member.id, member.avatarId ?? null]));
       return {
         rooms: channels
           .filter((c) => c.type === 'voice')
           .map((c) => ({
             roomId: c.id,
-            occupants: rooms.find((room) => room.roomId === voiceRoomName(c.id))?.occupants ?? [],
+            name: c.name,
+            occupants: (rooms.find((room) => room.roomId === voiceRoomName(c.id))?.occupants ?? []).map(
+              (occupant) => ({
+                ...occupant,
+                avatarId: pictures.get(occupant.identity.split(':')[0]) ?? null,
+              }),
+            ),
           })),
       };
     } catch {

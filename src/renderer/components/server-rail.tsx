@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import appIconUrl from '../../../assets/app-icon.png';
 import type { Community } from '../../shared/community';
 import { Avatar } from './avatar';
+import { ServerPresenceCard, type PresenceReader } from './server-presence-card';
 import { cn } from './ui/utils';
 import { useNotificationStore } from '../infrastructure/notification-store';
 import { Tooltip } from './ui/tooltip';
@@ -34,6 +35,7 @@ export function ServerRail({
   directsUnread = 0,
   directsActive = false,
   onDirects,
+  readPresence,
 }: {
   servers?: Community[];
   activeId?: string;
@@ -48,6 +50,8 @@ export function ServerRail({
   directsActive?: boolean;
   /** Absent where there are no direct messages to open. */
   onDirects?(): void;
+  /** Who is in voice in a server; without it the icons show only their name. */
+  readPresence?: PresenceReader;
 }) {
   const notifications = useNotificationStore();
   const items: RailItem[] =
@@ -105,45 +109,54 @@ export function ServerRail({
         </button>
       )}
       <div className="rail-rule my-1 h-px w-7 bg-border" />
-      {items.map((server) => (
-        <button
-          className={cn(
-            'server-button grid size-9.5 shrink-0 place-items-center rounded-[13px] bg-secondary text-[10px] font-bold text-secondary-foreground transition-[border-radius,background-color,color] duration-150',
-            'hover:rounded-[10px] hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-            server.active &&
-              'is-active rounded-[10px] bg-accent text-foreground ring-1 ring-inset ring-[rgb(var(--ink)/0.1)]',
-            server.id === loadingId && 'is-loading',
-          )}
-          key={server.id}
-          type="button"
-          aria-label={
-            notifications.mentionsInServer(server.id)
-              ? `${server.label}, ${notifications.mentionsInServer(server.id)} mentions`
-              : server.label
-          }
-          title={server.label}
-          aria-current={server.active}
-          aria-busy={server.id === loadingId || undefined}
-          onClick={() => onSelect?.(server.id)}
-        >
-          {server.active && (
-            <motion.span
-              layoutId="server-selection"
-              className="server-selection"
-              aria-hidden="true"
-              transition={{ type: 'spring', stiffness: 480, damping: 36 }}
+      {items.map((server) => {
+        const button = (
+          <button
+            className={cn(
+              'server-button grid size-9.5 shrink-0 place-items-center rounded-[13px] bg-secondary text-[10px] font-bold text-secondary-foreground transition-[border-radius,background-color,color] duration-150',
+              'hover:rounded-[10px] hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              server.active &&
+                'is-active rounded-[10px] bg-accent text-foreground ring-1 ring-inset ring-[rgb(var(--ink)/0.1)]',
+              server.id === loadingId && 'is-loading',
+            )}
+            key={server.id}
+            type="button"
+            aria-label={
+              notifications.mentionsInServer(server.id)
+                ? `${server.label}, ${notifications.mentionsInServer(server.id)} mentions`
+                : server.label
+            }
+            title={readPresence ? undefined : server.label}
+            aria-current={server.active}
+            aria-busy={server.id === loadingId || undefined}
+            onClick={() => onSelect?.(server.id)}
+          >
+            {server.active && (
+              <motion.span
+                layoutId="server-selection"
+                className="server-selection"
+                aria-hidden="true"
+                transition={{ type: 'spring', stiffness: 480, damping: 36 }}
+              />
+            )}
+            <span className="server-indicator" aria-hidden="true" />
+            <Avatar
+              className="server-picture size-full overflow-hidden rounded-[inherit]"
+              name={server.label}
+              initials={server.mark}
+              imageId={server.iconId}
             />
-          )}
-          <span className="server-indicator" aria-hidden="true" />
-          <Avatar
-            className="server-picture size-full overflow-hidden rounded-[inherit]"
-            name={server.label}
-            initials={server.mark}
-            imageId={server.iconId}
-          />
-          <MentionBadge count={notifications.mentionsInServer(server.id)} />
-        </button>
-      ))}
+            <MentionBadge count={notifications.mentionsInServer(server.id)} />
+          </button>
+        );
+        return readPresence ? (
+          <ServerPresenceCard key={server.id} server={server} read={readPresence}>
+            {button}
+          </ServerPresenceCard>
+        ) : (
+          button
+        );
+      })}
       <button
         className="server-button server-action grid size-9.5 shrink-0 place-items-center rounded-[13px] bg-secondary text-muted-foreground transition-[border-radius,background-color,color] duration-150 hover:rounded-[10px] hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         type="button"

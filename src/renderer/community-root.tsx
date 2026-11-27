@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   Account,
   AccountSession,
@@ -18,6 +18,8 @@ import {
 import { Modal } from './components/modal';
 import { LoaderCircle } from 'lucide-react';
 import { ServerRail } from './components/server-rail';
+import type { PresenceReader } from './components/server-presence-card';
+import type { ChannelOccupancy } from './domain/roster';
 import { ApiError, CommunityClient } from './infrastructure/community-client';
 import { ImageCache } from './infrastructure/image-cache';
 import { ImagesProvider } from './components/avatar';
@@ -60,6 +62,13 @@ export interface WorkspaceBindings {
 }
 export function CommunityRoot({ apiUrl }: { apiUrl: string }) {
   const api = useMemo(() => new CommunityClient(apiUrl.replace(/\/$/, '')), [apiUrl]);
+  const readPresence = useCallback<PresenceReader>(
+    (id, signal) =>
+      api
+        .request<{ rooms: ChannelOccupancy[] }>(`/api/presence?serverId=${id}`, 'GET', undefined, signal)
+        .then(({ rooms }) => rooms),
+    [api],
+  );
   const images = useMemo(() => new ImageCache(api), [api]);
   const [user, setUser] = useState<Account>();
   const [restoring, setRestoring] = useState(true);
@@ -393,6 +402,7 @@ export function CommunityRoot({ apiUrl }: { apiUrl: string }) {
             directsUnread={directState.unread}
             directsActive={directsOpen}
             onDirects={directState.supported ? () => setDirectsOpen(!directsOpen) : undefined}
+            readPresence={readPresence}
           />
           {directsOpen ? (
             <div className="direct-standalone grid min-w-0 grid-cols-[17.5rem_minmax(0,1fr)]">
